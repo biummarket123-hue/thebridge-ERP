@@ -5,6 +5,9 @@ function Landing({ onLogin, onTrial }) {
   const [demoOpen, setDemoOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState("login"); // login | signup
+  const [biumOpen, setBiumOpen] = useState(false); // 비움마켓 폼 펼침
+  const [biumEmail, setBiumEmail] = useState("");
+  const [biumPassword, setBiumPassword] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [companyName, setCompanyName] = useState("");
@@ -35,16 +38,29 @@ function Landing({ onLogin, onTrial }) {
     setAuthOpen(true);
   };
 
-  // ── 비움마켓 계정으로 로그인 ──
-  const handleBiumLogin = async () => {
+  // ── 비움마켓 이메일/비밀번호 로그인 ──
+  const handleBiumEmailLogin = async (e) => {
+    e.preventDefault();
     setAuthError(""); setAuthLoading(true);
-    const { error } = await supabaseAuth.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: window.location.origin },
-    });
+    const { data, error } = await supabaseAuth.auth.signInWithPassword({ email: biumEmail, password: biumPassword });
     setAuthLoading(false);
     if (error) { setAuthError(error.message); return; }
-    // OAuth 리다이렉트 후 main.jsx에서 세션 감지
+    // 더브릿지 DB users에 기록
+    await supabaseDB.from("users").upsert({
+      id: data.user.id,
+      email: data.user.email,
+      source: "biummarket",
+      last_login: new Date().toISOString(),
+    }, { onConflict: "id" }).then(() => {}).catch(() => {});
+    onLogin(data.user, "biummarket");
+  };
+
+  // ── 비움마켓 소셜 로그인 ──
+  const handleBiumSocial = (provider) => {
+    supabaseAuth.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: window.location.origin },
+    });
   };
 
   // ── 더브릿지 자체 로그인 ──
@@ -274,22 +290,87 @@ function Landing({ onLogin, onTrial }) {
             </div>
 
             <div style={{ padding: "20px 24px 24px" }}>
-              {/* 비움마켓 로그인 */}
-              <button onClick={handleBiumLogin} disabled={authLoading}
+              {/* 비움마켓 로그인 토글 */}
+              <button onClick={() => { setBiumOpen(!biumOpen); setAuthError(""); }}
                 style={{
                   width: "100%", padding: "14px 0", borderRadius: 12, border: "none",
-                  background: "linear-gradient(135deg, #06B6D4, #3B82F6)",
+                  background: biumOpen ? "linear-gradient(135deg, #06B6D4, #3B82F6)" : "linear-gradient(135deg, #06B6D4, #3B82F6)",
                   color: "#fff", fontWeight: 700, fontSize: 15,
-                  cursor: authLoading ? "not-allowed" : "pointer", fontFamily: S,
+                  cursor: "pointer", fontFamily: S,
                   boxShadow: "0 4px 20px rgba(6,182,212,.3)",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
                 }}>
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="9" stroke="#fff" strokeWidth="2"/><text x="10" y="14" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="900" fontFamily="sans-serif">B</text></svg>
-                비움마켓 계정으로 로그인
+                비움마켓 계정으로 로그인 {biumOpen ? "▲" : "▼"}
               </button>
-              <div style={{ fontSize: 11, color: V.muted, textAlign: "center", marginTop: 6 }}>
-                비움마켓 회원이면 바로 이용 가능
-              </div>
+
+              {/* 비움마켓 펼침 영역 */}
+              {biumOpen && (
+                <div style={{ marginTop: 14, padding: 16, background: "rgba(6,182,212,.06)", border: `1px solid rgba(6,182,212,.2)`, borderRadius: 14 }}>
+                  {/* 소셜 로그인 */}
+                  <div style={{ fontSize: 11, color: V.muted, marginBottom: 10, fontWeight: 600 }}>소셜 계정으로 간편 로그인</div>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+                    <button onClick={() => handleBiumSocial("google")}
+                      style={{
+                        flex: 1, padding: "11px 0", borderRadius: 10,
+                        border: `1px solid ${V.border}`, background: "#fff", color: "#333",
+                        fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: S,
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                      }}>
+                      <svg width="16" height="16" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 01-1.8 2.72v2.26h2.92a8.78 8.78 0 002.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.83.86-3.04.86-2.34 0-4.33-1.58-5.04-3.71H.96v2.33A9 9 0 009 18z"/><path fill="#FBBC05" d="M3.96 10.71A5.41 5.41 0 013.68 9c0-.6.1-1.17.28-1.71V4.96H.96A9 9 0 000 9c0 1.45.35 2.82.96 4.04l3-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.59C13.46.89 11.43 0 9 0A9 9 0 00.96 4.96l3 2.33C4.67 5.16 6.66 3.58 9 3.58z"/></svg>
+                      Google
+                    </button>
+                    <button onClick={() => { window.location.href = "/api/auth/kakao"; }}
+                      style={{
+                        flex: 1, padding: "11px 0", borderRadius: 10, border: "none",
+                        background: "#FEE500", color: "#191919", fontWeight: 700, fontSize: 12,
+                        cursor: "pointer", fontFamily: S,
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                      }}>
+                      <svg width="16" height="16" viewBox="0 0 18 18"><path fill="#191919" d="M9 1C4.58 1 1 3.79 1 7.21c0 2.17 1.45 4.08 3.64 5.18-.16.57-.58 2.07-.67 2.39-.1.39.15.39.31.28.13-.08 2.04-1.38 2.86-1.94.6.09 1.22.13 1.86.13 4.42 0 8-2.79 8-6.25S13.42 1 9 1"/></svg>
+                      카카오
+                    </button>
+                    <button onClick={() => { window.location.href = "/api/auth/naver"; }}
+                      style={{
+                        flex: 1, padding: "11px 0", borderRadius: 10, border: "none",
+                        background: "#03C75A", color: "#fff", fontWeight: 700, fontSize: 12,
+                        cursor: "pointer", fontFamily: S,
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                      }}>
+                      <svg width="16" height="16" viewBox="0 0 18 18"><path fill="#fff" d="M12.13 9.72L5.61 0H0v18h5.87V8.28L12.39 18H18V0h-5.87z"/></svg>
+                      네이버
+                    </button>
+                  </div>
+
+                  {/* 구분선 */}
+                  <div style={{ display: "flex", alignItems: "center", margin: "10px 0 12px", gap: 10 }}>
+                    <div style={{ flex: 1, height: 1, background: V.border }} />
+                    <span style={{ fontSize: 10, color: V.muted }}>이메일로 로그인</span>
+                    <div style={{ flex: 1, height: 1, background: V.border }} />
+                  </div>
+
+                  {/* 비움마켓 이메일/비밀번호 */}
+                  <form onSubmit={handleBiumEmailLogin}>
+                    <div style={{ marginBottom: 10 }}>
+                      <input type="email" value={biumEmail} onChange={e => setBiumEmail(e.target.value)}
+                        placeholder="비움마켓 이메일" required style={{ ...authInp, padding: "11px 13px", fontSize: 13 }} />
+                    </div>
+                    <div style={{ marginBottom: 12 }}>
+                      <input type="password" value={biumPassword} onChange={e => setBiumPassword(e.target.value)}
+                        placeholder="비밀번호" required minLength={6} style={{ ...authInp, padding: "11px 13px", fontSize: 13 }} />
+                    </div>
+                    <button type="submit" disabled={authLoading}
+                      style={{
+                        width: "100%", padding: "11px 0", borderRadius: 10, border: "none",
+                        background: authLoading ? V.border : "linear-gradient(135deg, #06B6D4, #3B82F6)",
+                        color: authLoading ? V.muted : "#fff", fontWeight: 700, fontSize: 13,
+                        cursor: authLoading ? "not-allowed" : "pointer", fontFamily: S,
+                      }}>
+                      {authLoading ? "처리 중..." : "비움마켓 로그인"}
+                    </button>
+                  </form>
+                </div>
+              )}
 
               {/* 구분선 */}
               <div style={{ display: "flex", alignItems: "center", margin: "20px 0", gap: 12 }}>

@@ -1,0 +1,22 @@
+{
+  "name": "thebridge-erp",
+  "version": "2.1.0",
+  "private": true,
+  "description": "더브릿지 ERP - 동대문 원단시장 전용 AI 업무관리 플랫폼",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.101.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "xlsx": "^0.18.5",
+    "xlsx-js-style": "^1.2.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.0.0",
+    "vite": "^4.4.0"
+  }
+}

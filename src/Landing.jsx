@@ -310,6 +310,45 @@ function Landing({ onLogin, onTrial }) {
               {/* 구분선 */}
               <div style={{ display: "flex", alignItems: "center", margin: "18px 0", gap: 12 }}>
                 <div style={{ flex: 1, height: 1, background: V.border }} />
+                <span style={{ fontSize: 11, color: V.muted }}>소셜 로그인</span>
+                <div style={{ flex: 1, height: 1, background: V.border }} />
+              </div>
+
+              {/* 소셜 로그인 */}
+              <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+                <button onClick={() => supabaseAuth.auth.signInWithOAuth({ provider: "kakao", options: { redirectTo: window.location.origin } })}
+                  style={{
+                    flex: 1, padding: "12px 0", borderRadius: 11, border: "none",
+                    background: "#FEE500", color: "#191919", fontWeight: 700, fontSize: 14,
+                    cursor: "pointer", fontFamily: S, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  }}>
+                  <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#191919" d="M9 1C4.58 1 1 3.79 1 7.21c0 2.17 1.45 4.08 3.64 5.18-.16.57-.58 2.07-.67 2.39-.1.39.15.39.31.28.13-.08 2.04-1.38 2.86-1.94.6.09 1.22.13 1.86.13 4.42 0 8-2.79 8-6.25S13.42 1 9 1"/></svg>
+                  카카오 로그인
+                </button>
+                <button onClick={() => supabaseAuth.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin } })}
+                  style={{
+                    flex: 1, padding: "12px 0", borderRadius: 11,
+                    border: `1px solid ${V.border}`, background: "#fff", color: "#333", fontWeight: 700, fontSize: 14,
+                    cursor: "pointer", fontFamily: S, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  }}>
+                  <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 01-1.8 2.72v2.26h2.92a8.78 8.78 0 002.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.83.86-3.04.86-2.34 0-4.33-1.58-5.04-3.71H.96v2.33A9 9 0 009 18z"/><path fill="#FBBC05" d="M3.96 10.71A5.41 5.41 0 013.68 9c0-.6.1-1.17.28-1.71V4.96H.96A9 9 0 000 9c0 1.45.35 2.82.96 4.04l3-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.59C13.46.89 11.43 0 9 0A9 9 0 00.96 4.96l3 2.33C4.67 5.16 6.66 3.58 9 3.58z"/></svg>
+                  Google
+                </button>
+              </div>
+              <button onClick={() => supabaseAuth.auth.signInWithOAuth({ provider: "naver", options: { redirectTo: window.location.origin } })}
+                style={{
+                  width: "100%", padding: "12px 0", borderRadius: 11, border: "none",
+                  background: "#03C75A", color: "#fff", fontWeight: 700, fontSize: 14,
+                  cursor: "pointer", fontFamily: S, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  marginBottom: 14,
+                }}>
+                <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#fff" d="M12.13 9.72L5.61 0H0v18h5.87V8.28L12.39 18H18V0h-5.87z"/></svg>
+                네이버 로그인
+              </button>
+
+              {/* 구분선 2 */}
+              <div style={{ display: "flex", alignItems: "center", margin: "4px 0 14px", gap: 12 }}>
+                <div style={{ flex: 1, height: 1, background: V.border }} />
                 <span style={{ fontSize: 11, color: V.muted }}>또는</span>
                 <div style={{ flex: 1, height: 1, background: V.border }} />
               </div>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabaseAuth } from "./lib/supabase.js";
+import { supabaseAuth, supabaseDB } from "./lib/supabase.js";
 
 function Landing({ onLogin, onTrial }) {
   const [demoOpen, setDemoOpen] = useState(false);
@@ -35,20 +35,41 @@ function Landing({ onLogin, onTrial }) {
     setAuthOpen(true);
   };
 
+  // ── 비움마켓 계정으로 로그인 ──
+  const handleBiumLogin = async () => {
+    setAuthError(""); setAuthLoading(true);
+    const { error } = await supabaseAuth.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin },
+    });
+    setAuthLoading(false);
+    if (error) { setAuthError(error.message); return; }
+    // OAuth 리다이렉트 후 main.jsx에서 세션 감지
+  };
+
+  // ── 더브릿지 자체 로그인 ──
   const handleLogin = async (e) => {
     e.preventDefault();
     setAuthError(""); setAuthLoading(true);
-    const { data, error } = await supabaseAuth.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabaseDB.auth.signInWithPassword({ email, password });
     setAuthLoading(false);
     if (error) { setAuthError(error.message); return; }
-    onLogin(data.user);
+    // users 테이블에 기록
+    await supabaseDB.from("users").upsert({
+      id: data.user.id,
+      email: data.user.email,
+      source: "thebridge",
+      last_login: new Date().toISOString(),
+    }, { onConflict: "id" });
+    onLogin(data.user, "thebridge");
   };
 
+  // ── 더브릿지 회원가입 ──
   const handleSignup = async (e) => {
     e.preventDefault();
     if (!companyName.trim()) { setAuthError("회사명을 입력해주세요."); return; }
     setAuthError(""); setAuthLoading(true);
-    const { data, error } = await supabaseAuth.auth.signUp({
+    const { data, error } = await supabaseDB.auth.signUp({
       email,
       password,
       options: { data: { company_name: companyName.trim() } },
@@ -253,13 +274,37 @@ function Landing({ onLogin, onTrial }) {
             </div>
 
             <div style={{ padding: "20px 24px 24px" }}>
-              {/* 탭 */}
-              <div style={{ display: "flex", marginBottom: 20, borderRadius: 10, overflow: "hidden", border: `1px solid ${V.border}` }}>
-                {[["login", "로그인"], ["signup", "회원가입"]].map(([key, label]) => (
+              {/* 비움마켓 로그인 */}
+              <button onClick={handleBiumLogin} disabled={authLoading}
+                style={{
+                  width: "100%", padding: "14px 0", borderRadius: 12, border: "none",
+                  background: "linear-gradient(135deg, #06B6D4, #3B82F6)",
+                  color: "#fff", fontWeight: 700, fontSize: 15,
+                  cursor: authLoading ? "not-allowed" : "pointer", fontFamily: S,
+                  boxShadow: "0 4px 20px rgba(6,182,212,.3)",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                }}>
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="9" stroke="#fff" strokeWidth="2"/><text x="10" y="14" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="900" fontFamily="sans-serif">B</text></svg>
+                비움마켓 계정으로 로그인
+              </button>
+              <div style={{ fontSize: 11, color: V.muted, textAlign: "center", marginTop: 6 }}>
+                비움마켓 회원이면 바로 이용 가능
+              </div>
+
+              {/* 구분선 */}
+              <div style={{ display: "flex", alignItems: "center", margin: "20px 0", gap: 12 }}>
+                <div style={{ flex: 1, height: 1, background: V.border }} />
+                <span style={{ fontSize: 11, color: V.muted }}>또는</span>
+                <div style={{ flex: 1, height: 1, background: V.border }} />
+              </div>
+
+              {/* 더브릿지 자체 로그인/회원가입 탭 */}
+              <div style={{ display: "flex", marginBottom: 16, borderRadius: 10, overflow: "hidden", border: `1px solid ${V.border}` }}>
+                {[["login", "더브릿지 로그인"], ["signup", "회원가입"]].map(([key, label]) => (
                   <button key={key} onClick={() => { setAuthMode(key); setAuthError(""); setAuthSuccess(""); }}
                     style={{
-                      flex: 1, padding: "11px 0", border: "none", fontFamily: S,
-                      fontSize: 14, fontWeight: 700, cursor: "pointer",
+                      flex: 1, padding: "10px 0", border: "none", fontFamily: S,
+                      fontSize: 13, fontWeight: 700, cursor: "pointer",
                       background: authMode === key ? heroGrad : "transparent",
                       color: authMode === key ? "#fff" : V.muted,
                     }}>
@@ -279,7 +324,7 @@ function Landing({ onLogin, onTrial }) {
                   <div style={{ fontSize: 12, color: V.muted, marginBottom: 5 }}>이메일</div>
                   <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" required style={authInp} />
                 </div>
-                <div style={{ marginBottom: 18 }}>
+                <div style={{ marginBottom: 16 }}>
                   <div style={{ fontSize: 12, color: V.muted, marginBottom: 5 }}>비밀번호</div>
                   <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="6자 이상" required minLength={6} style={authInp} />
                 </div>
@@ -303,50 +348,12 @@ function Landing({ onLogin, onTrial }) {
                     cursor: authLoading ? "not-allowed" : "pointer", fontFamily: S,
                     boxShadow: authLoading ? "none" : "0 4px 20px rgba(124,58,237,.4)",
                   }}>
-                  {authLoading ? "처리 중..." : authMode === "login" ? "로그인" : "회원가입"}
+                  {authLoading ? "처리 중..." : authMode === "login" ? "더브릿지 로그인" : "회원가입"}
                 </button>
               </form>
 
               {/* 구분선 */}
               <div style={{ display: "flex", alignItems: "center", margin: "18px 0", gap: 12 }}>
-                <div style={{ flex: 1, height: 1, background: V.border }} />
-                <span style={{ fontSize: 11, color: V.muted }}>소셜 로그인</span>
-                <div style={{ flex: 1, height: 1, background: V.border }} />
-              </div>
-
-              {/* 소셜 로그인 */}
-              <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
-                <button onClick={() => { window.location.href = "/api/auth/kakao"; }}
-                  style={{
-                    flex: 1, padding: "12px 0", borderRadius: 11, border: "none",
-                    background: "#FEE500", color: "#191919", fontWeight: 700, fontSize: 14,
-                    cursor: "pointer", fontFamily: S, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                  }}>
-                  <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#191919" d="M9 1C4.58 1 1 3.79 1 7.21c0 2.17 1.45 4.08 3.64 5.18-.16.57-.58 2.07-.67 2.39-.1.39.15.39.31.28.13-.08 2.04-1.38 2.86-1.94.6.09 1.22.13 1.86.13 4.42 0 8-2.79 8-6.25S13.42 1 9 1"/></svg>
-                  카카오
-                </button>
-                <button onClick={() => supabaseAuth.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin } })}
-                  style={{
-                    flex: 1, padding: "12px 0", borderRadius: 11,
-                    border: `1px solid ${V.border}`, background: "#fff", color: "#333", fontWeight: 700, fontSize: 14,
-                    cursor: "pointer", fontFamily: S, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                  }}>
-                  <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 01-1.8 2.72v2.26h2.92a8.78 8.78 0 002.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.83.86-3.04.86-2.34 0-4.33-1.58-5.04-3.71H.96v2.33A9 9 0 009 18z"/><path fill="#FBBC05" d="M3.96 10.71A5.41 5.41 0 013.68 9c0-.6.1-1.17.28-1.71V4.96H.96A9 9 0 000 9c0 1.45.35 2.82.96 4.04l3-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.59C13.46.89 11.43 0 9 0A9 9 0 00.96 4.96l3 2.33C4.67 5.16 6.66 3.58 9 3.58z"/></svg>
-                  Google
-                </button>
-                <button onClick={() => { window.location.href = "/api/auth/naver"; }}
-                  style={{
-                    flex: 1, padding: "12px 0", borderRadius: 11, border: "none",
-                    background: "#03C75A", color: "#fff", fontWeight: 700, fontSize: 14,
-                    cursor: "pointer", fontFamily: S, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                  }}>
-                  <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#fff" d="M12.13 9.72L5.61 0H0v18h5.87V8.28L12.39 18H18V0h-5.87z"/></svg>
-                  네이버
-                </button>
-              </div>
-
-              {/* 구분선 2 */}
-              <div style={{ display: "flex", alignItems: "center", margin: "4px 0 14px", gap: 12 }}>
                 <div style={{ flex: 1, height: 1, background: V.border }} />
                 <span style={{ fontSize: 11, color: V.muted }}>또는</span>
                 <div style={{ flex: 1, height: 1, background: V.border }} />

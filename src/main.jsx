@@ -1,6 +1,6 @@
 import { StrictMode, useState, useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { supabaseAuth } from "./lib/supabase.js";
+import { supabaseAuth, supabaseDB } from "./lib/supabase.js";
 import Landing from "./Landing.jsx";
 import ErpApp from "./ErpApp.jsx";
 import { TrialBanner } from "./Auth.jsx";
@@ -8,6 +8,7 @@ import "./index.css";
 
 function Root() {
   const [session, setSession] = useState(undefined); // undefined = loading
+  const [loginSource, setLoginSource] = useState(null); // "biummarket" | "thebridge"
   const [trialMode, setTrialMode] = useState(false);
 
   useEffect(() => {
@@ -22,14 +23,63 @@ function Root() {
       sessionStorage.clear();
     }
 
-    supabaseAuth.auth.getSession().then(({ data: { session: s } }) => setSession(s));
+    // 두 Supabase 모두 세션 체크
+    async function checkSessions() {
+      // 1. 더브릿지 자체 세션 확인
+      const { data: { session: dbSession } } = await supabaseDB.auth.getSession();
+      if (dbSession) {
+        setSession(dbSession);
+        setLoginSource("thebridge");
+        return;
+      }
 
-    const { data: { subscription } } = supabaseAuth.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      if (!s) setTrialMode(false);
+      // 2. 비움마켓 세션 확인
+      const { data: { session: authSession } } = await supabaseAuth.auth.getSession();
+      if (authSession) {
+        setSession(authSession);
+        setLoginSource("biummarket");
+        return;
+      }
+
+      setSession(null);
+    }
+
+    checkSessions();
+
+    // 더브릿지 auth 상태 변경 감지
+    const { data: { subscription: dbSub } } = supabaseDB.auth.onAuthStateChange((_event, s) => {
+      if (s) {
+        setSession(s);
+        setLoginSource("thebridge");
+      } else if (!trialMode) {
+        // 더브릿지 로그아웃 시 비움마켓도 체크
+        supabaseAuth.auth.getSession().then(({ data: { session: authS } }) => {
+          if (authS) {
+            setSession(authS);
+            setLoginSource("biummarket");
+          } else {
+            setSession(null);
+            setLoginSource(null);
+          }
+        });
+      }
     });
 
-    return () => subscription.unsubscribe();
+    // 비움마켓 auth 상태 변경 감지
+    const { data: { subscription: authSub } } = supabaseAuth.auth.onAuthStateChange((_event, s) => {
+      if (s && !session) {
+        setSession(s);
+        setLoginSource("biummarket");
+      } else if (!s && loginSource === "biummarket") {
+        setSession(null);
+        setLoginSource(null);
+      }
+    });
+
+    return () => {
+      dbSub.unsubscribe();
+      authSub.unsubscribe();
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -38,7 +88,11 @@ function Root() {
       window.location.reload();
       return;
     }
+    // 둘 다 로그아웃
+    await supabaseDB.auth.signOut();
     await supabaseAuth.auth.signOut();
+    setSession(null);
+    setLoginSource(null);
   };
 
   // 로딩
@@ -55,7 +109,6 @@ function Root() {
     return (
       <>
         {trialMode && <TrialBanner />}
-        {/* 상단 바 */}
         <div style={{
           position: "fixed", top: trialMode ? 36 : 0, left: 0, right: 0, zIndex: 900,
           display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -70,6 +123,7 @@ function Root() {
             {session && (
               <span style={{ fontSize: 11, color: "#A89880" }}>
                 {session.user?.email}
+                {loginSource === "biummarket" && <span style={{ color: "#C084FC", marginLeft: 4 }}>(비움마켓)</span>}
               </span>
             )}
             {trialMode && (
@@ -92,10 +146,17 @@ function Root() {
     );
   }
 
-  // 미로그인 → 랜딩 페이지 (로그인 모달 내장)
+  // 미로그인 → 랜딩
   return (
     <Landing
-      onLogin={() => supabaseAuth.auth.getSession().then(({ data: { session: s } }) => setSession(s))}
+      onLogin={(user, source) => {
+        setLoginSource(source);
+        if (source === "biummarket") {
+          supabaseAuth.auth.getSession().then(({ data: { session: s } }) => setSession(s));
+        } else {
+          supabaseDB.auth.getSession().then(({ data: { session: s } }) => setSession(s));
+        }
+      }}
       onTrial={() => setTrialMode(true)}
     />
   );

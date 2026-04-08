@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase } from "./lib/supabase.js";
+import { supabaseAuth } from "./lib/supabase.js";
 
 function Landing({ onLogin, onTrial }) {
   const [demoOpen, setDemoOpen] = useState(false);
@@ -38,7 +38,7 @@ function Landing({ onLogin, onTrial }) {
   const handleLogin = async (e) => {
     e.preventDefault();
     setAuthError(""); setAuthLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabaseAuth.auth.signInWithPassword({ email, password });
     setAuthLoading(false);
     if (error) { setAuthError(error.message); return; }
     onLogin(data.user);
@@ -48,7 +48,7 @@ function Landing({ onLogin, onTrial }) {
     e.preventDefault();
     if (!companyName.trim()) { setAuthError("회사명을 입력해주세요."); return; }
     setAuthError(""); setAuthLoading(true);
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await supabaseAuth.auth.signUp({
       email,
       password,
       options: { data: { company_name: companyName.trim() } },

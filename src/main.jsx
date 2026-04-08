@@ -1,6 +1,6 @@
 import { StrictMode, useState, useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { supabase } from "./lib/supabase.js";
+import { supabaseAuth } from "./lib/supabase.js";
 import Landing from "./Landing.jsx";
 import ErpApp from "./ErpApp.jsx";
 import { TrialBanner } from "./Auth.jsx";
@@ -22,9 +22,9 @@ function Root() {
       sessionStorage.clear();
     }
 
-    supabase.auth.getSession().then(({ data: { session: s } }) => setSession(s));
+    supabaseAuth.auth.getSession().then(({ data: { session: s } }) => setSession(s));
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: { subscription } } = supabaseAuth.auth.onAuthStateChange((_event, s) => {
       setSession(s);
       if (!s) setTrialMode(false);
     });
@@ -38,7 +38,7 @@ function Root() {
       window.location.reload();
       return;
     }
-    await supabase.auth.signOut();
+    await supabaseAuth.auth.signOut();
   };
 
   // 로딩
@@ -95,7 +95,7 @@ function Root() {
   // 미로그인 → 랜딩 페이지 (로그인 모달 내장)
   return (
     <Landing
-      onLogin={() => supabase.auth.getSession().then(({ data: { session: s } }) => setSession(s))}
+      onLogin={() => supabaseAuth.auth.getSession().then(({ data: { session: s } }) => setSession(s))}
       onTrial={() => setTrialMode(true)}
     />
   );

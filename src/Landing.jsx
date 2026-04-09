@@ -507,7 +507,7 @@ function Landing({ onLogin, onTrial }) {
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ fontSize: 12, color: V.muted, marginBottom: 5 }}>아이디 <span style={{color:V.r1}}>*</span></div>
                   <div style={{display:"flex",gap:8}}>
-                    <input value={userId} onChange={e => { setUserId(e.target.value.toLowerCase()); setIdChecked(false); setIdCheckMsg(""); }} placeholder={authMode==="signup"?"영문/숫자 4자 이상":"아이디 입력"} required style={{...authInp, flex:1}} />
+                    <input value={userId} onChange={e => { setUserId(e.target.value.toLowerCase()); setIdChecked(false); setIdCheckMsg(""); }} placeholder="아이디 입력" required style={{...authInp, flex:1}} />
                     {authMode === "signup" && (
                       <button type="button" onClick={handleIdCheck}
                         style={{padding:"0 14px",borderRadius:11,border:`1px solid ${V.v1}`,background:"transparent",color:V.v3,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:S,whiteSpace:"nowrap",minWidth:70}}>

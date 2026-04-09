@@ -101,7 +101,7 @@ function Landing({ onLogin, onTrial }) {
     if (data.user) {
       const { data: company, error: companyErr } = await supabaseDB
         .from("companies")
-        .insert({ name: companyName.trim(), owner_email: email })
+        .insert({ name: companyName.trim(), owner_email: email, trial_end: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString() })
         .select("id")
         .single();
 

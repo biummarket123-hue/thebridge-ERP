@@ -46,7 +46,7 @@ begin
     'thebridge',
     coalesce(new.raw_user_meta_data->>'company_name', '')
   )
-  on conflict (id) do update set last_login = now();
+  on conflict (id) do update set last_login = now(), email = excluded.email;
   return new;
 end;
 $$;

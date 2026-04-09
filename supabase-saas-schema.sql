@@ -128,8 +128,9 @@ declare
   company_name text;
 begin
   company_name := coalesce(new.raw_user_meta_data->>'company_name', '내 회사');
-  insert into companies (name, owner_email)
-  values (company_name, new.email);
+  insert into companies (name, owner_email, trial_end)
+  values (company_name, new.email, now() + interval '90 days')
+  on conflict (owner_email) do nothing;
   return new;
 end;
 $$;

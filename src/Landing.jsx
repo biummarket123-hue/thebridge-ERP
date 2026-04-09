@@ -97,25 +97,7 @@ function Landing({ onLogin, onTrial }) {
       return;
     }
 
-    // companies 테이블에 회사 생성
-    if (data.user) {
-      const { data: company, error: companyErr } = await supabaseDB
-        .from("companies")
-        .insert({ name: companyName.trim(), owner_email: email, trial_end: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString() })
-        .select("id")
-        .single();
-
-      if (!companyErr && company) {
-        // users 테이블에 사용자 저장
-        await supabaseDB.from("users").upsert({
-          id: data.user.id,
-          email: data.user.email,
-          source: "thebridge",
-          company_name: companyName.trim(),
-        }, { onConflict: "id" });
-      }
-    }
-
+    // companies/users 테이블은 DB 트리거(handle_new_user, handle_new_thebridge_user)가 자동 생성
     setAuthSuccess("확인 이메일을 발송했습니다. 이메일을 확인해주세요.");
   };
 

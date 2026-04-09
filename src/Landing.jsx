@@ -8,7 +8,9 @@ function Landing({ onLogin, onTrial }) {
   const [biumOpen, setBiumOpen] = useState(false); // 비움마켓 폼 펼침
   const [biumEmail, setBiumEmail] = useState("");
   const [biumPassword, setBiumPassword] = useState("");
-  const [email, setEmail] = useState("");
+  const [userId, setUserId] = useState("");
+  const [idChecked, setIdChecked] = useState(false);
+  const [idCheckMsg, setIdCheckMsg] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [companyName, setCompanyName] = useState("");
@@ -38,11 +40,32 @@ function Landing({ onLogin, onTrial }) {
     outline: "none", boxSizing: "border-box",
   };
 
+  // 아이디 → 내부 이메일 변환
+  const toEmail = (id) => id.includes("@") ? id : `${id}@thebridge.erp`;
+
+  // 아이디 중복확인
+  const handleIdCheck = async () => {
+    if (!userId.trim()) { setAuthError("아이디를 입력해주세요."); return; }
+    if (userId.length < 4) { setAuthError("아이디는 4자 이상이어야 합니다."); return; }
+    if (!/^[a-zA-Z0-9._-]+$/.test(userId)) { setAuthError("아이디는 영문, 숫자, ._-만 사용 가능합니다."); return; }
+    setAuthError("");
+    const { data } = await supabaseDB.from("users").select("id").eq("email", toEmail(userId)).limit(1);
+    if (data && data.length > 0) {
+      setIdChecked(false);
+      setIdCheckMsg("이미 사용 중인 아이디입니다.");
+    } else {
+      setIdChecked(true);
+      setIdCheckMsg("사용 가능한 아이디입니다.");
+    }
+  };
+
   const openAuth = (mode = "login") => {
     setAuthMode(mode);
     setAuthError("");
     setAuthSuccess("");
     setPasswordConfirm("");
+    setIdChecked(false);
+    setIdCheckMsg("");
     setPhone("");
     setSmsCode("");
     setSmsSent(false);
@@ -129,14 +152,16 @@ function Landing({ onLogin, onTrial }) {
   // ── 더브릿지 자체 로그인 ──
   const handleLogin = async (e) => {
     e.preventDefault();
+    if (!userId.trim()) { setAuthError("아이디를 입력해주세요."); return; }
     setAuthError(""); setAuthLoading(true);
-    const { data, error } = await supabaseDB.auth.signInWithPassword({ email, password });
+    const loginEmail = toEmail(userId);
+    const { data, error } = await supabaseDB.auth.signInWithPassword({ email: loginEmail, password });
     setAuthLoading(false);
-    if (error) { setAuthError(error.message); return; }
+    if (error) { setAuthError("아이디 또는 비밀번호가 올바르지 않습니다."); return; }
     // users 테이블에 기록
     await supabaseDB.from("users").upsert({
       id: data.user.id,
-      email: data.user.email,
+      email: loginEmail,
       source: "thebridge",
       last_login: new Date().toISOString(),
     }, { onConflict: "id" });
@@ -147,31 +172,34 @@ function Landing({ onLogin, onTrial }) {
   const handleSignup = async (e) => {
     e.preventDefault();
     if (!companyName.trim()) { setAuthError("회사명을 입력해주세요."); return; }
+    if (!userId.trim() || userId.length < 4) { setAuthError("아이디를 4자 이상 입력해주세요."); return; }
+    if (!idChecked) { setAuthError("아이디 중복확인을 해주세요."); return; }
     if (!phone.trim()) { setAuthError("전화번호를 입력해주세요."); return; }
     if (!smsVerified) { setAuthError("전화번호 인증을 완료해주세요."); return; }
     if (password !== passwordConfirm) { setAuthError("비밀번호가 일치하지 않습니다."); return; }
     if (password.length < 6) { setAuthError("비밀번호는 6자 이상이어야 합니다."); return; }
     setAuthError(""); setAuthLoading(true);
+    const signupEmail = toEmail(userId);
     const { data, error } = await supabaseDB.auth.signUp({
-      email,
+      email: signupEmail,
       password,
-      options: { data: { company_name: companyName.trim(), phone: phone.replace(/[^0-9]/g, "") } },
+      options: { data: { company_name: companyName.trim(), phone: phone.replace(/[^0-9]/g, ""), user_id: userId } },
     });
     setAuthLoading(false);
     if (error) { setAuthError(error.message); return; }
     if (data.user?.identities?.length === 0) {
-      setAuthError("이미 가입된 이메일입니다.");
+      setAuthError("이미 가입된 아이디입니다.");
       return;
     }
 
     // companies/users 테이블은 DB 트리거가 자동 생성, phone 업데이트
     if (data.user) {
       await supabaseDB.from("users").upsert({
-        id: data.user.id, email, source: "thebridge",
+        id: data.user.id, email: signupEmail, source: "thebridge",
         company_name: companyName.trim(), phone: phone.replace(/[^0-9]/g, ""),
       }, { onConflict: "id" }).catch(() => {});
     }
-    setAuthSuccess("확인 이메일을 발송했습니다. 이메일을 확인해주세요.");
+    setAuthSuccess("회원가입이 완료되었습니다. 로그인해주세요.");
   };
 
   const startTrial = () => {
@@ -473,12 +501,23 @@ function Landing({ onLogin, onTrial }) {
                 {authMode === "signup" && (
                   <div style={{ marginBottom: 12 }}>
                     <div style={{ fontSize: 12, color: V.muted, marginBottom: 5 }}>회사명 <span style={{color:V.r1}}>*</span></div>
-                    <input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="예: 로하이마켓" required style={authInp} />
+                    <input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="예: 더브릿지" required style={authInp} />
                   </div>
                 )}
                 <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 12, color: V.muted, marginBottom: 5 }}>이메일 <span style={{color:V.r1}}>*</span></div>
-                  <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" required style={authInp} />
+                  <div style={{ fontSize: 12, color: V.muted, marginBottom: 5 }}>아이디 <span style={{color:V.r1}}>*</span></div>
+                  <div style={{display:"flex",gap:8}}>
+                    <input value={userId} onChange={e => { setUserId(e.target.value.toLowerCase()); setIdChecked(false); setIdCheckMsg(""); }} placeholder={authMode==="signup"?"영문/숫자 4자 이상":"아이디 입력"} required style={{...authInp, flex:1}} />
+                    {authMode === "signup" && (
+                      <button type="button" onClick={handleIdCheck}
+                        style={{padding:"0 14px",borderRadius:11,border:`1px solid ${V.v1}`,background:"transparent",color:V.v3,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:S,whiteSpace:"nowrap",minWidth:70}}>
+                        중복확인
+                      </button>
+                    )}
+                  </div>
+                  {idCheckMsg && (
+                    <div style={{fontSize:11,color:idChecked?"#22C55E":V.r1,marginTop:4,fontWeight:600}}>{idCheckMsg}</div>
+                  )}
                 </div>
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ fontSize: 12, color: V.muted, marginBottom: 5 }}>비밀번호 <span style={{color:V.r1}}>*</span></div>
@@ -531,15 +570,15 @@ function Landing({ onLogin, onTrial }) {
                   </div>
                 )}
 
-                <button type="submit" disabled={authLoading || (authMode==="signup" && !smsVerified)}
+                <button type="submit" disabled={authLoading || (authMode==="signup" && (!smsVerified || !idChecked))}
                   style={{
                     width: "100%", padding: "13px 0", borderRadius: 11, border: "none",
-                    background: (authLoading || (authMode==="signup" && !smsVerified)) ? V.border : heroGrad,
-                    color: (authLoading || (authMode==="signup" && !smsVerified)) ? V.muted : "#fff", fontWeight: 700, fontSize: 15,
-                    cursor: (authLoading || (authMode==="signup" && !smsVerified)) ? "not-allowed" : "pointer", fontFamily: S,
-                    boxShadow: (authLoading || (authMode==="signup" && !smsVerified)) ? "none" : "0 4px 20px rgba(124,58,237,.4)",
+                    background: (authLoading || (authMode==="signup" && (!smsVerified || !idChecked))) ? V.border : heroGrad,
+                    color: (authLoading || (authMode==="signup" && (!smsVerified || !idChecked))) ? V.muted : "#fff", fontWeight: 700, fontSize: 15,
+                    cursor: (authLoading || (authMode==="signup" && (!smsVerified || !idChecked))) ? "not-allowed" : "pointer", fontFamily: S,
+                    boxShadow: (authLoading || (authMode==="signup" && (!smsVerified || !idChecked))) ? "none" : "0 4px 20px rgba(124,58,237,.4)",
                   }}>
-                  {authLoading ? "처리 중..." : authMode === "login" ? "더브릿지 로그인" : "회원가입"}
+                  {authLoading ? "처리 중..." : authMode === "login" ? "로그인" : "회원가입"}
                 </button>
               </form>
 

@@ -128,9 +128,13 @@ declare
   company_name text;
 begin
   company_name := coalesce(new.raw_user_meta_data->>'company_name', '내 회사');
-  insert into companies (name, owner_email, trial_end)
-  values (company_name, new.email, now() + interval '90 days')
-  on conflict (owner_email) do nothing;
+  begin
+    insert into companies (name, owner_email, trial_end)
+    values (company_name, new.email, now() + interval '90 days')
+    on conflict (owner_email) do nothing;
+  exception when others then
+    raise log 'handle_new_user error: % %', SQLERRM, SQLSTATE;
+  end;
   return new;
 end;
 $$;

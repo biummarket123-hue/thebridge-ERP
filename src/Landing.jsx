@@ -38,20 +38,32 @@ function Landing({ onLogin, onTrial }) {
     setAuthOpen(true);
   };
 
+  // ── 비움마켓 → SaaS DB 미러 계정 동기화 ──
+  const syncBiumToSaasDB = async (biumUser) => {
+    const email = biumUser.email;
+    const syncPass = `bium_sync_${email}_bridge2026`;
+    // 1. SaaS DB에 로그인 시도
+    const { data: signInData } = await supabaseDB.auth.signInWithPassword({ email, password: syncPass });
+    if (signInData?.session) return signInData.session;
+    // 2. 없으면 서버에서 미러 계정 생성 (이메일 확인 자동 처리)
+    await fetch("/api/sync-bium-user", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    // 3. 생성 후 로그인
+    const { data: retryData } = await supabaseDB.auth.signInWithPassword({ email, password: syncPass });
+    return retryData?.session || null;
+  };
+
   // ── 비움마켓 이메일/비밀번호 로그인 ──
   const handleBiumEmailLogin = async (e) => {
     e.preventDefault();
     setAuthError(""); setAuthLoading(true);
     const { data, error } = await supabaseAuth.auth.signInWithPassword({ email: biumEmail, password: biumPassword });
+    if (error) { setAuthLoading(false); setAuthError(error.message); return; }
+    // SaaS DB에 미러 계정 동기화 (RLS 접근용)
+    await syncBiumToSaasDB(data.user);
     setAuthLoading(false);
-    if (error) { setAuthError(error.message); return; }
-    // 더브릿지 DB users에 기록
-    await supabaseDB.from("users").upsert({
-      id: data.user.id,
-      email: data.user.email,
-      source: "biummarket",
-      last_login: new Date().toISOString(),
-    }, { onConflict: "id" }).then(() => {}).catch(() => {});
     onLogin(data.user, "biummarket");
   };
 

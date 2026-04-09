@@ -9,6 +9,20 @@ export default function SaasRoot() {
   const [loginSource, setLoginSource] = useState(null); // "biummarket" | "thebridge"
   const [trialMode, setTrialMode] = useState(false);
 
+  // 비움마켓 → SaaS DB 미러 동기화
+  const syncBiumToSaasDB = async (biumUser) => {
+    const email = biumUser.email;
+    const syncPass = `bium_sync_${email}_bridge2026`;
+    const { data: signInData } = await supabaseDB.auth.signInWithPassword({ email, password: syncPass });
+    if (signInData?.session) return;
+    // 서버에서 미러 계정 생성 후 로그인
+    await fetch("/api/sync-bium-user", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    await supabaseDB.auth.signInWithPassword({ email, password: syncPass });
+  };
+
   useEffect(() => {
     // 체험판 복원
     if (sessionStorage.getItem("trial_mode") === "true") {
@@ -31,9 +45,10 @@ export default function SaasRoot() {
         return;
       }
 
-      // 2. 비움마켓 세션 확인
+      // 2. 비움마켓 세션 확인 → SaaS DB 동기화
       const { data: { session: authSession } } = await supabaseAuth.auth.getSession();
       if (authSession) {
+        await syncBiumToSaasDB(authSession.user);
         setSession(authSession);
         setLoginSource("biummarket");
         return;
@@ -50,7 +65,6 @@ export default function SaasRoot() {
         setSession(s);
         setLoginSource("thebridge");
       } else if (!trialMode) {
-        // 더브릿지 로그아웃 시 비움마켓도 체크
         supabaseAuth.auth.getSession().then(({ data: { session: authS } }) => {
           if (authS) {
             setSession(authS);
@@ -63,11 +77,13 @@ export default function SaasRoot() {
       }
     });
 
-    // 비움마켓 auth 상태 변경 감지
+    // 비움마켓 auth 상태 변경 감지 → SaaS DB 동기화
     const { data: { subscription: authSub } } = supabaseAuth.auth.onAuthStateChange((_event, s) => {
       if (s && !session) {
-        setSession(s);
-        setLoginSource("biummarket");
+        syncBiumToSaasDB(s.user).then(() => {
+          setSession(s);
+          setLoginSource("biummarket");
+        });
       } else if (!s && loginSource === "biummarket") {
         setSession(null);
         setLoginSource(null);

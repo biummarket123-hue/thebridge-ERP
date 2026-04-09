@@ -4,27 +4,31 @@ import { createClient } from "@supabase/supabase-js";
 const authUrl = import.meta.env.VITE_AUTH_SUPABASE_URL;
 const authKey = import.meta.env.VITE_AUTH_SUPABASE_ANON_KEY;
 
-export const supabaseAuth = createClient(authUrl, authKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    storageKey: "sb-auth-biummarket",
-    detectSessionInUrl: true,
-  },
-});
+export const supabaseAuth = authUrl && authKey
+  ? createClient(authUrl, authKey, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        storageKey: "sb-auth-biummarket",
+        detectSessionInUrl: true,
+      },
+    })
+  : null;
 
 // ── 더브릿지 ERP Supabase (데이터 + 자체 인증) ──
 const dbUrl = import.meta.env.VITE_SUPABASE_URL;
 const dbKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabaseDB = createClient(dbUrl, dbKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    storageKey: "sb-auth-thebridge",
-    detectSessionInUrl: false,
-  },
-});
+export const supabaseDB = dbUrl && dbKey
+  ? createClient(dbUrl, dbKey, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        storageKey: "sb-auth-thebridge",
+        detectSessionInUrl: false,
+      },
+    })
+  : null;
 
 // 하위 호환용 (기존 import { supabase } 대응)
 export const supabase = supabaseDB;

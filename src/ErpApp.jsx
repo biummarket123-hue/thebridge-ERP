@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import * as XLSX from "xlsx-js-style";
-import { G, SF, S, INIT_DATA, baseInp, dlXlsx, sC, pC, nowT } from "./constants.js";
+import { G, SF, S, baseInp, dlXlsx, sC, pC, nowT } from "./constants.js";
 import { Tag, SecTitle, Card, Empty, Toast, PrimaryBtn, GhostBtn, FLabel, ConfirmModal, EditOrderModal, EditInvModal, EditCustModal, ShippingModal } from "./components/UI.jsx";
 import OrderInput from "./components/OrderInput.jsx";
 import DepositTab from "./components/DepositTab.jsx";
@@ -14,17 +14,17 @@ function ErpApp() {
   // ── 기본값 ─────────────────────────────────────────────────
   const DEFAULT_INV = [];
   const DEFAULT_SETTINGS = {kakaoWebhook:"",lowStockAlert:10,kakaoEnabled:false,senderName:"로하이마켓",senderPhone:"",senderAddr:"서울 중구 동대문 원단시장",anthropicKey:""};
-  const DEFAULT_MANAGERS = ["실장님","고문님","장부장님","송미송","김민주","손희우"];
+  const DEFAULT_MANAGERS = [];
 
   const APP_VERSION = "v2.1";
 
   const [tab, setTab] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const [newerUrl, setNewerUrl] = useState(null);
-  const [orders, setOrders] = useState(INIT_DATA.orders);
+  const [orders, setOrders] = useState([]);
   const [inv, setInv] = useState(DEFAULT_INV);
   const [logs, setLogs] = useState([]);
-  const [customers, setCustomers] = useState(INIT_DATA.customers.map((c,i)=>({...c,id:i+1})));
+  const [customers, setCustomers] = useState([]);
   const SETTINGS_KEY = 'erp_settings_v1';
   const savedSettings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
   const [settings, setSettings] = useState({...DEFAULT_SETTINGS, ...savedSettings});
@@ -779,7 +779,6 @@ function ErpApp() {
         {tab===5 && (
           <div>
             <div style={{fontFamily:SF,fontSize:22,fontWeight:800,marginBottom:16,color:G.cream}}>대시보드</div>
-            <div style={{fontSize:11,color:G.creamMuted,marginBottom:14}}>📂 마켓원장_0403.xlsx 데이터 기준 · 총 {INIT_DATA.orders.length.toLocaleString()}건 중 최근 300건 표시</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
               {[{icon:"◈",l:"총 주문",v:orders.length,u:"건",c:G.copper},{icon:"◉",l:"총 수량",v:totalQty,u:"마",c:G.blue},{icon:"◇",l:"미입금",v:unpaid,u:"건",c:unpaid>0?G.red:G.creamMuted},{icon:"♦",l:"고객수",v:customers.length,u:"명",c:G.purple}].map(s=>(
                 <div key={s.l} style={{background:G.card,borderRadius:14,border:`1px solid ${G.border}`,padding:"16px 18px",position:"relative",overflow:"hidden"}}>
@@ -819,70 +818,6 @@ function ErpApp() {
               ))}
             </Card>
 
-            {/* 월별 매출 차트 */}
-            <Card style={{marginBottom:12}}>
-              <SecTitle>월별 매출 추이</SecTitle>
-              <div style={{display:"flex",alignItems:"flex-end",gap:3,height:80,paddingBottom:4}}>
-                {INIT_DATA.monthly.map((m,i)=>{
-                  const max=Math.max(...INIT_DATA.monthly.map(x=>x.value));
-                  const h=max>0?Math.max(4,Math.round((m.value/max)*72)):4;
-                  return (
-                    <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-                      <div style={{width:"100%",height:h,background:i===INIT_DATA.monthly.length-1?G.copper:`${G.copper}60`,borderRadius:"3px 3px 0 0",transition:"height 0.5s"}}/>
-                      <div style={{fontSize:8,color:G.creamMuted,transform:"rotate(-45deg)",whiteSpace:"nowrap"}}>{m.label.slice(5)}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-
-            {/* 온라인 채널 */}
-            <Card style={{marginBottom:12}}>
-              <SecTitle>온라인 채널별 매출 (2026)</SecTitle>
-              {INIT_DATA.online.filter(o=>o.amt2026>0).map((o,i)=>(
-                <div key={i} style={{marginBottom:10}}>
-                  <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}}>
-                    <span style={{fontWeight:600}}>{o.platform}</span>
-                    <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                      <span style={{fontSize:11,color:G.creamMuted}}>{o.cnt2026}건</span>
-                      <span style={{fontWeight:700,color:G.copper}}>{o.amt2026.toLocaleString()}원</span>
-                    </div>
-                  </div>
-                  <div style={{height:4,background:"rgba(255,255,255,0.05)",borderRadius:2,overflow:"hidden"}}>
-                    <div style={{height:"100%",width:`${Math.min(100,(o.amt2026/Math.max(...INIT_DATA.online.map(x=>x.amt2026||1)))*100)}%`,background:G.copper,borderRadius:2}}/>
-                  </div>
-                </div>
-              ))}
-            </Card>
-
-            {/* TOP 원단 */}
-            <Card style={{marginBottom:12}}>
-              <SecTitle>TOP 원단 매출</SecTitle>
-              {INIT_DATA.fabrics.slice(0,8).map((f,i)=>(
-                <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderTop:i>0?`1px solid ${G.border}`:"none"}}>
-                  <span style={{fontFamily:SF,fontSize:11,color:G.copper,fontWeight:700,minWidth:18}}>{i+1}</span>
-                  <span style={{flex:1,fontSize:13,fontWeight:600}}>{f.name}</span>
-                  <span style={{fontSize:11,color:G.creamMuted}}>{f.qty.toFixed(0)}마</span>
-                  <span style={{fontSize:12,fontWeight:700,color:G.cream}}>{f.amount.toLocaleString()}원</span>
-                </div>
-              ))}
-            </Card>
-
-            {/* 담당자별 매출 */}
-            <Card>
-              <SecTitle>담당자별 누적 매출</SecTitle>
-              {INIT_DATA.staff.filter(s=>s.total>0).map((s,i)=>(
-                <div key={i} style={{marginBottom:10}}>
-                  <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}}>
-                    <span style={{fontWeight:600}}>{s.name}</span>
-                    <span style={{fontWeight:700,color:G.copper}}>{s.total.toLocaleString()}원</span>
-                  </div>
-                  <div style={{height:4,background:"rgba(255,255,255,0.05)",borderRadius:2,overflow:"hidden"}}>
-                    <div style={{height:"100%",width:`${Math.min(100,(s.total/Math.max(...INIT_DATA.staff.map(x=>x.total||1)))*100)}%`,background:G.blue,borderRadius:2}}/>
-                  </div>
-                </div>
-              ))}
-            </Card>
           </div>
         )}
 

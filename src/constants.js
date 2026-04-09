@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import * as XLSX from "xlsx-js-style";
 
 const REWARDS_DATA = {points:[],free:[],events:[],date:""};
-const INIT_DATA = {orders:[],customers:[],monthly:[],online:[],fabrics:[],staff:[]};
 
 
 const G = {
@@ -115,4 +114,4 @@ async function aiParseImage(base64, mimeType) {
 }
 
 // ── atoms ────────────────────────────────────────────────────
-export { G, SF, S, REWARDS_DATA, INIT_DATA, baseInp, uid, nowT, dlXlsx, sC, pC, aiParseText, aiParseImage };
+export { G, SF, S, REWARDS_DATA, baseInp, uid, nowT, dlXlsx, sC, pC, aiParseText, aiParseImage };

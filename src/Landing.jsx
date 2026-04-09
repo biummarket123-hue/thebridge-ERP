@@ -10,7 +10,14 @@ function Landing({ onLogin, onTrial }) {
   const [biumPassword, setBiumPassword] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [companyName, setCompanyName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [smsCode, setSmsCode] = useState("");
+  const [smsSent, setSmsSent] = useState(false);
+  const [smsVerified, setSmsVerified] = useState(false);
+  const [smsLoading, setSmsLoading] = useState(false);
+  const [smsTimer, setSmsTimer] = useState(0);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
   const [authSuccess, setAuthSuccess] = useState("");
@@ -35,7 +42,51 @@ function Landing({ onLogin, onTrial }) {
     setAuthMode(mode);
     setAuthError("");
     setAuthSuccess("");
+    setPasswordConfirm("");
+    setPhone("");
+    setSmsCode("");
+    setSmsSent(false);
+    setSmsVerified(false);
+    setSmsTimer(0);
     setAuthOpen(true);
+  };
+
+  // ── SMS 인증번호 발송 ──
+  const handleSendSms = async () => {
+    if (!phone.trim()) { setAuthError("전화번호를 입력해주세요."); return; }
+    setSmsLoading(true); setAuthError("");
+    try {
+      const res = await fetch("/api/sms-verify", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "send", phone: phone.replace(/[^0-9]/g, "") }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setAuthError(data.error); setSmsLoading(false); return; }
+      setSmsSent(true);
+      setSmsTimer(180);
+      // 개발모드: 인증번호 자동 입력
+      if (data.devCode) setSmsCode(data.devCode);
+      const timer = setInterval(() => {
+        setSmsTimer(prev => { if (prev <= 1) { clearInterval(timer); return 0; } return prev - 1; });
+      }, 1000);
+    } catch { setAuthError("SMS 발송에 실패했습니다."); }
+    setSmsLoading(false);
+  };
+
+  // ── SMS 인증번호 확인 ──
+  const handleVerifySms = async () => {
+    if (!smsCode.trim()) { setAuthError("인증번호를 입력해주세요."); return; }
+    setSmsLoading(true); setAuthError("");
+    try {
+      const res = await fetch("/api/sms-verify", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "verify", phone: phone.replace(/[^0-9]/g, ""), code: smsCode }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setAuthError(data.error); setSmsLoading(false); return; }
+      setSmsVerified(true);
+    } catch { setAuthError("인증 확인에 실패했습니다."); }
+    setSmsLoading(false);
   };
 
   // ── 비움마켓 → SaaS DB 미러 계정 동기화 ──
@@ -96,11 +147,15 @@ function Landing({ onLogin, onTrial }) {
   const handleSignup = async (e) => {
     e.preventDefault();
     if (!companyName.trim()) { setAuthError("회사명을 입력해주세요."); return; }
+    if (!phone.trim()) { setAuthError("전화번호를 입력해주세요."); return; }
+    if (!smsVerified) { setAuthError("전화번호 인증을 완료해주세요."); return; }
+    if (password !== passwordConfirm) { setAuthError("비밀번호가 일치하지 않습니다."); return; }
+    if (password.length < 6) { setAuthError("비밀번호는 6자 이상이어야 합니다."); return; }
     setAuthError(""); setAuthLoading(true);
     const { data, error } = await supabaseDB.auth.signUp({
       email,
       password,
-      options: { data: { company_name: companyName.trim() } },
+      options: { data: { company_name: companyName.trim(), phone: phone.replace(/[^0-9]/g, "") } },
     });
     setAuthLoading(false);
     if (error) { setAuthError(error.message); return; }
@@ -109,7 +164,13 @@ function Landing({ onLogin, onTrial }) {
       return;
     }
 
-    // companies/users 테이블은 DB 트리거(handle_new_user, handle_new_thebridge_user)가 자동 생성
+    // companies/users 테이블은 DB 트리거가 자동 생성, phone 업데이트
+    if (data.user) {
+      await supabaseDB.from("users").upsert({
+        id: data.user.id, email, source: "thebridge",
+        company_name: companyName.trim(), phone: phone.replace(/[^0-9]/g, ""),
+      }, { onConflict: "id" }).catch(() => {});
+    }
     setAuthSuccess("확인 이메일을 발송했습니다. 이메일을 확인해주세요.");
   };
 
@@ -411,18 +472,53 @@ function Landing({ onLogin, onTrial }) {
               <form onSubmit={authMode === "login" ? handleLogin : handleSignup}>
                 {authMode === "signup" && (
                   <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 12, color: V.muted, marginBottom: 5 }}>회사명</div>
-                    <input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="예: 로하이마켓" style={authInp} />
+                    <div style={{ fontSize: 12, color: V.muted, marginBottom: 5 }}>회사명 <span style={{color:V.r1}}>*</span></div>
+                    <input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="예: 로하이마켓" required style={authInp} />
                   </div>
                 )}
                 <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 12, color: V.muted, marginBottom: 5 }}>이메일</div>
+                  <div style={{ fontSize: 12, color: V.muted, marginBottom: 5 }}>이메일 <span style={{color:V.r1}}>*</span></div>
                   <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" required style={authInp} />
                 </div>
-                <div style={{ marginBottom: 16 }}>
-                  <div style={{ fontSize: 12, color: V.muted, marginBottom: 5 }}>비밀번호</div>
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 12, color: V.muted, marginBottom: 5 }}>비밀번호 <span style={{color:V.r1}}>*</span></div>
                   <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="6자 이상" required minLength={6} style={authInp} />
                 </div>
+                {authMode === "signup" && (
+                  <>
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 12, color: V.muted, marginBottom: 5 }}>비밀번호 확인 <span style={{color:V.r1}}>*</span></div>
+                      <input type="password" value={passwordConfirm} onChange={e => setPasswordConfirm(e.target.value)} placeholder="비밀번호 다시 입력" required style={{...authInp, borderColor: passwordConfirm && password !== passwordConfirm ? "#F43F5E" : V.border}} />
+                      {passwordConfirm && password !== passwordConfirm && (
+                        <div style={{fontSize:11,color:V.r1,marginTop:4}}>비밀번호가 일치하지 않습니다</div>
+                      )}
+                    </div>
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ fontSize: 12, color: V.muted, marginBottom: 5 }}>전화번호 <span style={{color:V.r1}}>*</span></div>
+                      <div style={{display:"flex",gap:8}}>
+                        <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="01012345678" required disabled={smsVerified} style={{...authInp, flex:1, ...(smsVerified?{borderColor:"#22C55E",color:"#22C55E"}:{})}} />
+                        {!smsVerified && (
+                          <button type="button" onClick={handleSendSms} disabled={smsLoading || (smsSent && smsTimer > 0)}
+                            style={{padding:"0 14px",borderRadius:11,border:`1px solid ${V.v1}`,background:"transparent",color:V.v3,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:S,whiteSpace:"nowrap",minWidth:80}}>
+                            {smsLoading ? "..." : smsSent ? `재발송${smsTimer>0?` ${Math.floor(smsTimer/60)}:${String(smsTimer%60).padStart(2,"0")}`:""}` : "인증요청"}
+                          </button>
+                        )}
+                      </div>
+                      {smsSent && !smsVerified && (
+                        <div style={{display:"flex",gap:8,marginTop:8}}>
+                          <input value={smsCode} onChange={e=>setSmsCode(e.target.value)} placeholder="인증번호 6자리" maxLength={6} style={{...authInp,flex:1,letterSpacing:4,textAlign:"center",fontSize:16,fontWeight:700}} />
+                          <button type="button" onClick={handleVerifySms} disabled={smsLoading}
+                            style={{padding:"0 14px",borderRadius:11,border:"none",background:V.v1,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:S,minWidth:60}}>
+                            확인
+                          </button>
+                        </div>
+                      )}
+                      {smsVerified && (
+                        <div style={{fontSize:11,color:"#22C55E",marginTop:4,fontWeight:600}}>전화번호 인증 완료</div>
+                      )}
+                    </div>
+                  </>
+                )}
 
                 {authError && (
                   <div style={{ padding: "9px 13px", borderRadius: 9, background: "rgba(244,63,94,.12)", color: V.r1, fontSize: 13, marginBottom: 12, fontWeight: 600 }}>
@@ -435,13 +531,13 @@ function Landing({ onLogin, onTrial }) {
                   </div>
                 )}
 
-                <button type="submit" disabled={authLoading}
+                <button type="submit" disabled={authLoading || (authMode==="signup" && !smsVerified)}
                   style={{
                     width: "100%", padding: "13px 0", borderRadius: 11, border: "none",
-                    background: authLoading ? V.border : heroGrad,
-                    color: authLoading ? V.muted : "#fff", fontWeight: 700, fontSize: 15,
-                    cursor: authLoading ? "not-allowed" : "pointer", fontFamily: S,
-                    boxShadow: authLoading ? "none" : "0 4px 20px rgba(124,58,237,.4)",
+                    background: (authLoading || (authMode==="signup" && !smsVerified)) ? V.border : heroGrad,
+                    color: (authLoading || (authMode==="signup" && !smsVerified)) ? V.muted : "#fff", fontWeight: 700, fontSize: 15,
+                    cursor: (authLoading || (authMode==="signup" && !smsVerified)) ? "not-allowed" : "pointer", fontFamily: S,
+                    boxShadow: (authLoading || (authMode==="signup" && !smsVerified)) ? "none" : "0 4px 20px rgba(124,58,237,.4)",
                   }}>
                   {authLoading ? "처리 중..." : authMode === "login" ? "더브릿지 로그인" : "회원가입"}
                 </button>

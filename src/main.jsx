@@ -1,10 +1,8 @@
-import { StrictMode, useState, lazy, Suspense } from "react";
+import { StrictMode, useState, useEffect, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import ErpApp from "./ErpApp.jsx";
 import CompanyLogin from "./CompanyLogin.jsx";
 import "./index.css";
-
-const MODE = import.meta.env.VITE_MODE || "saas";
 
 const SaasRoot = lazy(() => import("./SaasRoot.jsx"));
 
@@ -54,14 +52,25 @@ const LoadingScreen = () => (
   </div>
 );
 
+function App() {
+  // 런타임 체크 - Vite tree-shaking 방지를 위해 컴포넌트 내부에서 분기
+  const [mode] = useState(() => {
+    try { return import.meta.env.VITE_MODE || "saas"; } catch { return "saas"; }
+  });
+
+  if (mode === "company") {
+    return <CompanyRoot />;
+  }
+
+  return (
+    <Suspense fallback={<LoadingScreen />}>
+      <SaasRoot />
+    </Suspense>
+  );
+}
+
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    {MODE === "company" ? (
-      <CompanyRoot />
-    ) : (
-      <Suspense fallback={<LoadingScreen />}>
-        <SaasRoot />
-      </Suspense>
-    )}
+    <App />
   </StrictMode>
 );

@@ -184,7 +184,7 @@ function ErpApp() {
           "받는분전화번호":o.phone||c.find(x=>x.name===o.customer)?.phone||"",
           "받는분기타연락처":"",
           "받는분우편번호":"",
-          "받는분주소(전체, 분할)":o.address||"",
+          "받는분주소(전체, 분할)":[o.address,o.addressDetail].filter(Boolean).join(" ")||"",
           "배송메세지1":"",
           "배송메세지2":"",
           "품목명":"",

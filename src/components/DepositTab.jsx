@@ -1,18 +1,29 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tag, SecTitle, Card, Empty, Toast, PrimaryBtn, GhostBtn, FLabel, ConfirmModal, EditOrderModal, EditInvModal, EditCustModal, ShippingModal } from "./UI.jsx";
 import { SF, S, baseInp, useTheme } from "../constants.js";
+import * as db from "../lib/db.js";
 
 function DepositTab({showToast, customers}) {
   const G = useTheme();
 
   const [sub, setSub] = useState("list"); // list | add | balance
-  const [deposits, setDeposits] = useState(() => {
-    try { const v=localStorage.getItem("bium:deposits"); return v?JSON.parse(v):[]; } catch{return [];}
-  });
-  const saveDeposits = (d) => {
-    setDeposits(d);
-    try { localStorage.setItem("bium:deposits", JSON.stringify(d)); } catch{}
-  };
+  const [deposits, setDeposits] = useState([]);
+
+  // Supabase에서 최초 로드 (실패 시 localStorage 폴백)
+  useEffect(() => {
+    (async () => {
+      try {
+        const rows = await db.fetchDeposits();
+        if (rows && rows.length) { setDeposits(rows); return; }
+      } catch (e) {
+        console.error("deposits fetch 실패:", e);
+      }
+      try {
+        const v = localStorage.getItem("bium:deposits");
+        if (v) setDeposits(JSON.parse(v));
+      } catch {}
+    })();
+  }, []);
 
   const emptyForm = {customer:"",phone:"",content:"",total:"",deposit:"",depositDate:"",note:""};
   const [form, setForm] = useState(emptyForm);
@@ -23,39 +34,70 @@ function DepositTab({showToast, customers}) {
   const totalUnpaid = deposits.filter(d=>!d.balancePaid).reduce((a,d)=>a+residual(d),0);
   const totalPaid = deposits.filter(d=>d.balancePaid).reduce((a,d)=>a+d.total,0);
   const filtered = deposits.filter(d=>
-    !search || d.customer.includes(search) || d.content.includes(search)
-  ).sort((a,b)=>b.id-a.id);
+    !search || d.customer.includes(search) || (d.content||"").includes(search)
+  ).sort((a,b)=>String(b.id).localeCompare(String(a.id)));
 
-  const addDeposit = () => {
+  const addDeposit = async () => {
     if(!form.customer.trim()||!form.total||!form.deposit){
       showToast("고객명·총금액·계약금은 필수입니다","error"); return;
     }
-    const total=parseInt(form.total.replace(/,/g,""))||0;
-    const dep=parseInt(form.deposit.replace(/,/g,""))||0;
+    const total=parseInt(String(form.total).replace(/,/g,""))||0;
+    const dep=parseInt(String(form.deposit).replace(/,/g,""))||0;
     if(dep>total){showToast("계약금이 총금액보다 클 수 없습니다","error");return;}
     const now=new Date().toLocaleDateString("ko-KR");
-    const rec={id:Date.now(),customer:form.customer.trim(),phone:form.phone.trim(),
-      content:form.content.trim(),total,deposit:dep,depositDate:form.depositDate||now,
-      note:form.note,balancePaid:dep===total,balanceDate:dep===total?now:"",
-      regDate:now};
-    saveDeposits([rec,...deposits]);
-    setForm(emptyForm);
-    showToast("계약금 등록 완료!");
-    setSub("list");
+    const payload={
+      customer:form.customer.trim(),
+      phone:form.phone.trim(),
+      content:form.content.trim(),
+      total,
+      deposit:dep,
+      depositDate:form.depositDate||now,
+      note:form.note,
+      balancePaid:dep===total,
+      balanceDate:dep===total?now:"",
+      regDate:now,
+    };
+    try {
+      const saved = await db.insertDeposit(payload);
+      if (saved) {
+        setDeposits(p=>[saved,...p]);
+      } else {
+        setDeposits(p=>[{...payload,id:Date.now()},...p]);
+      }
+      setForm(emptyForm);
+      showToast("계약금 등록 완료!");
+      setSub("list");
+    } catch (e) {
+      console.error("계약금 저장 실패:", e);
+      showToast("저장 실패: "+(e.message||""),"error");
+    }
   };
 
-  const payBalance = () => {
+  const payBalance = async () => {
     if(!balForm.id){showToast("거래를 선택해주세요","error");return;}
     const now=new Date().toLocaleDateString("ko-KR");
-    saveDeposits(deposits.map(d=>d.id===parseInt(balForm.id)?
-      {...d,balancePaid:true,balanceDate:balForm.balanceDate||now}:d));
-    setBalForm({id:"",balanceDate:""});
-    showToast("잔금 완납 처리 완료!");
-    setSub("list");
+    const balDate = balForm.balanceDate||now;
+    try {
+      await db.updateDeposit(balForm.id, { balancePaid:true, balanceDate: balDate });
+      setDeposits(p=>p.map(d=>String(d.id)===String(balForm.id)?{...d,balancePaid:true,balanceDate:balDate}:d));
+      setBalForm({id:"",balanceDate:""});
+      showToast("잔금 완납 처리 완료!");
+      setSub("list");
+    } catch (e) {
+      console.error("잔금 처리 실패:", e);
+      showToast("저장 실패: "+(e.message||""),"error");
+    }
   };
 
-  const deleteDeposit = (id) => {
-    saveDeposits(deposits.filter(d=>d.id!==id));
+  const deleteDeposit = async (id) => {
+    try {
+      await db.deleteDeposit(id);
+    } catch (e) {
+      console.error("삭제 실패:", e);
+      showToast("삭제 실패","error");
+      return;
+    }
+    setDeposits(p=>p.filter(d=>d.id!==id));
     showToast("삭제 완료");
   };
 
@@ -254,7 +296,7 @@ function DepositTab({showToast, customers}) {
               </div>
 
               {balForm.id&&(()=>{
-                const d=deposits.find(x=>x.id===parseInt(balForm.id));
+                const d=deposits.find(x=>String(x.id)===String(balForm.id));
                 if(!d) return null;
                 return (
                   <div style={{padding:"12px",background:G.surface,borderRadius:10,

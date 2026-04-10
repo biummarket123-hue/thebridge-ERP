@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { Tag, SecTitle, Card, Empty, Toast, PrimaryBtn, GhostBtn, FLabel, ConfirmModal, EditOrderModal, EditInvModal, EditCustModal, ShippingModal } from "./UI.jsx";
-import { SF, S, baseInp, useTheme } from "../constants.js";
+import { SF, S, baseInp, nowT, useTheme } from "../constants.js";
 
 function BarcodeTab({inv, setInv, logs, setLogs, barcodeDB, setBarcodeDB, showToast}) {
   const G = useTheme();

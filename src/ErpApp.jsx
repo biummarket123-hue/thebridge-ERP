@@ -111,16 +111,25 @@ function ErpApp() {
     if (order.status==="출고완료") { showToast("이미 출고완료된 주문입니다"); return; }
     const t = nowT();
     try {
+      // 같은 fabric/color가 여러 품목에 걸쳐 있을 때 로컬 누적 차감
+      const runningStock = new Map(); // invItem.id -> running stock
+      const newLogs = [];
       for (const item of (order.items||[])) {
         const invItem = inv.find(i=>i.fabric===item.fabric&&i.color===item.color);
         if (invItem) {
-          const newStock = Math.max(0, invItem.stock - item.qty);
-          await db.updateInventoryItem(invItem.id, { stock: newStock });
-          setInv(p=>p.map(i=>i.id===invItem.id?{...i,stock:newStock}:i));
+          const current = runningStock.has(invItem.id) ? runningStock.get(invItem.id) : invItem.stock;
+          const next = Math.max(0, current - (item.qty||0));
+          runningStock.set(invItem.id, next);
         }
         const log = await db.insertLog({...t, type:"출고", fabric:item.fabric, color:item.color||"", qty:item.qty, ref:orderId, note:`판매출고 — ${order.customer}`});
-        if (log) setLogs(p=>[log,...p]);
+        if (log) newLogs.push(log);
       }
+      // 누적 결과를 한 번에 DB + state 반영
+      for (const [invId, stock] of runningStock.entries()) {
+        await db.updateInventoryItem(invId, { stock });
+      }
+      setInv(p=>p.map(i=>runningStock.has(i.id)?{...i,stock:runningStock.get(i.id)}:i));
+      if (newLogs.length) setLogs(p=>[...newLogs,...p]);
       await db.updateOrder(orderId, { status:"출고완료" });
       setOrders(p=>p.map(o=>o.id===orderId?{...o,status:"출고완료"}:o));
       showToast("출고 처리 완료");
@@ -258,12 +267,14 @@ function ErpApp() {
 
   const deleteItem = async () => {
     if (!confirmDel) return;
+    const type = confirmDel.type;
+    let ok = false;
     try {
-      if (confirmDel.type==="order") { await db.deleteOrder(confirmDel.id); setOrders(p=>p.filter(o=>o.id!==confirmDel.id)); }
-      if (confirmDel.type==="inv") { await db.deleteInventoryItem(confirmDel.id); setInv(p=>p.filter(i=>i.id!==confirmDel.id)); }
-      if (confirmDel.type==="log") { await db.deleteLog(confirmDel.id); setLogs(p=>p.filter(l=>l.id!==confirmDel.id)); }
-      if (confirmDel.type==="customer") { await db.deleteCustomer(confirmDel.id); setCustomers(p=>p.filter(c=>c.id!==confirmDel.id)); }
-      if (confirmDel.type==="reset") {
+      if (type==="order") { await db.deleteOrder(confirmDel.id); setOrders(p=>p.filter(o=>o.id!==confirmDel.id)); ok = true; }
+      else if (type==="inv") { await db.deleteInventoryItem(confirmDel.id); setInv(p=>p.filter(i=>i.id!==confirmDel.id)); ok = true; }
+      else if (type==="log") { await db.deleteLog(confirmDel.id); setLogs(p=>p.filter(l=>l.id!==confirmDel.id)); ok = true; }
+      else if (type==="customer") { await db.deleteCustomer(confirmDel.id); setCustomers(p=>p.filter(c=>c.id!==confirmDel.id)); ok = true; }
+      else if (type==="reset") {
         await db.clearAllData();
         const [i,m] = await Promise.all([db.fetchInventory(), db.fetchManagers()]);
         setOrders([]);
@@ -273,11 +284,15 @@ function ErpApp() {
         setSettings(DEFAULT_SETTINGS);
         setManagers(m.length ? m : DEFAULT_MANAGERS);
         setBarcodeDB({});
+        ok = true;
         showToast("전체 초기화 완료");
       }
-    } catch(e) { console.error("Delete error:", e); }
+    } catch(e) {
+      console.error("Delete error:", e);
+      showToast("삭제 실패: "+(e.message||"오류"),"error");
+    }
     setConfirmDel(null);
-    if (confirmDel.type!=="reset") showToast("삭제 완료");
+    if (ok && type!=="reset") showToast("삭제 완료");
   };
 
   const totalQty = orders.reduce((a,o)=>a+o.items.reduce((b,i)=>b+i.qty,0),0);

@@ -114,6 +114,8 @@ function AutoShipOut({orders, setOrders, inv, setInv, logs, setLogs, showToast, 
     if (selOrders.length===0) { showToast("출고할 주문을 선택하세요","error"); return; }
     const t = nowT();
     const newLogs = [];
+    // 여러 주문/아이템이 같은 fabric/color에 걸려도 누적 차감되도록
+    const runningStock = new Map(); // invItem.id -> running stock
     try {
       for (const oid of selOrders) {
         const order = orders.find(o=>o.id===oid);
@@ -121,16 +123,24 @@ function AutoShipOut({orders, setOrders, inv, setInv, logs, setLogs, showToast, 
         for (const item of (order.items||[])) {
           const invItem = inv.find(i=>i.fabric===item.fabric&&i.color===item.color);
           if (invItem) {
-            const newStock = Math.max(0, invItem.stock - item.qty);
-            await db.updateInventoryItem(invItem.id, { stock: newStock });
+            const current = runningStock.has(invItem.id) ? runningStock.get(invItem.id) : invItem.stock;
+            const next = Math.max(0, current - (item.qty||0));
+            runningStock.set(invItem.id, next);
           }
-          setInv(p=>p.map(i=>i.fabric===item.fabric&&i.color===item.color?{...i,stock:Math.max(0,i.stock-item.qty)}:i));
           const log = await db.insertLog({...t, type:"출고", fabric:item.fabric, color:item.color||"", qty:item.qty, ref:order.id, note:`판매출고 — ${order.customer}`});
           if (log) newLogs.push(log);
         }
-        await db.updateOrder(oid, { status:"출고완료" });
-        setOrders(p=>p.map(o=>o.id===oid?{...o,status:"출고완료"}:o));
       }
+      // 누적 결과 한 번에 DB 반영
+      for (const [invId, stock] of runningStock.entries()) {
+        await db.updateInventoryItem(invId, { stock });
+      }
+      // 주문 상태 업데이트
+      for (const oid of selOrders) {
+        await db.updateOrder(oid, { status:"출고완료" });
+      }
+      setInv(p=>p.map(i=>runningStock.has(i.id)?{...i,stock:runningStock.get(i.id)}:i));
+      setOrders(p=>p.map(o=>selOrders.includes(o.id)?{...o,status:"출고완료"}:o));
       setLogs(p=>[...newLogs,...p]);
       setSelOrders([]);
       showToast(`${selOrders.length}건 자동출고 완료`);

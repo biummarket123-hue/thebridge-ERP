@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Tag, SecTitle, Card, Empty, Toast, PrimaryBtn, GhostBtn, FLabel, ConfirmModal, EditOrderModal, EditInvModal, EditCustModal, ShippingModal } from "./UI.jsx";
-import { G, SF, S, baseInp, sC } from "../constants.js";
+import { SF, S, baseInp, sC, useTheme } from "../constants.js";
 import * as db from "../lib/db.js";
 
 function CustomerTab({customers, setCustomers, orders, exportCustomers, showToast, kakaoAlert, setConfirmDel, setEditingCust}) {
+  const G = useTheme();
   const [form, setForm] = useState({name:"",phone:"",address:"",note:""});
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(null);
@@ -58,7 +59,7 @@ function CustomerTab({customers, setCustomers, orders, exportCustomers, showToas
                 <span style={{color:G.copper,fontWeight:700,fontSize:11}}>{o.id}</span>
                 <span style={{color:G.creamMuted}}>{o.date}</span>
                 <span style={{flex:1}}>{o.items.map(i=>`${i.fabric} ${i.qty}마`).join(", ")}</span>
-                <Tag c={sC(o.status)[0]} bg={sC(o.status)[1]}>{o.status}</Tag>
+                <Tag c={sC(o.status,G)[0]} bg={sC(o.status,G)[1]}>{o.status}</Tag>
               </div>
             ))
           }

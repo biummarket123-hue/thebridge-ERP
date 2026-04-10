@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
 import * as XLSX from "xlsx-js-style";
 
 const REWARDS_DATA = {points:[],free:[],events:[],date:""};
@@ -12,7 +12,20 @@ const G = {
   red:"#C05A4A", redBg:"rgba(192,90,74,0.12)", yellow:"#C4963A",
   yellowBg:"rgba(196,150,58,0.12)", blue:"#4A7EA8", blueBg:"rgba(74,126,168,0.12)",
   purple:"#8A6AB8",
+  trackBg:"rgba(255,255,255,0.06)", subtleBg:"rgba(255,255,255,0.04)",
 };
+const GL = {
+  bg:"#EDE8DE", surface:"#F5F2EC", card:"#FFFFFF",
+  border:"#AEA394", copper:"#9E5420", copperLight:"#B86A30",
+  copperGlow:"rgba(158,84,32,0.15)", cream:"#1A1612", creamMuted:"#524639",
+  white:"#FFFFFF", green:"#1B6E35", greenBg:"rgba(27,110,53,0.14)",
+  red:"#B22818", redBg:"rgba(178,40,24,0.12)", yellow:"#7A5D12",
+  yellowBg:"rgba(122,93,18,0.14)", blue:"#1E527A", blueBg:"rgba(30,82,122,0.12)",
+  purple:"#553D85",
+  trackBg:"rgba(0,0,0,0.10)", subtleBg:"rgba(0,0,0,0.06)",
+};
+const ThemeCtx = createContext(G);
+const useTheme = () => useContext(ThemeCtx);
 const S = "'Noto Sans KR','Apple SD Gothic Neo',sans-serif";
 const SF = "'Noto Serif KR','Apple SD Gothic Neo',serif";
 let _n = 100;
@@ -23,8 +36,9 @@ const nowT = () => {
 };
 const baseInp = {
   width:"100%", padding:"10px 13px", borderRadius:10,
-  border:`1px solid ${G.border}`, background:G.surface,
-  fontFamily:S, fontSize:13, color:G.cream,
+  border:"1px solid var(--border, #2E2820)",
+  background:"var(--surface, #161410)",
+  fontFamily:S, fontSize:13, color:"var(--cream, #F0E6D6)",
   outline:"none", boxSizing:"border-box",
 };
 
@@ -37,8 +51,8 @@ const dlXlsx = (wb, filename) => {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
-const sC = s => s==="출고완료" ? [G.green,G.greenBg] : s==="준비중" ? [G.yellow,G.yellowBg] : [G.blue,G.blueBg];
-const pC = p => p==="입금완료" ? [G.green,G.greenBg] : [G.red,G.redBg];
+const sC = (s, T=G) => s==="출고완료" ? [T.green,T.greenBg] : s==="준비중" ? [T.yellow,T.yellowBg] : [T.blue,T.blueBg];
+const pC = (p, T=G) => p==="입금완료" ? [T.green,T.greenBg] : [T.red,T.redBg];
 
 const PARSE_SYSTEM = `동대문 원단시장 카카오톡 주문 메시지 분석. 순수 JSON만 반환. 마크다운 없이.
 {"customer":"고객명","phone":"전화번호 또는 null","items":[{"fabric":"원단명","color":"색상/번호","qty":숫자}],"payment":"입금완료|미입금","address":"기본주소 또는 null","address_detail":"상세주소 또는 null","links":["URL링크들 배열, 없으면 빈배열"],"note":"메모 또는 null"}
@@ -114,4 +128,4 @@ async function aiParseImage(base64, mimeType) {
 }
 
 // ── atoms ────────────────────────────────────────────────────
-export { G, SF, S, REWARDS_DATA, baseInp, uid, nowT, dlXlsx, sC, pC, aiParseText, aiParseImage };
+export { G, GL, SF, S, REWARDS_DATA, baseInp, uid, nowT, dlXlsx, sC, pC, aiParseText, aiParseImage, ThemeCtx, useTheme };

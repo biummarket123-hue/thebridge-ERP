@@ -1,18 +1,10 @@
 import { useState } from "react";
 import * as XLSX from "xlsx-js-style";
 
+import { SF, S, baseInp, useTheme } from "../constants.js";
+
 function ExcelImport({orders, setOrders, customers, setCustomers, showToast}) {
-  const SF="'Noto Serif KR',serif";
-  const S="'Noto Sans KR',sans-serif";
-  const G={bg:"#0D0B09",surface:"#161410",card:"#1E1A16",border:"#2E2820",
-    copper:"#C8794A",copperLight:"#E8956A",copperGlow:"rgba(200,121,74,0.15)",
-    cream:"#F0E6D6",creamMuted:"#A89880",white:"#FFFFFF",
-    green:"#5B9E72",greenBg:"rgba(91,158,114,0.12)",
-    red:"#C05A4A",redBg:"rgba(192,90,74,0.12)",
-    yellow:"#C4963A",yellowBg:"rgba(196,150,58,0.12)",
-    blue:"#4A7EA8",blueBg:"rgba(74,126,168,0.12)"};
-  const baseInp={width:"100%",padding:"10px 13px",borderRadius:10,border:`1px solid ${G.border}`,
-    background:G.surface,fontFamily:S,fontSize:13,color:G.cream,outline:"none",boxSizing:"border-box"};
+  const G = useTheme();
 
   const [step, setStep] = useState("idle"); // idle | preview | done
   const [preview, setPreview] = useState(null); // {orders:[], customers:[]}
@@ -173,7 +165,7 @@ function ExcelImport({orders, setOrders, customers, setCustomers, showToast}) {
       </div>
 
       {/* 가져올 데이터 종류 */}
-      <div style={{display:"flex",gap:0,background:"rgba(255,255,255,.04)",borderRadius:9,padding:3,marginBottom:12}}>
+      <div style={{display:"flex",gap:0,background:G.subtleBg,borderRadius:9,padding:3,marginBottom:12}}>
         {[{k:"orders",l:"📋 주문 데이터"},{k:"customers",l:"👥 고객 데이터"}].map(t=>(
           <button key={t.k} onClick={()=>{setMode(t.k);setStep("idle");setColMap({});setHeaders([]);setRawRows([]);}}
             style={{flex:1,padding:"9px 4px",borderRadius:7,border:"none",cursor:"pointer",
@@ -251,7 +243,7 @@ function ExcelImport({orders, setOrders, customers, setCustomers, showToast}) {
           </div>
 
           {/* 추가/교체 옵션 */}
-          <div style={{display:"flex",gap:0,background:"rgba(255,255,255,.04)",borderRadius:9,padding:3,marginBottom:14}}>
+          <div style={{display:"flex",gap:0,background:G.subtleBg,borderRadius:9,padding:3,marginBottom:14}}>
             {[{k:"append",l:"기존 데이터에 추가"},{k:"replace",l:"기존 데이터 교체"}].map(t=>(
               <button key={t.k} onClick={()=>setImportType(t.k)}
                 style={{flex:1,padding:"8px 4px",borderRadius:7,border:"none",cursor:"pointer",
@@ -273,7 +265,7 @@ function ExcelImport({orders, setOrders, customers, setCustomers, showToast}) {
               style={{flex:2,padding:11,borderRadius:10,border:"none",
                 background:`linear-gradient(135deg,${G.copper},${G.copperLight})`,
                 color:"#fff",fontWeight:800,fontSize:13,cursor:"pointer",fontFamily:S,
-                boxShadow:"0 4px 20px rgba(200,121,74,.4)"}}>
+                boxShadow:`0 4px 20px ${G.copperGlow}`}}>
               ✓ {rawRows.length}건 불러오기
             </button>
           </div>

@@ -11,10 +11,11 @@ html {
 
 body {
   background: #07050F;
-  color: #F0EBF8;
+  color: #F0E6D6;
   font-family: 'Noto Sans KR', sans-serif;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
+  transition: background 0.3s, color 0.3s;
 }
 
 /* 스크롤바 숨김 */

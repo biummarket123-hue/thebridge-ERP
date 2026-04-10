@@ -1,8 +1,9 @@
 import { useState, useRef } from "react";
 import { Tag, SecTitle, Card, Empty, Toast, PrimaryBtn, GhostBtn, FLabel, ConfirmModal, EditOrderModal, EditInvModal, EditCustModal, ShippingModal } from "./UI.jsx";
-import { G, SF, S, baseInp } from "../constants.js";
+import { SF, S, baseInp, useTheme } from "../constants.js";
 
 function BarcodeTab({inv, setInv, logs, setLogs, barcodeDB, setBarcodeDB, showToast}) {
+  const G = useTheme();
   const [mode, setMode] = useState("scan"); // scan | register
   const [scanInput, setScanInput] = useState("");
   const [scanResult, setScanResult] = useState(null);
@@ -11,7 +12,7 @@ function BarcodeTab({inv, setInv, logs, setLogs, barcodeDB, setBarcodeDB, showTo
   const [regBarcode, setRegBarcode] = useState("");
   const [regFabric, setRegFabric] = useState("");
   const [regColor, setRegColor] = useState("");
-  const scanRef = React.useRef();
+  const scanRef = useRef();
 
   // 스캔 처리
   const handleScan = (code) => {

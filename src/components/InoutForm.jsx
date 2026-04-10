@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Tag, SecTitle, Card, Empty, Toast, PrimaryBtn, GhostBtn, FLabel, ConfirmModal, EditOrderModal, EditInvModal, EditCustModal, ShippingModal } from "./UI.jsx";
-import { G, SF, S, baseInp, nowT, sC } from "../constants.js";
+import { SF, S, baseInp, nowT, sC, useTheme } from "../constants.js";
 import * as db from "../lib/db.js";
 
 function InoutForm({inv, setInv, logs, setLogs, showToast}) {
+  const G = useTheme();
   const [f, setF] = useState({itemNo:"",fabric:"",color:"",qty:"",costPrice:"",supplier:"",note:""});
 
   const add = async () => {
@@ -105,6 +106,7 @@ function InoutForm({inv, setInv, logs, setLogs, showToast}) {
 
 // ════════════════ 자동출고 컴포넌트 ══════════════════════════
 function AutoShipOut({orders, setOrders, inv, setInv, logs, setLogs, showToast, onShipDone}) {
+  const G = useTheme();
   const [selOrders, setSelOrders] = useState([]);
   const pending = orders.filter(o=>o.status!=="출고완료");
 
@@ -154,13 +156,13 @@ function AutoShipOut({orders, setOrders, inv, setInv, logs, setLogs, showToast, 
               const sel = selOrders.includes(o.id);
               return (
                 <div key={o.id} onClick={()=>setSelOrders(p=>sel?p.filter(x=>x!==o.id):[...p,o.id])}
-                  style={{display:"flex",alignItems:"flex-start",gap:10,padding:"13px 14px",background:sel?`${G.copper}10`:G.card,borderRadius:10,border:`1.5px solid ${sel?G.copper:G.border}`,marginBottom:7,cursor:"pointer",transition:"all 0.15s"}}>
+                  style={{display:"flex",alignItems:"flex-start",gap:10,padding:"13px 14px",background:sel?G.copperGlow:G.card,borderRadius:10,border:`1.5px solid ${sel?G.copper:G.border}`,marginBottom:7,cursor:"pointer",transition:"all 0.15s"}}>
                   <input type="checkbox" checked={sel} onChange={()=>{}} style={{accentColor:G.copper,width:17,height:17,marginTop:2,flexShrink:0,cursor:"pointer"}}/>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
                       <span style={{fontSize:11,color:G.copper,fontWeight:700}}>{o.id}</span>
                       <span style={{fontWeight:800,fontSize:14}}>{o.customer}</span>
-                      <Tag c={sC(o.status)[0]} bg={sC(o.status)[1]}>{o.status}</Tag>
+                      <Tag c={sC(o.status,G)[0]} bg={sC(o.status,G)[1]}>{o.status}</Tag>
                     </div>
                     <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
                       {o.items.map((item,i)=>(

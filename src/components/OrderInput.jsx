@@ -1,10 +1,11 @@
 import { useState } from "react";
 import * as XLSX from "xlsx-js-style";
 import { Tag, SecTitle, Card, Empty, Toast, PrimaryBtn, GhostBtn, FLabel, ConfirmModal, EditOrderModal, EditInvModal, EditCustModal, ShippingModal } from "./UI.jsx";
-import { G, SF, S, baseInp, aiParseText, uid, nowT, pC } from "../constants.js";
+import { SF, S, baseInp, aiParseText, uid, nowT, pC, useTheme } from "../constants.js";
 import * as db from "../lib/db.js";
 
 function OrderInput({inv, setInv, orders, setOrders, logs, setLogs, customers, setCustomers, setTab, showToast, kakaoAlert, managers, setManagers, activeManager, setActiveManager}) {
+  const G = useTheme();
   const [newManager, setNewManager] = useState("");
   const [showManagerForm, setShowManagerForm] = useState(false);
   const [txt, setTxt] = useState("");
@@ -129,7 +130,7 @@ function OrderInput({inv, setInv, orders, setOrders, logs, setLogs, customers, s
 
         {/* 선택된 담당자 표시 */}
         {activeManager && (
-          <div style={{marginTop:showManagerForm?8:0,padding:"6px 12px",background:`${G.copper}15`,borderRadius:8,fontSize:12,color:G.copper,fontWeight:700,display:"flex",alignItems:"center",gap:6}}>
+          <div style={{marginTop:showManagerForm?8:0,padding:"6px 12px",background:G.copperGlow,borderRadius:8,fontSize:12,color:G.copper,fontWeight:700,display:"flex",alignItems:"center",gap:6}}>
             <span>✓</span> <span>{activeManager}</span> 담당으로 주문 등록됩니다
           </div>
         )}
@@ -171,7 +172,7 @@ function OrderInput({inv, setInv, orders, setOrders, logs, setLogs, customers, s
             {[
               {l:"고객명", v:<span style={{fontWeight:800,fontSize:15}}>{parsed.customer||"—"}</span>},
               ...(parsed.phone?[{l:"연락처",v:<span style={{color:G.creamMuted}}>{parsed.phone}</span>}]:[]),
-              {l:"결제", v:<Tag c={pC(parsed.payment)[0]} bg={pC(parsed.payment)[1]}>{parsed.payment||"미입금"}</Tag>},
+              {l:"결제", v:<Tag c={pC(parsed.payment,G)[0]} bg={pC(parsed.payment,G)[1]}>{parsed.payment||"미입금"}</Tag>},
               ...(parsed.address?[{l:"배송지",v:<span style={{fontSize:12,color:G.creamMuted}}>{parsed.address}{parsed.address_detail ? ` ${parsed.address_detail}` : ""}</span>}]:[]),
               ...((parsed.links||[]).map((lnk,i)=>({l:i===0?"링크":"",v:<a key={i} href={lnk} target="_blank" rel="noopener noreferrer" style={{fontSize:12,color:G.blue,textDecoration:"underline"}}>{lnk.length>40?lnk.slice(0,40)+"...":lnk}</a>}))),
               ...(parsed.note?[{l:"메모",v:<span style={{fontSize:12,color:G.creamMuted}}>{parsed.note}</span>}]:[]),
@@ -211,7 +212,7 @@ function OrderInput({inv, setInv, orders, setOrders, logs, setLogs, customers, s
         </Card>
       )}
 
-      <div style={{padding:"12px 14px",background:`${G.copper}09`,borderRadius:10,border:`1px solid ${G.copper}25`,display:"flex",gap:10,alignItems:"flex-start"}}>
+      <div style={{padding:"12px 14px",background:G.copperGlow,borderRadius:10,border:`1px solid ${G.copper}`,display:"flex",gap:10,alignItems:"flex-start"}}>
         <span style={{color:G.copper,fontSize:16}}>✦</span>
         <div style={{fontSize:12,color:G.creamMuted,lineHeight:1.9}}>
           카카오톡 주문 채팅을 <b style={{color:G.cream}}>복사 → 붙여넣기</b> 하면<br/>

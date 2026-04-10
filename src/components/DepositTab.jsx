@@ -1,20 +1,9 @@
 import { useState } from "react";
 import { Tag, SecTitle, Card, Empty, Toast, PrimaryBtn, GhostBtn, FLabel, ConfirmModal, EditOrderModal, EditInvModal, EditCustModal, ShippingModal } from "./UI.jsx";
-import { G, SF, S } from "../constants.js";
+import { SF, S, baseInp, useTheme } from "../constants.js";
 
 function DepositTab({showToast, customers}) {
-  const SF="'Noto Serif KR','Apple SD Gothic Neo',serif";
-  const S="'Noto Sans KR','Apple SD Gothic Neo',sans-serif";
-  const G={bg:"#0D0B09",surface:"#161410",card:"#1E1A16",border:"#2E2820",
-    copper:"#C8794A",copperLight:"#E8956A",copperGlow:"rgba(200,121,74,0.15)",
-    cream:"#F0E6D6",creamMuted:"#A89880",white:"#FFFFFF",
-    green:"#5B9E72",greenBg:"rgba(91,158,114,0.12)",
-    red:"#C05A4A",redBg:"rgba(192,90,74,0.12)",
-    yellow:"#C4963A",yellowBg:"rgba(196,150,58,0.12)",
-    blue:"#4A7EA8",blueBg:"rgba(74,126,168,0.12)",purple:"#8A6AB8"};
-  const baseInp={width:"100%",padding:"10px 13px",borderRadius:10,
-    border:`1px solid ${G.border}`,background:G.surface,
-    fontFamily:S,fontSize:13,color:G.cream,outline:"none",boxSizing:"border-box"};
+  const G = useTheme();
 
   const [sub, setSub] = useState("list"); // list | add | balance
   const [deposits, setDeposits] = useState(() => {
@@ -91,7 +80,7 @@ function DepositTab({showToast, customers}) {
       </div>
 
       {/* 서브탭 */}
-      <div style={{display:"flex",gap:0,background:"rgba(255,255,255,.04)",borderRadius:10,padding:3,marginBottom:14}}>
+      <div style={{display:"flex",gap:0,background:G.subtleBg,borderRadius:10,padding:3,marginBottom:14}}>
         {subTabs.map(t=>(
           <button key={t.k} onClick={()=>setSub(t.k)} style={{
             flex:1,padding:"9px 4px",borderRadius:8,border:"none",cursor:"pointer",
@@ -108,7 +97,7 @@ function DepositTab({showToast, customers}) {
           <input value={search} onChange={e=>setSearch(e.target.value)}
             placeholder="고객명·계약내용 검색" style={{...baseInp,marginBottom:10}}/>
           {filtered.length===0 && (
-            <div style={{textAlign:"center",padding:"40px 0",color:"rgba(240,230,214,.3)",fontSize:14}}>
+            <div style={{textAlign:"center",padding:"40px 0",color:G.creamMuted,opacity:0.5,fontSize:14}}>
               등록된 계약이 없습니다
             </div>
           )}
@@ -234,7 +223,7 @@ function DepositTab({showToast, customers}) {
             width:"100%",padding:14,borderRadius:10,border:"none",
             background:`linear-gradient(135deg,${G.copper},${G.copperLight})`,
             color:"#fff",fontWeight:800,fontSize:15,cursor:"pointer",fontFamily:S,
-            boxShadow:"0 4px 20px rgba(200,121,74,.4)"}}>
+            boxShadow:`0 4px 20px ${G.copperGlow}`}}>
             💰 계약금 등록
           </button>
         </div>
@@ -293,7 +282,7 @@ function DepositTab({showToast, customers}) {
               <button onClick={payBalance} style={{
                 width:"100%",padding:14,borderRadius:10,border:"none",
                 background:G.green,color:"#fff",fontWeight:800,fontSize:15,
-                cursor:"pointer",fontFamily:S,boxShadow:"0 4px 20px rgba(91,158,114,.4)"}}>
+                cursor:"pointer",fontFamily:S,boxShadow:`0 4px 20px ${G.greenBg}`}}>
                 ✓ 잔금 완납 처리
               </button>
             </>

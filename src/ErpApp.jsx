@@ -31,8 +31,10 @@ function ErpApp() {
   const [managers, setManagers] = useState(DEFAULT_MANAGERS);
   const [barcodeDB, setBarcodeDB] = useState({});
   const [theme, setTheme] = useState(()=>localStorage.getItem("erp_theme")||"dark");
+  const [fontScale, setFontScale] = useState(()=>parseInt(localStorage.getItem("erp_fontScale"))||0);
   const [toast, setToast] = useState({msg:"",type:"ok"});
   const T = theme==="dark" ? G : GL;
+  const zoomLevel = 1.05 + fontScale * 0.025; // 0 기준 = 1.05(현재보다 약간 크게), -10=0.80, +10=1.30
   const [editingOrder, setEditingOrder] = useState(null);
   const [editingInv, setEditingInv] = useState(null);
   const [editingCust, setEditingCust] = useState(null);
@@ -285,7 +287,7 @@ function ErpApp() {
 
   return (
     <ThemeCtx.Provider value={T}>
-    <div className="erp-root" style={{fontFamily:S,background:T.bg,minHeight:"100vh",color:T.cream,maxWidth:600,margin:"0 auto"}}>
+    <div className="erp-root" style={{fontFamily:S,background:T.bg,minHeight:"100vh",color:T.cream,maxWidth:600,margin:"0 auto",zoom:zoomLevel}}>
       {!loaded && (
         <div style={{position:"fixed",inset:0,background:T.bg,zIndex:999,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}}>
           <div style={{fontFamily:SF,fontSize:24,fontWeight:800,color:T.copper}}>로하이마켓 ERP</div>
@@ -920,6 +922,36 @@ function ErpApp() {
             <Card style={{marginBottom:14,background:T.card,border:`1px solid ${T.border}`}}>
               <SecTitle>📂 엑셀 파일 업로드</SecTitle>
               <ExcelImport orders={orders} setOrders={setOrders} customers={customers} setCustomers={setCustomers} showToast={showToast} />
+            </Card>
+
+            <Card style={{marginBottom:14,background:T.card,border:`1px solid ${T.border}`}}>
+              <SecTitle>글씨 크기</SecTitle>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+                <span style={{fontSize:13,fontWeight:700,color:T.cream}}>크기 조절</span>
+                <span style={{fontSize:13,fontWeight:800,color:T.copper,minWidth:32,textAlign:"center"}}>{fontScale>0?`+${fontScale}`:fontScale}</span>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+                <span style={{fontSize:11,color:T.creamMuted,flexShrink:0}}>가</span>
+                <input type="range" min={-10} max={10} step={1} value={fontScale}
+                  onChange={e=>{const v=parseInt(e.target.value);setFontScale(v);localStorage.setItem("erp_fontScale",v);}}
+                  style={{flex:1,accentColor:T.copper,height:6,cursor:"pointer"}}
+                />
+                <span style={{fontSize:16,fontWeight:700,color:T.creamMuted,flexShrink:0}}>가</span>
+              </div>
+              <div style={{display:"flex",gap:6}}>
+                {[-5,0,5].map(v=>(
+                  <button key={v} onClick={()=>{setFontScale(v);localStorage.setItem("erp_fontScale",String(v));}}
+                    style={{flex:1,padding:"8px 0",borderRadius:8,fontSize:12,fontWeight:fontScale===v?700:500,cursor:"pointer",fontFamily:S,
+                      border:`1px solid ${fontScale===v?T.copper:T.border}`,
+                      background:fontScale===v?T.copperGlow:"transparent",
+                      color:fontScale===v?T.copper:T.creamMuted}}>
+                    {v===0?"기본":v>0?`+${v}`:v}
+                  </button>
+                ))}
+              </div>
+              <div style={{fontSize:11,color:T.creamMuted,marginTop:10,lineHeight:1.5}}>
+                0 기준이 기본 크기입니다. 슬라��더를 움직여 -10(작게)~+10(크게) 조절할 수 있습니다.
+              </div>
             </Card>
 
             <Card style={{background:T.card,border:`1px solid ${T.border}`}}>

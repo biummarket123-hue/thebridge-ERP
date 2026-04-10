@@ -30,7 +30,7 @@ function ErpApp() {
   const [settings, setSettings] = useState({...DEFAULT_SETTINGS, ...savedSettings});
   const [managers, setManagers] = useState(DEFAULT_MANAGERS);
   const [barcodeDB, setBarcodeDB] = useState({});
-  const [theme, setTheme] = useState(()=>localStorage.getItem("erp_theme")||"dark");
+  const [theme, setTheme] = useState(()=>localStorage.getItem("erp_theme")||"light");
   const [fontScale, setFontScale] = useState(()=>parseInt(localStorage.getItem("erp_fontScale"))||0);
   const [toast, setToast] = useState({msg:"",type:"ok"});
   const T = theme==="dark" ? G : GL;

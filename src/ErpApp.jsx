@@ -332,18 +332,20 @@ function ErpApp() {
           --red: ${T.red};
           --yellow: ${T.yellow};
           --blue: ${T.blue};
+          --inputBg: ${T.inputBg};
           background: ${T.bg} !important;
           color: ${T.cream} !important;
         }
-        .erp-root * { transition: background 0.25s, border-color 0.25s, color 0.2s; }
+        .erp-root * { transition: background 0.2s, border-color 0.2s, color 0.15s, box-shadow 0.2s; }
         .erp-root input, .erp-root select, .erp-root textarea {
-          background: ${T.surface} !important;
+          background: ${T.inputBg} !important;
           color: ${T.cream} !important;
           border-color: ${T.border} !important;
+          box-shadow: ${theme==="light"?"inset 0 1px 2px rgba(0,0,0,0.04)":"none"};
         }
         .erp-root input::placeholder, .erp-root textarea::placeholder {
           color: ${T.creamMuted} !important;
-          opacity: 0.7;
+          opacity: 0.65;
         }
         .erp-root input[type="date"], .erp-root input[type="number"] {
           color-scheme: ${theme==="dark"?"dark":"light"};
@@ -353,6 +355,7 @@ function ErpApp() {
         .erp-card {
           background: ${T.card} !important;
           border-color: ${T.border} !important;
+          box-shadow: ${T.cardShadow};
         }
         .erp-surface { background: ${T.surface} !important; }
         .erp-border { border-color: ${T.border} !important; }
@@ -842,8 +845,8 @@ function ErpApp() {
                   <button key={th} onClick={()=>{setTheme(th);localStorage.setItem("erp_theme",th);}} style={{
                     flex:1,padding:"14px 0",borderRadius:12,cursor:"pointer",fontFamily:S,fontWeight:700,fontSize:13,
                     border:`2px solid ${theme===th?T.copper:T.border}`,
-                    background:theme===th?T.copperGlow:(th==="dark"?G.bg:GL.bg),
-                    color:theme===th?T.copper:(th==="dark"?G.cream:GL.cream),
+                    background:theme===th?T.copperGlow:(th==="dark"?"#0D0B09":"#F8F9FA"),
+                    color:theme===th?T.copper:(th==="dark"?"#F0E6D6":"#1A1A2E"),
                     display:"flex",flexDirection:"column",alignItems:"center",gap:6,transition:"all 0.2s",
                   }}>
                     <span style={{fontSize:22}}>{th==="dark"?"🌙":"☀️"}</span>

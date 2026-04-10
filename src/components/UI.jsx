@@ -10,15 +10,15 @@ function SecTitle({children}) {
 }
 function Card({children, style}) {
   const G = useTheme();
-  return <div className="erp-card" style={{background:G.card,borderRadius:14,border:`1px solid ${G.border}`,padding:16,...style}}>{children}</div>;
+  return <div className="erp-card" style={{background:G.card,borderRadius:14,border:`1px solid ${G.border}`,boxShadow:G.cardShadow,padding:16,...style}}>{children}</div>;
 }
 function Empty({text, sub}) {
   const G = useTheme();
   return (
     <div style={{padding:"50px 0",textAlign:"center"}}>
-      <div style={{fontSize:28,opacity:.2,marginBottom:10}}>◇</div>
-      <div style={{fontSize:14,color:G.creamMuted,opacity:0.7,fontWeight:600}}>{text}</div>
-      {sub && <div style={{fontSize:12,color:G.creamMuted,opacity:0.5,marginTop:5}}>{sub}</div>}
+      <div style={{fontSize:28,opacity:.18,marginBottom:10}}>◇</div>
+      <div style={{fontSize:14,color:G.creamMuted,fontWeight:600}}>{text}</div>
+      {sub && <div style={{fontSize:12,color:G.creamMuted,opacity:0.6,marginTop:5}}>{sub}</div>}
     </div>
   );
 }
@@ -26,7 +26,7 @@ function Toast({msg, type}) {
   const G = useTheme();
   if (!msg) return null;
   return (
-    <div style={{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",padding:"11px 20px",borderRadius:12,background:type==="error"?G.red:G.green,color:"#fff",fontWeight:700,fontSize:13,zIndex:999,boxShadow:"0 4px 20px rgba(0,0,0,0.4)",fontFamily:S,whiteSpace:"nowrap"}}>
+    <div style={{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",padding:"11px 20px",borderRadius:12,background:type==="error"?G.red:G.green,color:"#fff",fontWeight:700,fontSize:13,zIndex:999,boxShadow:"0 4px 20px rgba(0,0,0,0.25)",fontFamily:S,whiteSpace:"nowrap"}}>
       {type==="error" ? "✕ " : "✓ "}{msg}
     </div>
   );
@@ -34,7 +34,7 @@ function Toast({msg, type}) {
 function PrimaryBtn({onClick, disabled, children, full}) {
   const G = useTheme();
   return (
-    <button onClick={disabled ? undefined : onClick} style={{padding:"12px 20px",width:full?"100%":"auto",borderRadius:10,border:"none",background:disabled?G.border:`linear-gradient(135deg,${G.copper},${G.copperLight})`,color:disabled?G.creamMuted:"#fff",fontWeight:700,fontSize:14,cursor:disabled?"not-allowed":"pointer",fontFamily:S,boxShadow:disabled?"none":`0 4px 20px ${G.copperGlow}`}}>
+    <button onClick={disabled ? undefined : onClick} style={{padding:"12px 20px",width:full?"100%":"auto",borderRadius:10,border:"none",background:disabled?G.border:G.copper,color:disabled?G.creamMuted:"#fff",fontWeight:700,fontSize:14,cursor:disabled?"not-allowed":"pointer",fontFamily:S,boxShadow:disabled?"none":`0 2px 8px ${G.copperGlow}`}}>
       {children}
     </button>
   );
@@ -42,22 +42,22 @@ function PrimaryBtn({onClick, disabled, children, full}) {
 function GhostBtn({onClick, children, small, color, full}) {
   const G = useTheme();
   return (
-    <button onClick={onClick} style={{padding:small?"6px 11px":"11px 16px",width:full?"100%":"auto",borderRadius:small?7:10,border:`1px solid ${color||G.border}`,background:color?`${color}18`:"transparent",color:color||G.creamMuted,fontWeight:600,fontSize:small?11:13,cursor:"pointer",fontFamily:S,whiteSpace:"nowrap",boxSizing:"border-box"}}>
+    <button onClick={onClick} style={{padding:small?"6px 11px":"11px 16px",width:full?"100%":"auto",borderRadius:small?7:10,border:`1px solid ${color||G.border}`,background:color?`${color}10`:"transparent",color:color||G.creamMuted,fontWeight:600,fontSize:small?11:13,cursor:"pointer",fontFamily:S,whiteSpace:"nowrap",boxSizing:"border-box"}}>
       {children}
     </button>
   );
 }
 function FLabel({children}) {
   const G = useTheme();
-  return <div style={{fontSize:11,color:G.creamMuted,marginBottom:4}}>{children}</div>;
+  return <div style={{fontSize:11,color:G.creamMuted,marginBottom:4,fontWeight:500}}>{children}</div>;
 }
 
 // ── Modals ───────────────────────────────────────────────────
 function ConfirmModal({item, onConfirm, onCancel}) {
   const G = useTheme();
   return (
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div style={{background:G.card,borderRadius:16,border:`1px solid ${G.red}50`,padding:24,width:"100%",maxWidth:320,textAlign:"center"}}>
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20,backdropFilter:"blur(4px)"}}>
+      <div style={{background:G.card,borderRadius:16,border:`1px solid ${G.border}`,boxShadow:"0 20px 60px rgba(0,0,0,0.15)",padding:24,width:"100%",maxWidth:320,textAlign:"center"}}>
         <div style={{fontSize:30,marginBottom:10}}>🗑</div>
         <div style={{fontFamily:SF,fontSize:16,fontWeight:700,color:G.cream,marginBottom:8}}>삭제 확인</div>
         <div style={{fontSize:13,color:G.creamMuted,marginBottom:20,lineHeight:1.7}}>
@@ -76,23 +76,23 @@ function EditOrderModal({order, onSave, onClose}) {
   const G = useTheme();
   const [o, setO] = useState({...order, items: order.items.map(i=>({...i}))});
   return (
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:200,display:"flex",alignItems:"flex-end"}} onClick={onClose}>
-      <div style={{background:G.card,borderRadius:"20px 20px 0 0",border:`1px solid ${G.border}`,padding:22,width:"100%",maxWidth:600,margin:"0 auto",boxSizing:"border-box",maxHeight:"85vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:200,display:"flex",alignItems:"flex-end",backdropFilter:"blur(4px)"}} onClick={onClose}>
+      <div style={{background:G.card,borderRadius:"20px 20px 0 0",border:`1px solid ${G.border}`,boxShadow:"0 -8px 30px rgba(0,0,0,0.12)",padding:22,width:"100%",maxWidth:600,margin:"0 auto",boxSizing:"border-box",maxHeight:"85vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
         <div style={{fontFamily:SF,fontSize:17,fontWeight:700,color:G.cream,marginBottom:16}}>주문 수정 — {o.id}</div>
         <div style={{marginBottom:10}}><FLabel>고객명</FLabel><input value={o.customer} onChange={e=>setO(p=>({...p,customer:e.target.value}))} style={baseInp}/></div>
         <div style={{marginBottom:10}}><FLabel>연락처</FLabel><input value={o.phone||""} onChange={e=>setO(p=>({...p,phone:e.target.value}))} style={baseInp}/></div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
           <div>
             <FLabel>결제상태</FLabel>
-            <select value={o.payment} onChange={e=>setO(p=>({...p,payment:e.target.value}))} style={{...baseInp,background:G.surface,color:G.cream}}>
-              <option style={{background:G.card}}>미입금</option>
-              <option style={{background:G.card}}>입금완료</option>
+            <select value={o.payment} onChange={e=>setO(p=>({...p,payment:e.target.value}))} style={{...baseInp}}>
+              <option>미입금</option>
+              <option>입금완료</option>
             </select>
           </div>
           <div>
             <FLabel>처리상태</FLabel>
-            <select value={o.status} onChange={e=>setO(p=>({...p,status:e.target.value}))} style={{...baseInp,background:G.surface,color:G.cream}}>
-              {["접수","준비중","출고완료"].map(s=><option key={s} style={{background:G.card}}>{s}</option>)}
+            <select value={o.status} onChange={e=>setO(p=>({...p,status:e.target.value}))} style={{...baseInp}}>
+              {["접수","준비중","출고완료"].map(s=><option key={s}>{s}</option>)}
             </select>
           </div>
         </div>
@@ -108,7 +108,7 @@ function EditOrderModal({order, onSave, onClose}) {
               <button onClick={()=>setO(p=>({...p,items:p.items.filter((_,j)=>j!==i)}))} style={{padding:"0 8px",height:38,borderRadius:8,border:`1px solid ${G.red}`,background:G.redBg,color:G.red,cursor:"pointer",fontFamily:S,fontSize:14,flexShrink:0}}>✕</button>
             </div>
           ))}
-          <button onClick={()=>setO(p=>({...p,items:[...p.items,{fabric:"",color:"",qty:0}]}))} style={{width:"100%",marginTop:2,padding:"8px",fontSize:12,color:G.copper,background:"transparent",border:`1px dashed ${G.copper}50`,borderRadius:8,cursor:"pointer",fontFamily:S}}>
+          <button onClick={()=>setO(p=>({...p,items:[...p.items,{fabric:"",color:"",qty:0}]}))} style={{width:"100%",marginTop:2,padding:"8px",fontSize:12,color:G.copper,background:"transparent",border:`1px dashed ${G.border}`,borderRadius:8,cursor:"pointer",fontFamily:S}}>
             + 항목 추가
           </button>
         </div>
@@ -125,8 +125,8 @@ function EditInvModal({item, onSave, onClose}) {
   const G = useTheme();
   const [it, setIt] = useState({...item});
   return (
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:200,display:"flex",alignItems:"flex-end"}} onClick={onClose}>
-      <div style={{background:G.card,borderRadius:"20px 20px 0 0",border:`1px solid ${G.border}`,padding:22,width:"100%",maxWidth:600,margin:"0 auto",boxSizing:"border-box"}} onClick={e=>e.stopPropagation()}>
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:200,display:"flex",alignItems:"flex-end",backdropFilter:"blur(4px)"}} onClick={onClose}>
+      <div style={{background:G.card,borderRadius:"20px 20px 0 0",border:`1px solid ${G.border}`,boxShadow:"0 -8px 30px rgba(0,0,0,0.12)",padding:22,width:"100%",maxWidth:600,margin:"0 auto",boxSizing:"border-box"}} onClick={e=>e.stopPropagation()}>
         <div style={{fontFamily:SF,fontSize:17,fontWeight:700,color:G.cream,marginBottom:16}}>재고 수정</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
           <div><FLabel>원단명</FLabel><input value={it.fabric} onChange={e=>setIt(p=>({...p,fabric:e.target.value}))} style={baseInp}/></div>
@@ -146,8 +146,8 @@ function EditCustModal({cust, onSave, onClose}) {
   const G = useTheme();
   const [c, setC] = useState({...cust});
   return (
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:200,display:"flex",alignItems:"flex-end"}} onClick={onClose}>
-      <div style={{background:G.card,borderRadius:"20px 20px 0 0",border:`1px solid ${G.border}`,padding:22,width:"100%",maxWidth:600,margin:"0 auto",boxSizing:"border-box"}} onClick={e=>e.stopPropagation()}>
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:200,display:"flex",alignItems:"flex-end",backdropFilter:"blur(4px)"}} onClick={onClose}>
+      <div style={{background:G.card,borderRadius:"20px 20px 0 0",border:`1px solid ${G.border}`,boxShadow:"0 -8px 30px rgba(0,0,0,0.12)",padding:22,width:"100%",maxWidth:600,margin:"0 auto",boxSizing:"border-box"}} onClick={e=>e.stopPropagation()}>
         <div style={{fontFamily:SF,fontSize:17,fontWeight:700,color:G.cream,marginBottom:16}}>고객 정보 수정</div>
         {[{k:"name",l:"고객명"},{k:"phone",l:"연락처"},{k:"address",l:"주소"},{k:"note",l:"메모"}].map(({k,l})=>(
           <div key={k} style={{marginBottom:10}}><FLabel>{l}</FLabel><input value={c[k]||""} onChange={e=>setC(p=>({...p,[k]:e.target.value}))} style={baseInp}/></div>
@@ -169,8 +169,8 @@ function ShippingModal({orders, customers, settings, onExport, onClose, preSelec
   const [sel, setSel] = useState(preSelected || eligible.map(o=>o.id));
   const hasAddr = sel.filter(id=>orders.find(o=>o.id===id&&o.address));
   return (
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:200,display:"flex",alignItems:"flex-end"}} onClick={onClose}>
-      <div style={{background:G.card,borderRadius:"20px 20px 0 0",border:`1px solid ${G.border}`,padding:22,width:"100%",maxWidth:600,margin:"0 auto",boxSizing:"border-box"}} onClick={e=>e.stopPropagation()}>
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:200,display:"flex",alignItems:"flex-end",backdropFilter:"blur(4px)"}} onClick={onClose}>
+      <div style={{background:G.card,borderRadius:"20px 20px 0 0",border:`1px solid ${G.border}`,boxShadow:"0 -8px 30px rgba(0,0,0,0.12)",padding:22,width:"100%",maxWidth:600,margin:"0 auto",boxSizing:"border-box"}} onClick={e=>e.stopPropagation()}>
         <div style={{fontFamily:SF,fontSize:17,fontWeight:700,color:G.cream,marginBottom:4}}>🚚 택배 송장 출력</div>
         <div style={{fontSize:12,color:G.creamMuted,marginBottom:16}}>{preSelected?`선택된 ${preSelected.length}건 주문을 출력합니다`:"배송지가 입력된 주문을 택배사 양식으로 출력합니다"}</div>
         <div style={{marginBottom:14}}>
@@ -187,11 +187,10 @@ function ShippingModal({orders, customers, settings, onExport, onClose, preSelec
                 color:courier===c.id?G.copper:G.creamMuted,
                 cursor:"pointer", fontFamily:S,
                 display:"flex", flexDirection:"column", alignItems:"center", gap:4,
-                transition:"all 0.15s",
               }}>
                 <span style={{fontSize:24}}>{c.icon}</span>
                 <span style={{fontSize:13,fontWeight:courier===c.id?800:600}}>{c.id}</span>
-                <span style={{fontSize:10,opacity:0.7}}>{c.desc}</span>
+                <span style={{fontSize:10,color:G.creamMuted}}>{c.desc}</span>
               </button>
             ))}
           </div>
@@ -207,7 +206,7 @@ function ShippingModal({orders, customers, settings, onExport, onClose, preSelec
             {orders.length===0
               ? <div style={{padding:"16px 0",textAlign:"center",color:G.creamMuted,fontSize:13}}>주문이 없습니다</div>
               : orders.map(o=>(
-                <label key={o.id} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",background:G.surface,borderRadius:8,border:`1px solid ${sel.includes(o.id)?G.copper:G.border}`,cursor:"pointer",opacity:!o.address?0.6:1}}>
+                <label key={o.id} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",background:G.subtleBg,borderRadius:8,border:`1px solid ${sel.includes(o.id)?G.copper:G.border}`,cursor:"pointer",opacity:!o.address?0.5:1}}>
                   <input type="checkbox" checked={sel.includes(o.id)} onChange={e=>setSel(p=>e.target.checked?[...p,o.id]:p.filter(x=>x!==o.id))} style={{accentColor:G.copper,width:15,height:15}}/>
                   <span style={{fontWeight:700,fontSize:13,color:G.cream,minWidth:60}}>{o.customer}</span>
                   <span style={{fontSize:11,color:o.address?G.creamMuted:G.red,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{o.address||"배송지 없음"}</span>

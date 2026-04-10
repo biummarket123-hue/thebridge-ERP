@@ -13,16 +13,35 @@ const G = {
   yellowBg:"rgba(196,150,58,0.12)", blue:"#4A7EA8", blueBg:"rgba(74,126,168,0.12)",
   purple:"#8A6AB8",
   trackBg:"rgba(255,255,255,0.06)", subtleBg:"rgba(255,255,255,0.04)",
+  cardShadow:"none", cardShadowHover:"none", inputBg:"#161410",
 };
 const GL = {
-  bg:"#EDE8DE", surface:"#F5F2EC", card:"#FFFFFF",
-  border:"#AEA394", copper:"#9E5420", copperLight:"#B86A30",
-  copperGlow:"rgba(158,84,32,0.15)", cream:"#1A1612", creamMuted:"#524639",
-  white:"#FFFFFF", green:"#1B6E35", greenBg:"rgba(27,110,53,0.14)",
-  red:"#B22818", redBg:"rgba(178,40,24,0.12)", yellow:"#7A5D12",
-  yellowBg:"rgba(122,93,18,0.14)", blue:"#1E527A", blueBg:"rgba(30,82,122,0.12)",
-  purple:"#553D85",
-  trackBg:"rgba(0,0,0,0.10)", subtleBg:"rgba(0,0,0,0.06)",
+  // ── 미니멀 화이트 디자인 시스템 ──
+  bg:"#F8F9FA",           // 아주 연한 쿨그레이 배경
+  surface:"#FFFFFF",       // 순백 서피스
+  card:"#FFFFFF",          // 순백 카드 (그림자로 깊이감)
+  border:"#E5E7EB",        // 연한 그레이 보더
+  copper:"#D4722C",        // 선명한 오렌지-카퍼
+  copperLight:"#E8884A",   // 밝은 카퍼
+  copperGlow:"rgba(212,114,44,0.12)", // 카퍼 글로우
+  cream:"#1A1A2E",         // 진한 차콜 네이비 (메인 텍스트)
+  creamMuted:"#6B7280",    // 쿨그레이 (보조 텍스트)
+  white:"#FFFFFF",         // 버튼 텍스트용
+  green:"#059669",         // 에메랄드 그린
+  greenBg:"rgba(5,150,105,0.08)",
+  red:"#DC2626",           // 선명한 레드
+  redBg:"rgba(220,38,38,0.06)",
+  yellow:"#D97706",        // 앰버 (가독성 좋은 오렌지계)
+  yellowBg:"rgba(217,119,6,0.08)",
+  blue:"#2563EB",          // 로열 블루
+  blueBg:"rgba(37,99,235,0.06)",
+  purple:"#7C3AED",        // 바이올렛
+  trackBg:"#E5E7EB",       // 트랙 배경 (solid gray)
+  subtleBg:"#F3F4F6",      // 미세 배경 구분
+  // ── 화이트 전용 확장 ──
+  cardShadow:"0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)",
+  cardShadowHover:"0 4px 12px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.06)",
+  inputBg:"#F9FAFB",       // 입력창 배경 (순백과 미세 구분)
 };
 const ThemeCtx = createContext(G);
 const useTheme = () => useContext(ThemeCtx);
@@ -37,7 +56,7 @@ const nowT = () => {
 const baseInp = {
   width:"100%", padding:"10px 13px", borderRadius:10,
   border:"1px solid var(--border, #2E2820)",
-  background:"var(--surface, #161410)",
+  background:"var(--inputBg, #161410)",
   fontFamily:S, fontSize:13, color:"var(--cream, #F0E6D6)",
   outline:"none", boxSizing:"border-box",
 };

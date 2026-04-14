@@ -1,7 +1,51 @@
 import { supabase } from "./supabase.js";
 
+// ── company 모드: Supabase Auth 자동 로그인 ──────────────────
+const isCompanyMode = import.meta.env.VITE_MODE === "company";
+const COMPANY_EMAIL = "company@thebridge.erp";
+const COMPANY_PASS  = "company_bridge_2026";
+
+let _companyUserId = null;
+
+async function ensureCompanyAuth() {
+  if (_companyUserId) return _companyUserId;
+  try {
+    // 1) 기존 세션 확인
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) { _companyUserId = session.user.id; return _companyUserId; }
+
+    // 2) 로그인 시도
+    const { data: signIn, error: signInErr } = await supabase.auth.signInWithPassword({
+      email: COMPANY_EMAIL, password: COMPANY_PASS,
+    });
+    if (signIn?.session) { _companyUserId = signIn.session.user.id; return _companyUserId; }
+
+    // 3) 유저 없으면 회원가입
+    console.log("[company-auth] 로그인 실패, 회원가입 시도:", signInErr?.message);
+    const { data: signUp, error: signUpErr } = await supabase.auth.signUp({
+      email: COMPANY_EMAIL, password: COMPANY_PASS,
+    });
+    if (signUp?.session) { _companyUserId = signUp.session.user.id; return _companyUserId; }
+
+    // 4) 이메일 인증 없이 재로그인
+    if (signUp?.user) {
+      const { data: retry } = await supabase.auth.signInWithPassword({
+        email: COMPANY_EMAIL, password: COMPANY_PASS,
+      });
+      if (retry?.session) { _companyUserId = retry.session.user.id; return _companyUserId; }
+    }
+
+    console.error("[company-auth] 모든 인증 실패:", signUpErr?.message);
+    return null;
+  } catch (e) {
+    console.error("[company-auth] 예외:", e);
+    return null;
+  }
+}
+
 // ── 현재 로그인 사용자 id 조회 (멀티테넌트 격리용) ────────────
 async function getUserId() {
+  if (isCompanyMode) return ensureCompanyAuth();
   try {
     const { data: { session } } = await supabase.auth.getSession();
     return session?.user?.id || null;

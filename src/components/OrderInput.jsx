@@ -57,7 +57,7 @@ function OrderInput({inv, setInv, orders, setOrders, logs, setLogs, customers, s
       setManagers(p=>[...p, newManager.trim()]);
       setNewManager("");
       showToast("담당자 등록 완료");
-    } catch(e) { showToast("등록 실패","error"); }
+    } catch(e) { console.error("담당자 등록 오류:", e); showToast(`등록 실패: ${e.message||e}`,"error"); }
   };
 
   return (

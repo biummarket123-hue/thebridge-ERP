@@ -498,12 +498,6 @@ function Landing({ onLogin, onTrial }) {
               </div>
 
               <form onSubmit={authMode === "login" ? handleLogin : handleSignup}>
-                {authMode === "signup" && (
-                  <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 12, color: V.muted, marginBottom: 5 }}>회사명 <span style={{color:V.r1}}>*</span></div>
-                    <input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="예: 더브릿지" required style={authInp} />
-                  </div>
-                )}
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ fontSize: 12, color: V.muted, marginBottom: 5 }}>아이디 <span style={{color:V.r1}}>*</span></div>
                   <div style={{display:"flex",gap:8}}>
@@ -531,6 +525,10 @@ function Landing({ onLogin, onTrial }) {
                       {passwordConfirm && password !== passwordConfirm && (
                         <div style={{fontSize:11,color:V.r1,marginTop:4}}>비밀번호가 일치하지 않습니다</div>
                       )}
+                    </div>
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 12, color: V.muted, marginBottom: 5 }}>회사명 <span style={{color:V.r1}}>*</span></div>
+                      <input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="예: 더브릿지" required style={authInp} />
                     </div>
                     <div style={{ marginBottom: 16 }}>
                       <div style={{ fontSize: 12, color: V.muted, marginBottom: 5 }}>전화번호 <span style={{color:V.r1}}>*</span></div>

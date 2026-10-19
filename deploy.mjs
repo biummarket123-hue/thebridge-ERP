@@ -8,7 +8,7 @@ import { spawnSync } from "node:child_process";
 
 const DOMAIN = process.env.DEPLOY_DOMAIN || "erp.thebridge.ai.kr";
 const run = (args) => {
-  const r = spawnSync("vercel", args, { stdio: ["inherit", "pipe", "inherit"], shell: true, encoding: "utf8" });
+  const r = spawnSync(["vercel", ...args].join(" "), { stdio: ["inherit", "pipe", "inherit"], shell: true, encoding: "utf8" });
   process.stdout.write(r.stdout || "");
   if (r.status !== 0) { console.error(`\nvercel ${args.join(" ")} 실패 (exit ${r.status})`); process.exit(r.status || 1); }
   return r.stdout || "";

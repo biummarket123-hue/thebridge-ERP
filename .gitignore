@@ -22,3 +22,6 @@ ops/watch/last-counts.json
 
 # 소스 덤프 — 실수로 커밋되지 않게
 code-dump.json
+
+# Claude Code 로컬 잠금/상태 파일
+.claude/*.lock

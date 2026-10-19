@@ -1,0 +1,14 @@
+{
+  "name": "로하이마켓 ERP",
+  "short_name": "더브릿지",
+  "description": "더브릿지 동대문 원단 ERP",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1e2a3d",
+  "theme_color": "#1e2a3d",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

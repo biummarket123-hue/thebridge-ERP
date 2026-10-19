@@ -1,0 +1,24 @@
+-- 환불 신청 이력 — 승인/반려/취소 처리 후에도 신청 정보(계좌·사유·신청일자)를 보존
+-- Supabase 대시보드 > SQL Editor 에서 한 번 실행하세요.
+--
+-- refund_history (jsonb, 배열) 구조 — refund_request 항목 + 처리 결과:
+--   [{
+--     "method": "cash" | "credit",       -- 현금환불 / 적립금환불
+--     "kind":   "full" | "partial",      -- 전액 / 부분
+--     "amount": 10000,                    -- 신청 금액
+--     "reason": "단순변심",               -- 사유 (선택)
+--     "bank": "국민",                     -- 환불 계좌 (현금환불일 때만)
+--     "accountNumber": "123-456",
+--     "accountHolder": "홍길동",
+--     "requestedBy": "옥정점",            -- 신청 담당자
+--     "requestedAt": "2026-07-01T...",    -- 신청 시각(ISO)
+--     "result": "승인" | "반려" | "취소", -- 처리 결과
+--     "resolvedMethod": "현금환불",       -- 승인 시 실제 처리 방식 (현금환불/적립금전환)
+--     "resolvedAmount": 10000,            -- 승인 시 실제 처리 금액 (대표가 조정 가능)
+--     "rejectReason": "…",                -- 반려 시 사유 (선택)
+--     "processedAt": "2026-07-02T..."     -- 처리 시각(ISO)
+--   }, ...]
+--
+-- 기존 refund_request는 "진행 중 신청"만 담고, 처리되는 순간 이 배열로 옮겨진다.
+
+alter table orders add column if not exists refund_history jsonb;

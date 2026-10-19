@@ -1,0 +1,29 @@
+{
+  "name": "thebridge-erp",
+  "version": "2.1.0",
+  "private": true,
+  "description": "로하이마켓 ERP - 동대문 원단시장 전용 AI 업무관리 플랫폼",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node tests/run.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.120.0",
+    "@supabase/supabase-js": "^2.101.1",
+    "exceljs": "^4.4.0",
+    "hwp-convert": "^1.11.0",
+    "jszip": "^3.10.1",
+    "qrcode": "^1.5.4",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "xlsx": "^0.18.5",
+    "xlsx-js-style": "^1.2.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@vitejs/plugin-react": "^4.0.0",
+    "vite": "^4.4.0"
+  }
+}

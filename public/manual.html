@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>환불·반품·적립금 업무 매뉴얼</title>
+<style>
+  :root{
+    --paper:#FAF7F3; --ink:#2B2320; --sub:#6E6258; --line:#E6DDD2;
+    --copper:#A8602C; --copper-soft:#F3E7DB;
+    --ok:#3E6B4F; --ok-soft:#E7EFE9;
+    --warn:#A63D36; --warn-soft:#F7E8E5;
+    --card:#FFFFFF; --chip:#F1EAE1;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --paper:#1E1915; --ink:#EDE6DD; --sub:#A99C8E; --line:#3A322B;
+      --copper:#D08B52; --copper-soft:#332619;
+      --ok:#8FBA9D; --ok-soft:#20291F;
+      --warn:#D98F85; --warn-soft:#33211E;
+      --card:#26201B; --chip:#2F2822;
+    }
+  }
+  *{box-sizing:border-box;}
+  html{background:var(--paper);}
+  body{
+    font-family:"Pretendard Variable",Pretendard,"Apple SD Gothic Neo","Malgun Gothic","Segoe UI",sans-serif;
+    color:var(--ink); background:var(--paper);
+    line-height:1.75; font-size:16px;
+    margin:0; padding:0 20px 96px;
+  }
+  main{max-width:760px; margin:0 auto;}
+  a{color:var(--copper); text-decoration:none;}
+  a:hover, a:focus-visible{text-decoration:underline;}
+  a:focus-visible{outline:2px solid var(--copper); outline-offset:2px; border-radius:2px;}
+
+  header{padding:56px 0 8px; border-bottom:2px solid var(--ink); margin-bottom:12px;}
+  .eyebrow{font-size:12px; letter-spacing:.14em; color:var(--copper); font-weight:700; text-transform:uppercase;}
+  h1{font-size:32px; font-weight:800; letter-spacing:-0.02em; line-height:1.3; margin:8px 0 6px; text-wrap:balance;}
+  .meta{color:var(--sub); font-size:13.5px; margin:0 0 28px;}
+
+  nav.toc{display:flex; flex-wrap:wrap; gap:8px; margin:20px 0 44px;}
+  nav.toc a{
+    font-size:13px; font-weight:600; color:var(--ink);
+    background:var(--chip); border:1px solid var(--line);
+    padding:5px 12px; border-radius:999px; white-space:nowrap;
+  }
+  nav.toc a:hover{border-color:var(--copper); color:var(--copper); text-decoration:none;}
+
+  section{margin:0 0 52px;}
+  .scene{
+    display:flex; align-items:baseline; gap:12px;
+    border-top:2px solid var(--ink); padding-top:14px; margin-bottom:14px;
+  }
+  .scene .tag{
+    flex:none; font-size:12px; font-weight:800; letter-spacing:.1em;
+    color:var(--copper);
+  }
+  h2{font-size:21px; font-weight:800; letter-spacing:-0.01em; margin:0; text-wrap:balance;}
+  h3{font-size:15px; font-weight:800; margin:26px 0 8px; letter-spacing:.01em;}
+  h3 .who{color:var(--copper);}
+  p{margin:0 0 12px;}
+  .sub{color:var(--sub); font-size:14px;}
+
+  ol,ul{margin:0 0 14px; padding-left:22px;}
+  li{margin-bottom:7px;}
+  li::marker{color:var(--copper); font-weight:700;}
+
+  .btn{
+    display:inline-block; font-size:13.5px; font-weight:700;
+    background:var(--chip); border:1px solid var(--line); border-bottom-width:2px;
+    border-radius:7px; padding:1px 9px; white-space:nowrap;
+  }
+
+  .grid4{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:18px 0 6px;}
+  @media (max-width:560px){ .grid4{grid-template-columns:1fr;} }
+  .keycard{
+    background:var(--card); border:1px solid var(--line); border-radius:10px;
+    padding:16px 18px;
+  }
+  .keycard .no{font-size:12px; font-weight:800; color:var(--copper); letter-spacing:.08em;}
+  .keycard b{display:block; font-size:15px; margin:4px 0 6px; letter-spacing:-0.01em;}
+  .keycard p{font-size:13.5px; color:var(--sub); margin:0; line-height:1.65;}
+
+  .callout{
+    border-radius:10px; padding:14px 18px; margin:16px 0;
+    font-size:14.5px; line-height:1.7;
+  }
+  .callout b.title{display:block; font-size:12.5px; letter-spacing:.1em; margin-bottom:6px; font-weight:800;}
+  .callout.auto{background:var(--ok-soft); color:var(--ink);}
+  .callout.auto b.title{color:var(--ok);}
+  .callout.warn{background:var(--warn-soft); color:var(--ink);}
+  .callout.warn b.title{color:var(--warn);}
+  .callout p:last-child, .callout ul:last-child{margin-bottom:0;}
+
+  .flow{
+    background:var(--card); border:1px solid var(--line); border-radius:10px;
+    padding:14px 18px; margin:14px 0; overflow-x:auto;
+    font-size:14px; font-weight:600; white-space:nowrap;
+  }
+  .flow .st{color:var(--sub);}
+  .flow .arrow{color:var(--copper); padding:0 6px;}
+
+  .tablewrap{overflow-x:auto; margin:14px 0;}
+  table{border-collapse:collapse; width:100%; font-size:14px; font-variant-numeric:tabular-nums;}
+  th,td{border:1px solid var(--line); padding:8px 12px; text-align:left; vertical-align:top; background:var(--card);}
+  th{font-size:12.5px; letter-spacing:.04em; color:var(--sub); font-weight:700;}
+  td.yes{color:var(--ok); font-weight:800;}
+  td.no{color:var(--warn); font-weight:800;}
+
+  .qa{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:4px 20px; margin:14px 0;}
+  .qa dt{font-weight:800; margin:16px 0 4px; font-size:15px;}
+  .qa dd{margin:0 0 16px; color:var(--sub); font-size:14.5px;}
+  .qa dd b{color:var(--ink);}
+
+  footer{margin-top:64px; border-top:1px solid var(--line); padding-top:16px; color:var(--sub); font-size:13px;}
+
+  .fontctl{
+    position:sticky; top:0; z-index:10;
+    display:flex; justify-content:flex-end; align-items:center; gap:6px;
+    padding:10px 0; margin:0 -20px; padding-right:20px; padding-left:20px;
+    background:var(--paper); border-bottom:1px solid var(--line);
+  }
+  .fontctl .lbl{font-size:12px; font-weight:700; color:var(--sub); letter-spacing:.06em; margin-right:2px;}
+  .fontctl button{
+    font-family:inherit; font-size:13px; font-weight:700; color:var(--ink);
+    background:var(--chip); border:1px solid var(--line); border-radius:999px;
+    padding:4px 12px; cursor:pointer; white-space:nowrap;
+  }
+  .fontctl button:hover{border-color:var(--copper); color:var(--copper);}
+  .fontctl button:focus-visible{outline:2px solid var(--copper); outline-offset:2px;}
+  .fontctl button.on{background:var(--copper-soft); border-color:var(--copper); color:var(--copper);}
+</style>
+</head>
+<body>
+<div class="fontctl" role="group" aria-label="글씨 크기 조절">
+  <span class="lbl">글씨 크기</span>
+  <button type="button" data-s="0.9">작게</button>
+  <button type="button" data-s="1" class="on">보통</button>
+  <button type="button" data-s="1.15">크게</button>
+  <button type="button" data-s="1.3">아주 크게</button>
+</div>
+<main>
+<header>
+  <div class="eyebrow">LOHIGH MARKET ERP · 내부 업무 매뉴얼</div>
+  <h1>환불 · 반품 · 적립금 처리 매뉴얼</h1>
+</header>
+<p class="meta">화면의 버튼 이름을 그대로 표기했습니다 · 2026년 7월 21일 기준</p>
+
+<nav class="toc" aria-label="바로가기">
+  <a href="#basics">기본 원칙 4가지</a>
+  <a href="#s1">상황 1 · 환불</a>
+  <a href="#s2">상황 2 · 반품</a>
+  <a href="#s3">상황 3 · 반품+환불</a>
+  <a href="#s4">상황 4 · 교환</a>
+  <a href="#s5">상황 5 · 적립금 지급</a>
+  <a href="#s6">상황 6 · 적립금 사용</a>
+  <a href="#s7">상황 7 · 실수 복구</a>
+  <a href="#never">금지사항</a>
+  <a href="#faq">자주 묻는 질문</a>
+  <a href="#training">신입 실습</a>
+</nav>
+
+<section id="basics">
+  <div class="scene"><span class="tag">기본</span><h2>먼저 이해할 4가지 — 이것만 알아도 절반</h2></div>
+  <div class="grid4">
+    <div class="keycard"><span class="no">원칙 1</span><b>환불과 반품은 다른 메뉴</b>
+      <p>환불 = 돈만 (정산관리 탭) · 반품 = 물건 회수 + 재고 복구 (보관/반품 탭). 둘 다 필요하면 반품 먼저 → 환불.</p></div>
+    <div class="keycard"><span class="no">원칙 2</span><b>환불은 2단계</b>
+      <p>직원이 신청 → 대표가 정산관리에서 승인해야 실제 처리. 신청만으로는 돈·재고·적립금 아무것도 안 바뀝니다.</p></div>
+    <div class="keycard"><span class="no">원칙 3</span><b>적립금 자동 적립 없음</b>
+      <p>구매 시 % 적립 기능은 없습니다. 대표가 정산관리에서 전부 수동으로 지급·회수합니다.</p></div>
+    <div class="keycard"><span class="no">원칙 4</span><b>권한 구분</b>
+      <p>출고완료/취소·환불 승인·반품 삭제·주문취소는 대표(관리자)만. 포장 담당자에게 주문입력·정산관리 탭이 안 보이는 건 정상.</p></div>
+  </div>
+</section>
+
+<section id="s1">
+  <div class="scene"><span class="tag">상황 1</span><h2>고객이 "환불해 주세요" — 물건 회수 없이 돈만</h2></div>
+
+  <h3><span class="who">직원</span> — 환불 신청</h3>
+  <ol>
+    <li>주문 찾기: <b>주문현황 탭</b>에서 검색, 또는 <b>대시보드 탭</b>의 출고완료+입금완료 주문에서 <span class="btn">💸 환불신청</span> 클릭</li>
+    <li>환불 방식 선택: <span class="btn">💵 현금환불</span> 또는 <span class="btn">🪙 적립금환불</span></li>
+    <li>현금환불이면 <span class="btn">🏦 환불 계좌</span> 입력 (은행명 / 예금주 / 계좌번호) — 고객에게 꼭 확인</li>
+    <li>범위 선택: <span class="btn">전액환불</span> / <span class="btn">부분환불</span> · 금액은 입금액 초과 불가 · 사유 입력 (단순변심 / 불량 / 오배송 등)</li>
+    <li><span class="btn">N원 환불 신청</span> 버튼 → 주문이 <b>환불신청</b> 상태로 바뀜. 대표에게 알려주세요.</li>
+  </ol>
+
+  <h3><span class="who">대표</span> — 승인 또는 반려</h3>
+  <ol>
+    <li><b>정산관리 탭</b> → 상단 필터 <span class="btn">환불신청</span> (대기 건수 표시)</li>
+    <li>주문 클릭 → <b>환불 신청 · 승인 대기</b> 카드에서 방식·금액·계좌·사유 확인 (계좌는 <span class="btn">복사</span> 버튼)</li>
+    <li><span class="btn">현금 환불</span> 또는 <span class="btn">적립금 전환</span> → 확인창에서 승인</li>
+    <li>잘못된 신청이면 <span class="btn">✗ 반려</span> → 입금완료로 복귀, 사유는 담당자 메모에 기록</li>
+  </ol>
+  <div class="callout warn"><b class="title">주의</b>
+    <p>현금환불 승인은 <b>기록만</b> 남깁니다. 실제 은행 이체는 앱 밖에서 직접 해야 합니다.</p>
+  </div>
+
+  <h3>승인하면 자동으로 되는 것</h3>
+  <div class="tablewrap">
+  <table>
+    <tr><th>항목</th><th>전액환불</th><th>부분환불</th></tr>
+    <tr><td>환불 기록 남김</td><td class="yes">O</td><td class="yes">O</td></tr>
+    <tr><td>고객이 썼던 적립금 자동 반환</td><td class="yes">O</td><td class="no">X — 반환 안 됨</td></tr>
+    <tr><td>무료배송권 1장 복원</td><td class="yes">O</td><td class="no">X</td></tr>
+    <tr><td>합배송 그룹에서 제외</td><td class="yes">O</td><td class="yes">O</td></tr>
+    <tr><td>주문 상태</td><td>환불 종결 → 대시보드로</td><td>정산관리에 남음</td></tr>
+    <tr><td>재고 복구</td><td class="no">X — 환불은 재고를 건드리지 않음</td><td class="no">X</td></tr>
+  </table>
+  </div>
+  <div class="callout warn"><b class="title">가장 많이 헷갈리는 지점</b>
+    <p>"부분환불 했는데 고객 적립금이 안 돌아왔어요" → <b>정상 동작</b>입니다. 전액환불일 때만 자동 반환됩니다. 부분환불에서 돌려줘야 하면 대표가 적립금 관리에서 수동 등록하세요 (상황 5).</p>
+  </div>
+</section>
+
+<section id="s2">
+  <div class="scene"><span class="tag">상황 2</span><h2>고객이 물건을 돌려보냄 — 반품</h2></div>
+  <h3>등록</h3>
+  <ol>
+    <li><b>보관/반품 탭 → 반품</b> 서브탭 → "반품 등록"에서 주문 검색 (<b>출고완료 주문만</b> 검색됨 · 대시보드의 <span class="btn">↩️ 반품 신청</span> 버튼도 가능)</li>
+    <li>품목별 반품 수량 입력 — <b>부분 반품 가능</b>, <span class="btn">전량</span> 버튼 있음. 금액은 수량 비율로 자동 계산</li>
+    <li><span class="btn">↩️ 반품 신청 등록</span> 클릭</li>
+  </ol>
+
+  <h3>상태 진행 — 버튼을 순서대로</h3>
+  <div class="flow">
+    <span class="st">반품신청</span><span class="arrow">→</span><span class="btn">🚚 수거중으로</span><span class="arrow">→</span><span class="st">수거중</span><span class="arrow">→</span><span class="btn">📥 반품입고 (재고 복구)</span><span class="arrow">→</span><span class="st">반품입고</span><span class="arrow">→</span><span class="btn">✓ 완료</span> / <span class="btn">🔄 교환</span> / <span class="btn">💸 환불신청 연결</span>
+  </div>
+  <div class="callout auto"><b class="title">자동 처리</b>
+    <p><span class="btn">📥 반품입고 (재고 복구)</span>를 누르는 순간 재고가 자동 복구되고 입출고 로그에 기록됩니다. <b>이 버튼을 안 누르면 재고는 안 돌아옵니다.</b></p>
+  </div>
+  <div class="callout warn"><b class="title">주의</b>
+    <ul>
+      <li>확인창에 "재고 미등록 N건은 복구 없이 진행"이 뜨면 그 품목은 <b>재고현황에서 수동 보정</b> 필요</li>
+      <li>"⚠ 재고 복구 실패 N건" 알림이 뜨면 <b>재시도해도 복구되지 않습니다</b> — 바로 수동 보정하세요</li>
+      <li>반품 건 삭제(대표만)를 해도 이미 복구된 재고는 되돌아가지 않습니다</li>
+    </ul>
+  </div>
+
+  <h3>반품입고 후 마무리 3가지</h3>
+  <ul>
+    <li><span class="btn">✓ 완료</span> — 물건만 돌려받고 끝 (돈 문제 없음)</li>
+    <li><span class="btn">🔄 교환</span> — 상황 4 참고</li>
+    <li><span class="btn">💸 환불신청 연결</span> — 돈도 돌려줘야 하면 여기로 → 상황 1의 대표 승인 절차로</li>
+  </ul>
+</section>
+
+<section id="s3">
+  <div class="scene"><span class="tag">상황 3</span><h2>반품 + 환불 둘 다 — 가장 흔한 케이스</h2></div>
+  <p><b>순서를 꼭 지키세요:</b></p>
+  <ol>
+    <li>반품 등록 → 수거중 → <span class="btn">📥 반품입고 (재고 복구)</span> — <b>재고 먼저!</b></li>
+    <li><span class="btn">💸 환불신청 연결</span>로 환불 신청</li>
+    <li>대표가 정산관리에서 승인</li>
+  </ol>
+  <div class="callout warn"><b class="title">순서를 건너뛰면</b>
+    <p>정산관리에서 환불만 처리하면 <b>돈은 나가는데 재고는 안 돌아옵니다.</b> 환불 기능은 재고를 건드리지 않기 때문입니다.</p>
+  </div>
+</section>
+
+<section id="s4">
+  <div class="scene"><span class="tag">상황 4</span><h2>교환</h2></div>
+  <ol>
+    <li>반품 흐름으로 <b>반품입고까지</b> 진행 (기존 물건 재고 복구)</li>
+    <li><span class="btn">🔄 교환</span> 버튼 → 교환 보낼 품목과 차액 입력</li>
+    <li>차액 처리:
+      <ul>
+        <li>고객이 <b>더 내야 하면(+)</b> → 원 주문에 미수금으로 잡히거나 적립금에서 차감</li>
+        <li>고객에게 <b>돌려줘야 하면(−)</b> → 환불신청으로 연결 → 대표 승인</li>
+      </ul>
+    </li>
+  </ol>
+</section>
+
+<section id="s5">
+  <div class="scene"><span class="tag">상황 5</span><h2>적립금 지급 · 회수 — 대표 전용</h2></div>
+  <div class="callout warn"><b class="title">다시 강조</b>
+    <p>자동 적립은 없습니다. 적립금이 늘어나는 경우는 ① 대표 수동 지급 ② 환불의 적립금 전환 ③ 전액환불·주문삭제 시 자동 반환 — 이 세 가지뿐입니다.</p>
+  </div>
+  <h3>지급</h3>
+  <ol>
+    <li><b>정산관리 탭 → 🎁 적립금 &amp; 배송권 관리</b> 서브탭</li>
+    <li>"혜택 발급" 카드에서 <span class="btn">💰 적립금</span> 선택 (무료배송권도 같은 곳)</li>
+    <li>고객명 검색·선택 → 금액·사유 입력 → <span class="btn">적립금 등록</span></li>
+  </ol>
+  <h3>회수</h3>
+  <p>같은 화면의 <span class="btn">회수</span> 버튼 → "N님의 적립금 M원을 회수하시겠습니까? 잔액 A원 → B원" 확인 후 진행.</p>
+  <div class="callout warn"><b class="title">주의</b>
+    <ul>
+      <li><b>고객관리에 등록된 고객만</b> 가능 — "등록되지 않은 고객입니다"가 뜨면 고객관리에서 먼저 등록</li>
+      <li>적립금은 <b>고객 이름 글자 그대로</b> 매칭됩니다. 닉네임·공백이 다르면 잔액이 딴 사람처럼 분리됨 → 이름 표기 통일 필수</li>
+    </ul>
+  </div>
+  <p class="sub">내역 확인: 같은 화면 아래 "적립금 내역" — 전체/적립/사용 필터, 고객 검색, 10건씩 표시. 무료배송권 보유 현황 표도 그 아래에 있습니다.</p>
+</section>
+
+<section id="s6">
+  <div class="scene"><span class="tag">상황 6</span><h2>적립금 사용 — 주문에서 차감</h2></div>
+  <h3>방법 A — 새 주문 받을 때 (주문입력 탭)</h3>
+  <p>주문입력 폼에서 적립금 사용액 지정. 잔액·주문총액 한도 내에서 자동 조정됩니다. 이미 완납으로 들어가는 주문(방문 결제 등)에는 적용되지 않습니다 — "이미 완납 주문이라 적립금은 적용하지 않았습니다".</p>
+  <h3>방법 B — 기존 주문의 미수금 처리 (정산관리 탭)</h3>
+  <p>주문 선택 → <span class="btn">적립금 차감</span> (미수금이 있는 주문에만 보임 · "차감 가능: 최대 N원" 안내). 잔액 초과·미수금 초과는 불가.</p>
+  <p class="sub">최소 사용 금액 제한은 없습니다.</p>
+</section>
+
+<section id="s7">
+  <div class="scene"><span class="tag">상황 7</span><h2>실수했을 때 되돌리기</h2></div>
+  <div class="tablewrap">
+  <table>
+    <tr><th>실수</th><th>되돌리는 방법</th><th>권한</th></tr>
+    <tr><td>환불 신청을 잘못 올림</td><td>정산관리에서 <span class="btn">✗ 반려</span> → 입금완료로 복귀</td><td>대표</td></tr>
+    <tr><td>환불을 잘못 <b>승인</b>함</td><td>정산관리에서 환불 취소 — 전환·복원된 적립금도 함께 정리됨</td><td>대표</td></tr>
+    <tr><td>출고완료를 잘못 누름</td><td>출고 취소 → 재고 복구 + 출고 로그 삭제</td><td>대표</td></tr>
+    <tr><td>주문 자체를 없던 일로</td><td>대시보드의 주문취소 — <b>결제·출고·적립금 로그 전부 삭제, 복구 불가.</b> 최후의 수단</td><td>대표</td></tr>
+  </table>
+  </div>
+</section>
+
+<section id="never">
+  <div class="scene"><span class="tag">금지</span><h2>절대 하지 말 것</h2></div>
+  <ol>
+    <li><b>Supabase(DB)에서 데이터 직접 수정 금지.</b> 화면의 결제상태는 컬럼이 아니라 <b>결제 로그 합산</b>으로 계산됩니다. DB에서 컬럼만 고치면 화면과 데이터가 어긋나고, 적립금도 한 줄만 지우면 잔액이 틀어집니다.</li>
+    <li>부분환불 후 적립금·배송권이 안 돌아온 것을 버그로 착각하고 임의 조작 금지 — 정상 동작입니다. 필요 시 수동 지급.</li>
+    <li>엑셀 업로드 주문(시간이 00:00으로 표시)은 임의 수정 금지 — 대시보드 집계 전용이라 건드리면 매출이 틀어집니다.</li>
+    <li>주문 삭제 시 "적립금 N원 반환 실패 — 정산관리에서 직접 등록해주세요" 알림이 뜨면 <b>그 자리에서 바로 수동 등록</b> (나중에 하면 잊어버립니다).</li>
+  </ol>
+</section>
+
+<section id="faq">
+  <div class="scene"><span class="tag">FAQ</span><h2>자주 묻는 질문 — 직원 오해 TOP 5</h2></div>
+  <dl class="qa">
+    <dt>Q1. 환불신청 했는데 왜 처리가 안 되나요?</dt>
+    <dd>신청은 요청일 뿐입니다. <b>대표가 정산관리에서 승인</b>해야 처리됩니다.</dd>
+    <dt>Q2. 부분환불 했는데 고객이 쓴 적립금이 안 돌아와요.</dt>
+    <dd>정상입니다. <b>전액환불일 때만 자동 반환</b>됩니다. 필요하면 대표가 수동 지급하세요.</dd>
+    <dt>Q3. 환불 처리했는데 재고가 안 늘어요.</dt>
+    <dd>환불은 재고를 건드리지 않습니다. 물건을 받았으면 <b>반품 흐름(반품입고)</b>을 쓰세요.</dd>
+    <dt>Q4. 적립금 등록이 안 돼요 — "등록되지 않은 고객입니다".</dt>
+    <dd><b>고객관리에 먼저 등록</b>하고, 이름 표기가 주문의 고객명과 정확히 같은지 확인하세요.</dd>
+    <dt>Q5. 환불했더니 미수금 표시가 사라졌어요.</dt>
+    <dd>정상입니다. 환불은 가격 조정으로 취급되어 미수금이 0으로 계산됩니다.</dd>
+  </dl>
+</section>
+
+<section id="training">
+  <div class="scene"><span class="tag">실습</span><h2>신입 교육용 시나리오 — 인수인계 시 이 순서로</h2></div>
+  <ol>
+    <li><b>환불만</b> — 테스트 주문 하나로 부분환불 5,000원 신청 → 대표 계정으로 반려까지 해보기</li>
+    <li><b>반품+환불</b> — 반품 등록 → 수거중 → 반품입고(재고 숫자가 변하는 것 직접 확인) → 환불신청 연결 → 승인</li>
+    <li><b>적립금</b> — 테스트 고객에게 3,000원 지급 → 적립금 내역에서 확인 → 회수</li>
+    <li>마지막 질문: "부분환불하면 적립금이 자동 반환되나요?" (답: 아니오) — 이해도 체크</li>
+  </ol>
+</section>
+
+<footer>로하이마켓 ERP 내부 매뉴얼 · 화면 버튼 명칭은 2026년 7월 21일 코드 기준 · 저장소 사본: docs/직원매뉴얼_환불반품적립금.md</footer>
+</main>
+<script>
+(function(){
+  var KEY = "manual_font_scale";
+  var main = document.querySelector("main");
+  var btns = Array.prototype.slice.call(document.querySelectorAll(".fontctl button"));
+  function apply(s){
+    main.style.zoom = s;
+    btns.forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-s") === s); });
+    try{ localStorage.setItem(KEY, s); }catch(e){}
+  }
+  btns.forEach(function(b){
+    b.addEventListener("click", function(){ apply(b.getAttribute("data-s")); });
+  });
+  var saved = null;
+  try{ saved = localStorage.getItem(KEY); }catch(e){}
+  if(saved && saved !== "1") apply(saved);
+})();
+</script>
+</body>
+</html>

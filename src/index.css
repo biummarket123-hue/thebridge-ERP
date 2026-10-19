@@ -1,0 +1,76 @@
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: #07050F;
+  color: #F0E6D6;
+  font-family: 'Noto Sans KR', sans-serif;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.3s, color 0.3s;
+}
+
+/* 스크롤바 숨김 */
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* 버튼 기본 초기화 */
+button {
+  font-family: 'Noto Sans KR', sans-serif;
+}
+
+input, textarea, select {
+  font-family: 'Noto Sans KR', sans-serif;
+}
+
+/* 랜딩 애니메이션 */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1);   opacity: 1; }
+  50%       { transform: scale(1.3); opacity: .5; }
+}
+
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0); }
+  50%       { transform: translate(20px, -25px); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* 주문현황 선택 모드 — 카드 전체가 선택 버튼이 된다.
+   안쪽 요소를 전부 클릭 불가로 만들어, 링크·입금완료 같은 버튼을 눌러도
+   그 동작 대신 카드 선택만 된다. 고르는 중에 실수로 상태를 바꾸면
+   되돌리기 어려운 것들이라(입금 처리·출고완료) 아예 못 닿게 막는 편이 낫다.
+   JSX 를 감싸지 않고 CSS 로 하는 이유는, 카드 본문이 300줄이 넘어
+   래퍼를 하나 끼우는 것만으로 구조가 크게 흔들리기 때문이다. */
+.erp-card.selecting { cursor: pointer; }
+.erp-card.selecting * { pointer-events: none; }
+
+/* 경고용 깜빡임 — 원래 포장탭 안에만 있었는데, 원단 호출 배너는 셀러 화면(포장탭이
+   렌더되지 않는 곳)에도 떠야 해서 전역으로 뺐다. 판 전체가 아니라 글자에만 건다:
+   판을 깜빡이면 흐려질 때 뒤 내용이 비쳐 오히려 안 읽힌다. */
+@keyframes packBlink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .45; }
+}

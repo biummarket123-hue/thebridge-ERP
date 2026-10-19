@@ -1,0 +1,24 @@
+node_modules
+dist
+.vercel
+.env.local
+.env*.local
+supabase/.temp
+
+# 진단/분석용 로컬 스크립트 — 고객 PII(CSV) 포함, 커밋 금지
+scripts/
+
+# Claude Code 로컬 설정 — 추적 불필요
+.claude/settings.local.json
+
+# 거래명세서 로컬 샘플 출력물 — 커밋 불필요
+*.hwpx
+
+# 라벨 교정지 생성 스크립트 — 실제 코드로 미리보기를 뽑아 보는 용도라 저장소에 둘 것이 없다
+.labelprev/
+
+# ERP 감시 행수 기준 — 실행 산출물, CI 에선 cache 로 넘김
+ops/watch/last-counts.json
+
+# 소스 덤프 — 실수로 커밋되지 않게
+code-dump.json

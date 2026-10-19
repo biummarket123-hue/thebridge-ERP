@@ -1,0 +1,64 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
+  "framework": "vite",
+  "git": {
+    "deploymentEnabled": false
+  },
+  "redirects": [
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "info.lowhigh-market.com"
+        }
+      ],
+      "destination": "/i",
+      "permanent": false
+    },
+    {
+      "source": "/admin(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "info.lowhigh-market.com"
+        }
+      ],
+      "destination": "/i",
+      "permanent": false
+    },
+    {
+      "source": "/(.*).html",
+      "has": [
+        {
+          "type": "host",
+          "value": "info.lowhigh-market.com"
+        }
+      ],
+      "destination": "/i",
+      "permanent": false
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/((?!api|assets).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "info.lowhigh-market.com"
+        }
+      ],
+      "destination": "/info.html"
+    },
+    {
+      "source": "/admin/(.*)",
+      "destination": "/admin/index.html"
+    },
+    {
+      "source": "/((?!api|assets|admin).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

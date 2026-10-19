@@ -1,0 +1,56 @@
+# ERP 일일 정합성 감시 — 읽기 전용. 이상이 있을 때만 텔레그램으로 보고한다.
+# 코드: ops/watch/ (checks.mjs 검사 · notify.mjs 전송 · run.mjs 진입점)
+name: erp-watch
+
+on:
+  schedule:
+    - cron: "30 23 * * *"   # 매일 23:30 UTC = 08:30 KST
+  workflow_dispatch:         # Actions 탭에서 손으로 실행
+
+permissions:
+  contents: read
+
+concurrency:
+  group: erp-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 의존성 설치 (@supabase/supabase-js 만 필요하지만 lockfile 그대로 씀)
+        run: npm ci --ignore-scripts
+
+      # 행수 기준(last-counts.json)은 실행 간에 cache 로 넘긴다. 캐시 키는 불변이라
+      # 실행마다 새 키로 저장하고, 복원은 접두어로 가장 최근 것을 집는다.
+      - name: 지난 실행 행수 기준 복원
+        uses: actions/cache/restore@v4
+        with:
+          path: ops/watch/last-counts.json
+          key: erp-watch-counts-${{ github.run_id }}
+          restore-keys: |
+            erp-watch-counts-
+
+      - name: 정합성 검사 실행
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          COMPANY_AUTH_EMAIL: ${{ secrets.COMPANY_AUTH_EMAIL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: node ops/watch/run.mjs
+
+      - name: 이번 실행 행수 기준 저장
+        if: always() && hashFiles('ops/watch/last-counts.json') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: ops/watch/last-counts.json
+          key: erp-watch-counts-${{ github.run_id }}

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Lowhigh Market Band Reader — 로하이마켓 밴드 댓글 조회</title>
+<meta name="description" content="로하이마켓이 운영하는 네이버 밴드의 댓글을 사내 업무 시스템에서 조회하는 읽기 전용 사내 도구 소개">
+<style>
+  :root{
+    --paper:#FAF7F3; --ink:#2B2320; --sub:#6E6258; --line:#E6DDD2;
+    --copper:#A8602C; --card:#FFFFFF; --chip:#F1EAE1;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --paper:#1E1915; --ink:#EDE6DD; --sub:#A99C8E; --line:#3A322B;
+      --copper:#D08B52; --card:#26201B; --chip:#2F2822;
+    }
+  }
+  *{box-sizing:border-box;}
+  html{background:var(--paper);}
+  body{
+    font-family:"Pretendard Variable",Pretendard,"Apple SD Gothic Neo","Malgun Gothic","Segoe UI",sans-serif;
+    color:var(--ink); background:var(--paper);
+    line-height:1.75; font-size:16px;
+    margin:0; padding:0 20px 72px;
+    word-break:keep-all; overflow-wrap:anywhere;
+  }
+  main{max-width:720px; margin:0 auto;}
+
+  header{padding:48px 0 20px; border-bottom:2px solid var(--ink); margin-bottom:28px;}
+  .eyebrow{font-size:12px; letter-spacing:.14em; color:var(--copper); font-weight:700; text-transform:uppercase;}
+  h1{font-size:28px; font-weight:800; letter-spacing:-0.02em; line-height:1.3; margin:8px 0 4px; text-wrap:balance;}
+  .sub{color:var(--sub); font-size:15px; margin:0;}
+
+  section{
+    background:var(--card); border:1px solid var(--line); border-radius:10px;
+    padding:18px 20px; margin:0 0 14px;
+  }
+  h2{
+    font-size:13px; font-weight:800; letter-spacing:.06em; color:var(--copper);
+    margin:0 0 6px;
+  }
+  p{margin:0;}
+  ul{margin:0; padding-left:1.2em;}
+  li{margin:2px 0;}
+  .band{
+    display:inline-block; background:var(--chip); border:1px solid var(--line);
+    border-radius:6px; padding:0 8px; font-weight:700;
+  }
+
+  footer{color:var(--sub); font-size:13px; margin-top:28px; padding-top:16px; border-top:1px solid var(--line);}
+
+  @media (max-width:480px){
+    body{padding:0 16px 56px;}
+    header{padding:32px 0 16px;}
+    h1{font-size:23px;}
+    section{padding:16px;}
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="eyebrow">서비스 소개</div>
+    <h1>Lowhigh Market Band Reader</h1>
+    <p class="sub">로하이마켓 밴드 댓글 조회</p>
+  </header>
+
+  <section>
+    <h2>운영사</h2>
+    <p>로하이마켓 (경기도 양주시, 원단 도소매)</p>
+  </section>
+
+  <section>
+    <h2>목적</h2>
+    <p>
+      로하이마켓이 운영하는 네이버 밴드 <span class="band">원단할인 50~90%로하이마켓</span>의
+      게시글 댓글을 사내 업무 시스템에서 조회해, 고객 문의에 대한 응대 누락을 방지하는
+      사내 전용 도구입니다.
+    </p>
+  </section>
+
+  <section>
+    <h2>사용 방식</h2>
+    <ul>
+      <li>회사 대표 계정 1개의 계정 연동 토큰만 사용합니다.</li>
+      <li>외부 사용자 로그인 기능이 없습니다.</li>
+      <li>게시글·댓글 작성 기능이 없습니다. (읽기 전용)</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>데이터 처리</h2>
+    <ul>
+      <li>조회한 댓글(작성자의 밴드 표시명과 댓글 내용)은 고객 문의 응대를 위해 사내 직원만 접근 가능한 업무 시스템에 기록합니다.</li>
+      <li>응대 외 목적으로 사용하지 않으며, 외부에 제공하지 않습니다.</li>
+      <li>전화번호·주소 등 댓글에 없는 정보를 밴드에서 추가로 가져오지 않습니다.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>문의처</h2>
+    <p>로하이마켓 — 031-824-3303</p>
+  </section>
+
+  <footer>로하이마켓</footer>
+</main>
+</body>
+</html>

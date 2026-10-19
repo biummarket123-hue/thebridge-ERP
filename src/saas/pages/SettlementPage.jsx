@@ -240,7 +240,7 @@ export default function SettlementPage({ route }) {
         <Panel title="월별 매출 현황" small="단위: 원 · 입금 기준">
           <div className="chartsum"><strong>{won(month.sum)}</strong>{monthDelta === null ? <small className="flat">지난달 {won(lastMonth)}</small> : <small className={monthDelta < 0 ? "down" : ""}>{monthDelta >= 0 ? "↗" : "↘"} {Math.abs(monthDelta)}%</small>}</div>
           <BarChart bars={months.map(m => ({ ...m, value: Math.round(m.value / 10000) }))} month />
-          <div className="chartfoot" style={{ marginTop: -20 }}>막대 숫자는 만원. 최근 6개월 payment_logs 의 "입금" 합.</div>
+          <div className="chartfoot" style={{ marginTop: 0 }}>막대 숫자는 만원. 최근 6개월 payment_logs 의 "입금" 합.</div>
         </Panel>
         <Panel title="최근 입금" right={<Button kind="white" size="sm" icon="plus" onClick={() => setCreditOpen(true)}>적립금 등록</Button>}>
           <div className="tasklist">

@@ -41,9 +41,9 @@ export function OrderRows({ list, onOpen, limit }) {
             {rows.map(o => (
               <tr key={o.id} onClick={() => onOpen(o)}>
                 <td><strong className="mono">{shortId(o.id)}</strong></td>
-                <td>{o.customer}{o.manager ? <small style={{ display: "block", color: "#9aabba", fontSize: 13 }}>{o.manager}</small> : null}</td>
+                <td className="nowrap">{o.customer}{o.manager ? <small style={{ display: "block", color: "#9aabba", fontSize: 13 }}>{o.manager}</small> : null}</td>
                 <td><span className="ellip">{itemsSummary(o, 2)}</span></td>
-                <td>{relativeWhen(o.createdAt) || o.date}</td>
+                <td className="nowrap">{relativeWhen(o.createdAt) || o.date}</td>
                 <td><strong>{won(orderTotal(o))}</strong></td>
                 <td><span className="badges">{orderBadges(o).map(([t, l]) => <StatusBadge key={l} tone={t}>{l}</StatusBadge>)}</span></td>
               </tr>

@@ -58,6 +58,27 @@ function InvCard({ g, onOpen }) {
 }
 
 /** 입고 등록 — 옛 InspectionTab.receive 를 그대로 옮긴 흐름: 품번 고르기(없으면 insertProduct) → receiveRolls(롤마다 길이). */
+/** 사진 고르기 — 휴대폰은 카메라가 바로 열린다(capture). 고르면 미리보기, × 로 뺀다. 올리는 건 호출한 쪽이 한다. */
+function PhotoPick({ file, onChange, label = "사진 찍기 · 고르기", id = "photo-pick" }) {
+  const [url, setUrl] = useState("");
+  useEffect(() => {
+    if (!file) { setUrl(""); return; }
+    const u = URL.createObjectURL(file); setUrl(u);
+    return () => URL.revokeObjectURL(u);
+  }, [file]);
+  return (
+    <div className="photo-pick">
+      {url ? <div className="thumb" style={{ backgroundImage: `url(${url})` }} /> : <div className="thumb empty"><Icon name="camera" /></div>}
+      <div className="acts">
+        <label className="btn btn-white btn-sm" htmlFor={id}><Icon name="camera" /> {file ? "다른 사진" : label}</label>
+        <input id={id} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) onChange(f); e.target.value = ""; }} />
+        {file && <button type="button" className="chip" onClick={() => onChange(null)}>× 빼기</button>}
+      </div>
+      <small>{file ? `${file.name} · ${Math.round(file.size / 1024)}KB (올릴 때 webp 로 줄입니다)` : "원단 사진은 목록·상세·라벨에 보입니다"}</small>
+    </div>
+  );
+}
+
 function ReceiveModal({ onClose, initialProduct }) {
   const { products, managers, activeManager, reloadProducts, reloadRolls, config } = useSaas();
   const toast = useToast();
@@ -65,6 +86,7 @@ function ReceiveModal({ onClose, initialProduct }) {
   const [picked, setPicked] = useState(initialProduct || null);
   const [newOpen, setNewOpen] = useState(false);
   const [np, setNp] = useState({ name: "", color: "", unitPrice: "", note: "" });
+  const [photo, setPhoto] = useState(null);   // 새 품번의 사진, 또는 고른 품번에 사진이 없을 때 붙일 사진
   const [count, setCount] = useState(1);
   const [lengths, setLengths] = useState([""]);
   const [supplier, setSupplier] = useState("");
@@ -86,10 +108,14 @@ function ReceiveModal({ onClose, initialProduct }) {
         const same = products.find(p => p.name.trim() === np.name.trim() && (p.color || "").trim() === (np.color || "").trim());
         if (same && window.confirm(`이미 있는 품번입니다 — ${same.code} ${same.name}${same.color ? ` ${same.color}` : ""}\n\n이 품번에 롤을 넣을까요?\n(취소하면 같은 이름으로 새 품번을 하나 더 만듭니다)`)) product = same;
         else {
-          product = await db.insertProduct({ name: np.name.trim(), color: np.color, note: np.note, unitPrice: parseInt(String(np.unitPrice).replace(/\D/g, "")) || null, manager: activeManager, prefix: ownerPrefix });
+          product = await db.insertProduct({ name: np.name.trim(), color: np.color, note: np.note, unitPrice: parseInt(String(np.unitPrice).replace(/\D/g, "")) || null, manager: activeManager, prefix: ownerPrefix, photoFile: photo });
+          if (product?.photoError) toast("품번은 만들었지만 사진 업로드에 실패했습니다 — 원단 상세에서 다시 올려 주세요", "error");
           await reloadProducts();
         }
         setPicked(product); setQ(product.code); setNewOpen(false);
+      } else if (photo && !product.photoUrl) {
+        // 이미 있는 품번에 입고하면서 찍은 사진 — 사진만 실패해도 입고는 계속한다
+        try { await db.setProductPhoto(product.id, photo); await reloadProducts(); } catch (e) { console.warn("[saas] 사진 업로드 실패", e); toast("사진 업로드에 실패했습니다 — 원단 상세에서 다시 올려 주세요", "error"); }
       }
       const { rolls: made, failed, labelRequested } = await db.receiveRolls(product.id, { lengths: parsed.map(p => p.value), supplier, location }, activeManager || "");
       const range = made.length ? `${made[0].rollCode}${made.length > 1 ? ` ~ ${made[made.length - 1].rollCode.slice(-3)}` : ""}` : "";
@@ -131,9 +157,11 @@ function ReceiveModal({ onClose, initialProduct }) {
               <div><label className="formlabel" htmlFor="np-price" style={{ marginTop: 4 }}>단가 (원/마)<span className="opt">선택</span></label><input id="np-price" className="forminput" inputMode="numeric" value={np.unitPrice} onChange={e => setNp({ ...np, unitPrice: e.target.value })} /></div>
               <div><label className="formlabel" htmlFor="np-note" style={{ marginTop: 4 }}>메모<span className="opt">선택</span></label><input id="np-note" className="forminput" value={np.note} onChange={e => setNp({ ...np, note: e.target.value })} /></div>
             </div>
+            <PhotoPick file={photo} onChange={setPhoto} id="np-photo" />
             <p className="helptext" style={{ margin: "10px 0 0" }}>품번은 서버가 발급합니다({ownerPrefix}-년월-번호).</p>
           </div>
         )}
+      {picked && !picked.photoUrl && <PhotoPick file={photo} onChange={setPhoto} id="rcv-photo" label="이 품번 사진 붙이기" />}
       <div className="formrow">
         <div><label className="formlabel" htmlFor="rcv-count">롤 수</label><input id="rcv-count" className="forminput" type="number" min={1} max={99} value={count} onChange={e => setCountSafe(e.target.value)} /></div>
         <div><label className="formlabel" htmlFor="rcv-loc">보관 위치<span className="opt">선택</span></label><input id="rcv-loc" className="forminput" value={location} onChange={e => setLocation(e.target.value)} placeholder="예: A-01" /></div>
@@ -158,10 +186,18 @@ function ReceiveModal({ onClose, initialProduct }) {
 
 /** 원단 상세 — 롤 목록(잔량·위치), 조정·폐기, 이력. */
 function StockDetail({ group, onClose, onReceive }) {
-  const { activeManager, reloadRolls, config } = useSaas();
+  const { activeManager, reloadRolls, reloadProducts, config } = useSaas();
   const LOW_STOCK_M = config.lowStockM;
   const toast = useToast();
   const [mode, setMode] = useState(null);   // {kind:"adjust"|"scrap"|"history", roll}
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const changePhoto = async (file) => {
+    if (!file) return;
+    setPhotoBusy(true);
+    try { await db.setProductPhoto(p.id, file); await reloadProducts(); toast("사진을 바꿨습니다"); }
+    catch (e) { console.error("[saas] 사진", e); toast("사진 업로드 실패: " + (e?.message || e), "error"); }
+    finally { setPhotoBusy(false); }
+  };
   const [delta, setDelta] = useState("");
   const [reason, setReason] = useState("");
   const [scrapQty, setScrapQty] = useState("");
@@ -199,7 +235,11 @@ function StockDetail({ group, onClose, onReceive }) {
 
   return (
     <Modal title="원단 상세" onClose={onClose} width="wide">
-      <div className={`swatch${p.photoUrl ? " photo" : ""}`} style={{ height: 130, marginTop: 20, ...(p.photoUrl ? { backgroundImage: `url(${p.photoUrl})` } : { background: swatchOf(p) }) }}><span className="code">{p.code}</span></div>
+      <div className={`swatch${p.photoUrl ? " photo" : ""}`} style={{ height: 160, marginTop: 20, ...(p.photoUrl ? { backgroundImage: `url(${p.photoUrl})` } : { background: swatchOf(p) }) }}>
+        <span className="code">{p.code}</span>
+        <label className={`btn btn-white btn-sm photo-btn${photoBusy ? " loading" : ""}`} htmlFor="detail-photo"><Icon name="camera" /> {p.photoUrl ? "사진 바꾸기" : "사진 추가"}</label>
+        <input id="detail-photo" type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) changePhoto(f); e.target.value = ""; }} />
+      </div>
       <p className="helptext">혼용률 — · {p.color || "색상 미기재"} · 보관 위치 {stockLocations(group) || "—"}{p.unitPrice ? ` · 단가 ${won(p.unitPrice)}` : ""}{p.manager ? ` · 담당 ${p.manager}` : ""}</p>
       <div className="invrow" style={{ margin: "16px 0 10px" }}>
         <strong style={{ fontSize: 19 }}>{p.name}{p.color ? ` ${p.color}` : ""}</strong>

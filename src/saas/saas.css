@@ -440,3 +440,13 @@
 .saas .sub-banner.demo { background: #eef5ff; color: #2e5bb8; border-color: #cdddff; }
 @media (max-width: 900px) { .saas .landing-features { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .saas .landing-hero h1 { font-size: 30px; } .saas .landing-features { grid-template-columns: 1fr; } .saas .landing-hero { padding: 40px 0 28px; } }
+
+/* ── 품번 사진 ─────────────────────────────────────────────── */
+.saas .photo-pick { display: grid; grid-template-columns: 76px 1fr; gap: 6px 14px; align-items: center; margin-top: 12px; }
+.saas .photo-pick .thumb { width: 76px; height: 76px; border-radius: 12px; background-size: cover; background-position: center; border: 1px solid #e2eaf6; grid-row: span 2; }
+.saas .photo-pick .thumb.empty { background: #f1f4f8; color: #9aabba; display: flex; align-items: center; justify-content: center; }
+.saas .photo-pick .thumb.empty svg { width: 26px; height: 26px; }
+.saas .photo-pick .acts { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.saas .photo-pick .acts .btn { width: auto; cursor: pointer; }
+.saas .photo-pick small { color: #8d9aab; font-size: 12px; }
+.saas .swatch .photo-btn { position: absolute; right: 10px; bottom: 8px; width: auto; z-index: 1; cursor: pointer; }

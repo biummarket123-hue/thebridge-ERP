@@ -4,10 +4,12 @@ import { useEffect } from "react";
 import { BRAND, OLD_ERP_PATH } from "../config.js";
 import { MENUS } from "../router.js";
 import { Icon, BrandMark } from "../icons.jsx";
+import { useSaas } from "../data/SaasData.jsx";
 
 const fmtDate = (d) => `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 ${["일", "월", "화", "수", "목", "금", "토"][d.getDay()]}요일`;
 
 export function Sidebar({ active, counts = {}, go, manager, onProfile }) {
+  const { config } = useSaas();
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -31,11 +33,14 @@ export function Sidebar({ active, counts = {}, go, manager, onProfile }) {
           <strong>옛 화면이 필요하신가요?</strong>
           <p>포장 스캔·라벨 출력·공지·메모 채팅은<br /><a href={OLD_ERP_PATH}>기존 ERP 화면</a>에서 처리합니다.</p>
         </div>
+        <button className={`nav settings${active === "settings" ? " active" : ""}`} onClick={() => go("/app/settings")} aria-current={active === "settings" ? "page" : undefined}>
+          <Icon name="settings" /><span>회사 설정</span>
+        </button>
         <button className="profile" onClick={onProfile} title="담당자 바꾸기 · 로그아웃">
           <div className="avatar">{(manager || "?").slice(0, 1)}</div>
           <div style={{ minWidth: 0 }}>
             <strong>{manager ? `${manager}님` : "담당자 선택"}</strong>
-            <small>{BRAND.tenant}</small>
+            <small>{config.companyName}</small>
           </div>
         </button>
       </div>

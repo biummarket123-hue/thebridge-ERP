@@ -11,11 +11,25 @@ import { GATE_TOKEN_KEY, GATE_UNTIL_KEY } from "./lib/db.js";
 import { supabase } from "./lib/supabase.js";
 
 const SaasRoot = lazy(() => import("./SaasRoot.jsx"));
-// 새 SaaS UI(/app) — 옛 ErpApp 과 같은 회사 세션·담당자 선택을 쓴다. 로그인이 끝난 뒤에만 그린다(2026-10-19).
-const SaasApp = lazy(() => import("./saas/SaasApp.jsx"));
+// 새 SaaS UI(/app) — 회사 아이디·비밀번호 로그인(또는 이미 있는 세션) 뒤 담당자 PIN. 자기 게이트(SaasAuth)를 갖는다(2026-10-19).
+const SaasAuth = lazy(() => import("./saas/auth/SaasAuth.jsx"));
 
 // saasUi: main.jsx 가 경로(/app)로 정한다. 참이면 로그인 뒤 옛 ErpApp 대신 새 UI 를 그린다.
 function CompanyRoot({ saasUi = false }) {
+  if (saasUi) return <SaasRootGate />;
+  return <LegacyCompanyRoot />;
+}
+
+// /app — 새 UI 는 회사 세션을 스스로 확인한다(옛 게이트 토큰 기기도 통과).
+function SaasRootGate() {
+  return (
+    <Suspense fallback={<LoadingScreen />}>
+      <SaasAuth />
+    </Suspense>
+  );
+}
+
+function LegacyCompanyRoot() {
   const [authenticated, setAuthenticated] = useState(() => {
     // 만료시각까지 로그인 유지. 게이트 토큰(서버가 세션을 내주는 근거)이 함께 있어야 한다 —
     // 예전 플래그만 있는 기기는 세션을 받을 수 없으므로 한 번 다시 로그인한다.
@@ -36,14 +50,6 @@ function CompanyRoot({ saasUi = false }) {
 
   if (!authenticated) {
     return <CompanyLogin onSuccess={() => setAuthenticated(true)} />;
-  }
-
-  if (saasUi) {
-    return (
-      <Suspense fallback={<LoadingScreen />}>
-        <SaasApp />
-      </Suspense>
-    );
   }
 
   return (

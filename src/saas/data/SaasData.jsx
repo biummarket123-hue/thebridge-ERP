@@ -11,12 +11,18 @@ import { groupRollsByProduct } from "../../lib/rollStock.js";
 import { isHold, isParked, getPayStatus } from "../../constants.js";
 import { buildOverview } from "../../lib/overview.js";
 import { monthRange } from "../lib/metrics.js";
+import { resolveConfig } from "../config.js";
+import { subscriptionState, pinNeeded } from "../lib/subscription.js";
 
 const Ctx = createContext(null);
 export const useSaas = () => useContext(Ctx);
 
 const MANAGER_KEY = "erp_manager";
 const SCOPE_KEY = "erp_overview_scope";   // 옛 OverviewTab 과 같은 키 — 범위 선택을 두 화면이 공유한다
+const PIN_AT_KEY = "erp_manager_pin_at";   // 마지막 PIN 확인 시각(ms) — 담당자 이름과 짝
+const PIN_PINNED_KEY = "erp_manager_pinned"; // "1" 이면 이 기기에 담당자 고정(한 번 확인하면 다시 묻지 않음 — 포장 패드)
+const readLS = (k) => { try { return localStorage.getItem(k) || ""; } catch { return ""; } };
+const writeLS = (k, v) => { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch {} };
 const readScope = () => { try { const v = localStorage.getItem(SCOPE_KEY); return v === "all" || v === "mine" ? v : null; } catch { return null; } };
 
 export function SaasDataProvider({ children }) {
@@ -33,15 +39,24 @@ export function SaasDataProvider({ children }) {
   const [paymentLogs, setPaymentLogs] = useState([]); // 최근 6개월 — 이번 달 매출·월별 매출
   const [shipped, setShipped] = useState([]);         // 최근 60일 출고완료 — 이번 주 차트·이번 달 판매
   const [overviewMates, setOverviewMates] = useState([]);
+  const [account, setAccount] = useState(null);       // company_accounts 행(없으면 null = 사내 계정)
+  const [pinStatus, setPinStatus] = useState([]);     // [{manager_id, has_pin, locked_until}]
   const [loaded, setLoaded] = useState(false);
   const [syncLost, setSyncLost] = useState(false);
   const [error, setError] = useState(null);
 
-  const [activeManager, _setActiveManager] = useState(() => { try { return localStorage.getItem(MANAGER_KEY) || ""; } catch { return ""; } });
+  const [activeManager, _setActiveManager] = useState(() => readLS(MANAGER_KEY));
+  // PIN 확인 시각 — 담당자가 바뀌면 0 으로(다른 사람 PIN 으로 통과한 기록을 물려받지 않게)
+  const [pinVerifiedAt, _setPinVerifiedAt] = useState(() => Number(readLS(PIN_AT_KEY)) || 0);
+  const [pinned, _setPinned] = useState(() => readLS(PIN_PINNED_KEY) === "1");
   const setActiveManager = useCallback((name) => {
-    _setActiveManager(name || "");
-    try { if (name) localStorage.setItem(MANAGER_KEY, name); else localStorage.removeItem(MANAGER_KEY); } catch {}
+    const n = name || "";
+    _setActiveManager(n);
+    writeLS(MANAGER_KEY, n);
+    _setPinVerifiedAt(0); writeLS(PIN_AT_KEY, "");
   }, []);
+  const markPinVerified = useCallback(() => { const t = Date.now(); _setPinVerifiedAt(t); writeLS(PIN_AT_KEY, String(t)); }, []);
+  const setPinned = useCallback((v) => { _setPinned(!!v); writeLS(PIN_PINNED_KEY, v ? "1" : ""); }, []);
   const manager = useMemo(() => managers.find(m => m.name === activeManager) || null, [managers, activeManager]);
   const isAdmin = !!manager?.isAdmin;
   const isPacker = !!manager && !!manager.isPacker && !manager.isAdmin;
@@ -69,6 +84,10 @@ export function SaasDataProvider({ children }) {
   const reloadCredits = useCallback(async () => { try { setCredits(await db.fetchCredits()); } catch (e) { console.warn("[saas] 적립금", e); } }, []);
   const reloadFreeShipping = useCallback(async () => { try { setFreeShipping(await db.getAllFreeShipping()); } catch (e) { console.warn("[saas] 배송권", e); } }, []);
   const reloadReturns = useCallback(async () => { try { setReturns(await db.fetchReturns()); } catch (e) { console.warn("[saas] 반품", e); setReturns([]); } }, []);
+  const reloadManagers = useCallback(async () => { try { setManagers(await db.fetchManagers()); } catch (e) { console.warn("[saas] 담당자", e); } }, []);
+  const reloadAccount = useCallback(async () => { try { setAccount(await db.fetchCompanyAccount()); } catch (e) { console.warn("[saas] 회사 계정", e); } }, []);
+  const reloadPinStatus = useCallback(async () => { try { setPinStatus(await db.fetchManagerPinStatus()); } catch (e) { console.warn("[saas] PIN 상태", e); } }, []);
+  const reloadSettings = useCallback(async () => { try { setSettings(await db.fetchSettings()); } catch (e) { console.warn("[saas] 설정", e); } }, []);
   const reloadMoney = useCallback(async () => {
     const now = new Date();
     const since6 = monthRange(now, -5).start.toISOString();
@@ -82,15 +101,17 @@ export function SaasDataProvider({ children }) {
     preloadHolidays().catch(() => {});
     (async () => {
       try {
-        const [o, c, m, s] = await Promise.all([
+        const [o, c, m, s, a, p] = await Promise.all([
           db.fetchOrdersWithMoney().catch(e => { console.error("[saas] 주문 로드 실패", e); setSyncLost(true); if (e?.code === "AUTH_LOST") setError(e.message); return []; }),
           db.fetchCustomers().catch(() => []),
           db.fetchManagers().catch(() => []),
           db.fetchSettings().catch(() => null),
+          db.fetchCompanyAccount().catch(() => null),
+          db.fetchManagerPinStatus().catch(() => []),
         ]);
         appliedRef.current = Math.max(appliedRef.current, 1);
         if (o.length) setOrders(o);
-        setCustomers(c); setManagers(m); setSettings(s);
+        setCustomers(c); setManagers(m); setSettings(s); setAccount(a); setPinStatus(p);
       } finally { setLoaded(true); }
       // 나머지는 뒤에 — 첫 화면이 주문·담당자만 있으면 뜬다
       await Promise.all([reloadProducts(), reloadRolls(), reloadCredits(), reloadFreeShipping(), reloadReturns(), reloadMoney()]);
@@ -150,8 +171,18 @@ export function SaasDataProvider({ children }) {
     courierOf: (o) => courierById.get(o.id)?.courier, isPickup: (o) => !!courierById.get(o.id)?.pickup,
   }, new Date(nowTs)), [overviewOrders, overviewMates, courierById, nowTs]);
 
+  // 회사별 설정·구독 상태·PIN 게이트
+  const config = useMemo(() => resolveConfig(settings, account), [settings, account]);
+  const subscription = useMemo(() => subscriptionState(account, new Date(nowTs)), [account, nowTs]);
+  const readOnly = subscription.readOnly;   // 만료 — DB 가 쓰기를 막는다(saas_readonly_when_expired.sql). 화면은 버튼을 숨기고 안내한다
+  const pinOf = useCallback((m) => pinStatus.find(p => p.manager_id === m?.id) || null, [pinStatus]);
+  const managerHasPin = !!pinOf(manager)?.has_pin;
+  const pinRequired = !!manager && !manager.isPublic && pinNeeded({ hasPin: managerHasPin, verifiedAt: pinVerifiedAt, pinned, now: nowTs });
+
   const value = {
     userId, loaded, syncLost, error,
+    account, subscription, readOnly, config, reloadAccount, reloadSettings, reloadManagers,
+    pinStatus, pinOf, managerHasPin, pinRequired, pinVerifiedAt, markPinVerified, pinned, setPinned, reloadPinStatus,
     orders, setOrders, customers, setCustomers, managers, settings, products, rolls, groups, productById,
     credits, setCredits, freeShipping, returns, setReturns, paymentLogs, shipped, overviewMates,
     activeManager, setActiveManager, manager, isAdmin, isPacker,

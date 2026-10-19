@@ -4061,3 +4061,82 @@ export async function fetchShippedOrdersSince(sinceIso) {
   }
   return all.map(toCamel);
 }
+
+// ══════════════════════════════════════════════════════════════
+// 구독형 SaaS — 회사 계정·담당자 PIN (migrations/saas_company_accounts.sql). 새 UI(src/saas)만 쓴다. 추가만.
+// ══════════════════════════════════════════════════════════════
+
+// 회사 계정 한 줄. 표가 없거나(마이그레이션 전) 행이 없으면(사내 계정) null — 둘 다 "구독 제한 없음"으로 다룬다.
+export async function fetchCompanyAccount() {
+  const userId = await getUserId();
+  if (!userId) return null;
+  const { data, error } = await supabase
+    .from("company_accounts")
+    .select("owner_id, login_id, name, contact, plan, status, trial_end, current_period_end, max_managers, created_at")
+    .eq("owner_id", userId)
+    .maybeSingle();
+  if (error) { console.warn("[company_accounts] 조회 실패(마이그레이션 전?):", error.message); return null; }
+  return data || null;
+}
+
+// 회사명·연락처만 — 요금제·기간은 DB 트리거가 막는다(서버 전용).
+export async function updateCompanyAccount({ name, contact }) {
+  const userId = await getUserId();
+  if (!userId) throw new Error("로그인이 필요합니다");
+  const row = {};
+  if (name !== undefined) row.name = String(name || "").trim();
+  if (contact !== undefined) row.contact = String(contact || "").trim();
+  if (!Object.keys(row).length) return;
+  const { error } = await supabase.from("company_accounts").update(row).eq("owner_id", userId);
+  if (error) throw error;
+}
+
+// 결제·연장 이력(읽기만). 서버가 쓴다.
+export async function fetchSubscriptionEvents() {
+  const userId = await getUserId();
+  if (!userId) return [];
+  const { data, error } = await supabase
+    .from("subscription_events")
+    .select("id, kind, amount, plan, period_start, period_end, memo, created_at")
+    .eq("owner_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (error) return [];
+  return data || [];
+}
+
+// 담당자별 PIN 상태 — [{manager_id, has_pin, locked_until}]. 해시는 절대 내려오지 않는다.
+// RPC 가 없으면(마이그레이션 전) 빈 배열 → 화면은 "PIN 없음"으로 보고 묻지 않는다.
+export async function fetchManagerPinStatus() {
+  const userId = await getUserId();
+  if (!userId) return [];
+  const { data, error } = await supabase.rpc("manager_pin_status");
+  if (error) { console.warn("[manager_pins] 상태 조회 실패(마이그레이션 전?):", error.message); return []; }
+  return Array.isArray(data) ? data : [];
+}
+
+// PIN 검증 — { ok, no_pin?, locked_until?, attempts_left?, error? }. 잠금·횟수는 DB 가 센다.
+export async function verifyManagerPin(managerId, pin) {
+  const { data, error } = await supabase.rpc("verify_manager_pin", { p_manager_id: managerId, p_pin: String(pin || "") });
+  if (error) throw error;
+  return data || { ok: false, error: "응답 없음" };
+}
+
+// PIN 설정/변경 — 처음이면 증명 없이, 있으면 본인 현재 PIN 또는 관리자 PIN 으로(by*). { ok, error? }
+export async function setManagerPin(managerId, pin, byManagerId = null, byPin = null) {
+  const { data, error } = await supabase.rpc("set_manager_pin", {
+    p_manager_id: managerId, p_pin: String(pin || ""),
+    p_by_manager_id: byManagerId ?? null, p_by_pin: byPin == null ? null : String(byPin),
+  });
+  if (error) throw error;
+  return data || { ok: false, error: "응답 없음" };
+}
+
+// 새 UI 의 회사 설정(settings.data.saas) — 옛 화면의 설정(kakao·sender…)과 한 jsonb 를 나눠 쓰므로
+// 저장 직전에 다시 읽어 합친다. 다른 키는 건드리지 않는다.
+export async function saveSaasSettings(patch) {
+  const current = (await fetchSettings()) || {};
+  const next = { ...current, saas: { ...(current.saas || {}), ...patch } };
+  await saveSettings(next);
+  return next;
+}

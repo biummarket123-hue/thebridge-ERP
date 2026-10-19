@@ -375,3 +375,46 @@
 @media (prefers-reduced-motion: reduce) {
   .saas *, .saas *:before, .saas *:after { transition-duration: .01ms !important; animation-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+/* ── 구독형: 회사 로그인·PIN·설정 ───────────────────────────── */
+.saas .login-sheet { max-width: 460px; }
+.saas .login-sheet .brand { margin-left: 0; }
+.saas .pin-who { display: flex; align-items: center; gap: 12px; margin: 14px 0 6px; }
+.saas .pin-who strong { display: block; font-size: 17px; }
+.saas .pin-who small { display: block; color: #8d9aab; font-size: 13px; margin-top: 3px; }
+.saas .pinpad { display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 12px 0 4px; }
+.saas .pin-hidden { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.saas .pindots { display: flex; gap: 16px; cursor: text; }
+.saas .pindots span { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #c9d5e6; transition: .15s; }
+.saas .pindots span.on { background: var(--saas-blue); border-color: var(--saas-blue); transform: scale(1.1); }
+.saas .pinkeys { display: grid; grid-template-columns: repeat(3, 72px); gap: 10px; }
+.saas .pinkeys button { height: 60px; border-radius: 16px; border: 1px solid #e2eaf6; background: #fff; font-size: 24px; font-weight: 800; color: var(--saas-ink); transition: .14s; }
+.saas .pinkeys button:hover { background: #f5f8ff; border-color: #cdddff; }
+.saas .pinkeys button:active { transform: scale(.95); background: #eaf2ff; }
+.saas .pinkeys button:disabled { opacity: .45; }
+.saas .pinkeys button.del { color: #8d9aab; }
+.saas .pinkeys button.del svg { width: 22px; height: 22px; }
+.saas .sub-banner { background: #fff7ec; color: #a66a1e; border: 1px solid #f6e3c6; border-radius: 14px; padding: 12px 16px; font-size: 14px; font-weight: 800; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.saas .sub-banner.ro { background: #fff1f0; color: #c85a52; border-color: #f6d2cf; }
+.saas .sub-banner .btn { width: auto; }
+.saas .settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
+.saas .kv { display: grid; grid-template-columns: 120px 1fr; gap: 8px 14px; font-size: 15px; margin-top: 10px; }
+.saas .kv dt { color: #8d9aab; font-weight: 700; }
+.saas .kv dd { margin: 0; font-weight: 800; min-width: 0; overflow-wrap: anywhere; }
+.saas .mgr-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f0f3f7; flex-wrap: wrap; }
+.saas .mgr-row:last-child { border-bottom: 0; }
+.saas .mgr-row .who { flex: 1; min-width: 140px; }
+.saas .mgr-row .who strong { display: block; font-size: 16px; }
+.saas .mgr-row .who small { display: block; color: #94a3b4; font-size: 13px; margin-top: 3px; }
+.saas .mgr-row .acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.saas .sidebar .nav.settings { margin-top: 6px; }
+.saas .events { list-style: none; margin: 10px 0 0; padding: 0; font-size: 14px; }
+.saas .events li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f0f3f7; }
+.saas .events li small { color: #94a3b4; }
+@media (max-width: 720px) {
+  .saas .settings-grid { grid-template-columns: 1fr; }
+  .saas .pinkeys { grid-template-columns: repeat(3, 1fr); width: 100%; max-width: 280px; }
+  .saas .kv { grid-template-columns: 96px 1fr; }
+}
+.saas .manager-pick .pin-mark { display: inline-flex; color: #9aabba; }
+.saas .manager-pick .pin-mark svg { width: 16px; height: 16px; }

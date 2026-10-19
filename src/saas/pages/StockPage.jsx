@@ -9,7 +9,7 @@ import { PageHead, StatCard, Button, Panel, SearchInput, FilterChips, StatusBadg
 import { Icon } from "../icons.jsx";
 import { stockStats, stockStatus, stockRatio, stockLocations, monthShippedLength } from "../lib/metrics.js";
 import { matchProduct, fmtLen, parseMeasured, prefixForManager, ROLL_STATUS, MOVEMENT_LABEL, PIECE_ORIGIN, rollErrorText, round2 } from "../../lib/rollStock.js";
-import { LOW_STOCK_M, OLD_ERP_PATH } from "../config.js";
+import { OLD_ERP_PATH } from "../config.js";
 
 // 시안의 원단 텍스처 — 사진이 없는 품번은 색상 이름으로 비슷한 색을 고른다. 사진이 있으면 사진.
 const SWATCHES = [
@@ -35,7 +35,8 @@ const swatchOf = (p) => {
 const statusLabel = { ok: ["progress", "판매 중"], low: ["late", "재고 부족"], out: ["done", "품절"] };
 
 function InvCard({ g, onOpen }) {
-  const st = stockStatus(g, LOW_STOCK_M);
+  const { config } = useSaas();
+  const st = stockStatus(g, config.lowStockM);
   const [tone, label] = statusLabel[st];
   const ratio = stockRatio(g);
   const pct = ratio === null ? 0 : Math.round(ratio * 100);
@@ -158,7 +159,8 @@ function ReceiveModal({ onClose, initialProduct }) {
 
 /** 원단 상세 — 롤 목록(잔량·위치), 조정·폐기, 이력. */
 function StockDetail({ group, onClose, onReceive }) {
-  const { activeManager, reloadRolls } = useSaas();
+  const { activeManager, reloadRolls, config } = useSaas();
+  const LOW_STOCK_M = config.lowStockM;
   const toast = useToast();
   const [mode, setMode] = useState(null);   // {kind:"adjust"|"scrap"|"history", roll}
   const [delta, setDelta] = useState("");
@@ -267,12 +269,13 @@ function StockDetail({ group, onClose, onReceive }) {
 }
 
 export default function StockPage({ route }) {
-  const { products, groups, shipped, loaded } = useSaas();
+  const { products, groups, shipped, loaded, config } = useSaas();
+  const LOW_STOCK_M = config.lowStockM;
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState("all");
   const [receive, setReceive] = useState(null);   // false | {product}
   const go = route.go;
-  const stats = useMemo(() => stockStats(products, groups, LOW_STOCK_M), [products, groups]);
+  const stats = useMemo(() => stockStats(products, groups, LOW_STOCK_M), [products, groups, LOW_STOCK_M]);
   const monthSold = useMemo(() => monthShippedLength(shipped), [shipped]);
   const list = useMemo(() => groups.filter(g => {
     const st = stockStatus(g, LOW_STOCK_M);

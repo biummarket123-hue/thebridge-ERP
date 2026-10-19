@@ -25,3 +25,27 @@ export const OLD_ERP_PATH = "/";
 // 홈의 "최근 주문" 줄 수, 목록 페이지 크기.
 export const RECENT_ORDERS = 5;
 export const PAGE_SIZE = 30;
+
+// ── 회사별 설정(구독형) ─────────────────────────────────────────
+// 위 상수는 "기본값"이다. 실제 값은 회사 설정 화면(/app/settings)이 settings.data.saas 에 저장하고,
+// SaasData 가 resolveConfig() 로 합쳐 context.config 로 내려준다. 화면은 상수 대신 config 를 읽는다.
+export const DEFAULT_CONFIG = {
+  companyName: BRAND.tenant,     // 사이드바 프로필 아래 줄·담당자 선택 화면. company_accounts.name 이 있으면 그게 우선
+  lowStockM: LOW_STOCK_M,
+  shippingFee: { ...SHIPPING_FEE },
+};
+
+const num = (v, d) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : d; };
+
+/** settings.data.saas + company_accounts → 화면이 쓰는 설정 */
+export function resolveConfig(settings, account) {
+  const s = settings?.saas || {};
+  return {
+    companyName: String(account?.name || s.companyName || DEFAULT_CONFIG.companyName).trim() || DEFAULT_CONFIG.companyName,
+    lowStockM: num(s.lowStockM, DEFAULT_CONFIG.lowStockM),
+    shippingFee: {
+      cut: num(s.shippingFee?.cut, DEFAULT_CONFIG.shippingFee.cut),
+      roll: num(s.shippingFee?.roll, DEFAULT_CONFIG.shippingFee.roll),
+    },
+  };
+}

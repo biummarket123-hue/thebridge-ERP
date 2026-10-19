@@ -6,7 +6,7 @@ import { Modal } from "../components/Modal.jsx";
 import { Icon } from "../icons.jsx";
 import { isHold, isParked, getPayStatus } from "../../constants.js";
 import { orderStats, depositSum, monthRange, weeklyShipped, lastWeekShippedToDate, stockStats, relativeWhen, itemsSummary, orderTotal, isActiveOrder } from "../lib/metrics.js";
-import { LOW_STOCK_M, RECENT_ORDERS } from "../config.js";
+import { RECENT_ORDERS } from "../config.js";
 import { fmtWhen } from "../../lib/overview.js";
 
 const H = { isHold, isParked, getPayStatus };
@@ -72,9 +72,10 @@ export function OrderRows({ list, onOpen, limit }) {
 
 /** 처리할 일 — 전체현황 9구역 + 재고 부족 + 미입금. 구역을 누르면 그 주문들이 펼쳐진다. */
 export function TodoModal({ onClose, go }) {
-  const { overview, overviewScope, setOverviewScope, activeManager, groups, orders, mineOn } = useSaas();
+  const { overview, overviewScope, setOverviewScope, activeManager, groups, orders, mineOn, config } = useSaas();
+  const LOW_STOCK_M = config.lowStockM;
   const [sel, setSel] = useState(null);
-  const stock = useMemo(() => stockStats([], groups, LOW_STOCK_M), [groups]);
+  const stock = useMemo(() => stockStats([], groups, LOW_STOCK_M), [groups, LOW_STOCK_M]);
   const st = useMemo(() => orderStats(orders, H), [orders]);
   const picked = overview.sections.find(s => s.key === sel);
   const tone = (t) => t === "red" ? "red" : t === "yellow" ? "alert" : "";
@@ -115,10 +116,11 @@ export function TodoModal({ onClose, go }) {
 }
 
 export default function HomePage({ route }) {
-  const { orders, products, groups, paymentLogs, shipped, overview, activeManager, loaded, overviewScope, setOverviewScope, mineOn } = useSaas();
+  const { orders, products, groups, paymentLogs, shipped, overview, activeManager, loaded, overviewScope, setOverviewScope, mineOn, config } = useSaas();
+  const LOW_STOCK_M = config.lowStockM;
   const now = new Date();
   const st = useMemo(() => orderStats(orders, H, now), [orders]);   // eslint-disable-line react-hooks/exhaustive-deps
-  const stock = useMemo(() => stockStats(products, groups, LOW_STOCK_M), [products, groups]);
+  const stock = useMemo(() => stockStats(products, groups, LOW_STOCK_M), [products, groups, LOW_STOCK_M]);
   const month = useMemo(() => { const r = monthRange(now); return depositSum(paymentLogs, r.start, r.end); }, [paymentLogs]);   // eslint-disable-line react-hooks/exhaustive-deps
   const lastMonth = useMemo(() => { const r = monthRange(now, -1); return depositSum(paymentLogs, r.start, r.end).sum; }, [paymentLogs]);   // eslint-disable-line react-hooks/exhaustive-deps
   const week = useMemo(() => weeklyShipped(shipped, now), [shipped]);   // eslint-disable-line react-hooks/exhaustive-deps

@@ -12,7 +12,7 @@ import { analyzeText, analyzeImage, registerOrder } from "../actions/register.js
 import { defaultShipDate, todayYmd, holidayName } from "../../lib/shipDate.js";
 import { autoCourier, COURIER_SHORT, CJ, KD } from "../../lib/courier.js";
 import { matchProduct } from "../../lib/rollStock.js";
-import { SHIPPING_FEE, OLD_ERP_PATH } from "../config.js";
+import { OLD_ERP_PATH } from "../config.js";
 
 const UNIT_OPTS = ["마", "세트", "필", "롤", "kg"];
 const RECEIPTS = [[null, "발행 안 함"], ["cash", "현금영수증"], ["business", "지출증빙"], ["tax_invoice", "계산서"]];
@@ -72,7 +72,8 @@ function MatchPopup({ match, parsed, onConfirm, onNew, onCancel }) {
 }
 
 export default function NewOrder({ onClose, onRegistered }) {
-  const { products, customers, orders, activeManager, setOrders, setCustomers, reloadOrders, reloadCredits, isPacker, groups } = useSaas();
+  const { products, customers, orders, activeManager, setOrders, setCustomers, reloadOrders, reloadCredits, isPacker, groups, config } = useSaas();
+  const SHIPPING_FEE = config.shippingFee;
   const toast = useToast();
   const { confirm, host } = useAsk();
   const [txt, setTxt] = useState("");

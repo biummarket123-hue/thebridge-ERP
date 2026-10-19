@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import * as db from "../../lib/db.js";
 import { useSaas } from "../data/SaasData.jsx";
 import { Modal } from "../components/Modal.jsx";
-import { Button } from "../components/ui.jsx";
+import { Button, nim } from "../components/ui.jsx";
 import { BrandMark, Icon } from "../icons.jsx";
 import { BRAND } from "../config.js";
 import { isValidPin } from "../lib/subscription.js";
@@ -69,7 +69,7 @@ export function PinVerifyModal({ manager, title, onOk, onClose, onForgot, inline
 
   const body = (
     <>
-      <div className="pin-who"><span className="avatar">{manager.name.slice(0, 1)}</span><div><strong>{manager.name}님</strong><small>{title || "PIN 4자리를 눌러 주세요"}</small></div></div>
+      <div className="pin-who"><span className="avatar">{manager.name.slice(0, 1)}</span><div><strong>{nim(manager.name)}</strong><small>{title || "PIN 4자리를 눌러 주세요"}</small></div></div>
       <PinPad value={pin} onChange={setPin} disabled={busy} label={`${manager.name} PIN`} />
       {msg && <p className="helptext err" role="alert" style={{ marginTop: 10 }}>{msg}</p>}
       {onForgot && <div className="link-old" style={{ textAlign: "center" }}><a href="#forgot" onClick={e => { e.preventDefault(); onForgot(); }}>PIN 을 잊었어요</a></div>}
@@ -120,12 +120,12 @@ export function PinSetupModal({ manager, proofBy, hasPin, onDone, onClose }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, p2]);
 
-  const proofLabel = proofBy && proofBy.id !== manager.id ? `관리자 ${proofBy.name}님의 PIN` : "현재 PIN";
+  const proofLabel = proofBy && proofBy.id !== manager.id ? `관리자 ${nim(proofBy.name)}의 PIN` : "현재 PIN";
   const sub = step === "proof" ? `${proofLabel}을 먼저 눌러 주세요` : step === "new" ? "새 PIN 4자리" : "한 번 더 눌러 확인";
   const cur = step === "proof" ? [proofPin, setProofPin] : step === "new" ? [p1, setP1] : [p2, setP2];
   return (
     <Modal title={hasPin ? "PIN 바꾸기" : "PIN 만들기"} onClose={onClose}>
-      <div className="pin-who"><span className="avatar">{manager.name.slice(0, 1)}</span><div><strong>{manager.name}님</strong><small>{sub}</small></div></div>
+      <div className="pin-who"><span className="avatar">{manager.name.slice(0, 1)}</span><div><strong>{nim(manager.name)}</strong><small>{sub}</small></div></div>
       <PinPad key={step} value={cur[0]} onChange={cur[1]} disabled={busy} label={sub} />
       {msg && <p className="helptext err" role="alert" style={{ marginTop: 10 }}>{msg}</p>}
       <p className="helptext" style={{ margin: "12px 0 0" }}>생년월일·1234 같은 쉬운 번호는 피해 주세요. 5번 틀리면 10분 잠깁니다.</p>
@@ -188,7 +188,7 @@ export function PinGate() {
       <div className="gate">
         <div className="sheet" role="dialog" aria-modal="true" aria-label="PIN 만들기">
           <div className="brand" style={{ margin: "0 0 18px" }}><div className="logo"><BrandMark /></div><div><div className="brand-name">{BRAND.name}<span>{BRAND.suffix}</span></div><div className="brand-caption">{config.companyName}</div></div></div>
-          <div className="sheethead"><h2>{manager.name}님, PIN 을 만들어 주세요</h2></div>
+          <div className="sheethead"><h2>{nim(manager.name)}, PIN 을 만들어 주세요</h2></div>
           <p className="helptext">담당자 이름만으로는 누구나 그 이름으로 작업할 수 있습니다. 4자리 PIN 을 만들면 다음부터는 PIN 만 누르고 들어옵니다.</p>
           <Button icon="pin" onClick={() => setSetup(true)}>PIN 만들기</Button>
           <div className="btnrow" style={{ marginTop: 10 }}>

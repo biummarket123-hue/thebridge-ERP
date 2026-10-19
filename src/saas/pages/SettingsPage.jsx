@@ -5,7 +5,7 @@ import * as db from "../../lib/db.js";
 import { useSaas } from "../data/SaasData.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { Modal, ConfirmModal } from "../components/Modal.jsx";
-import { PageHead, Panel, Button, StatusBadge, Chip, Empty } from "../components/ui.jsx";
+import { PageHead, Panel, Button, StatusBadge, Chip, Empty, nim } from "../components/ui.jsx";
 import { Icon } from "../icons.jsx";
 import { PICKUP, OLD_ERP_PATH } from "../config.js";
 import { CJ, KD, COURIER_SHORT } from "../../lib/courier.js";
@@ -218,7 +218,7 @@ function ManagersPanel() {
       })}
       {form && <ManagerForm initial={form === "new" ? null : form} onClose={() => setForm(null)} onSaved={refresh} />}
       {pinFor && <PinSetupModal manager={pinFor.m} proofBy={pinFor.proofBy} hasPin={!!pinOf(pinFor.m)?.has_pin}
-        onDone={() => { setPinFor(null); toast(`${pinFor.m.name}님의 PIN 을 저장했습니다`, "ok"); }} onClose={() => setPinFor(null)} />}
+        onDone={() => { setPinFor(null); toast(`${nim(pinFor.m.name)}의 PIN 을 저장했습니다`, "ok"); }} onClose={() => setPinFor(null)} />}
       {adminProof && <PinVerifyModal manager={manager} title="관리자 PIN 확인" onOk={() => setAdminProof(null)} onClose={() => setAdminProof(null)} />}
       {removing && <ConfirmModal title="담당자 삭제" message={`${removing.name} 담당자를 삭제할까요? 이 이름이 달린 주문은 그대로 남고 담당자만 비워집니다.`} confirmLabel="삭제" danger onConfirm={() => remove(removing)} onClose={() => setRemoving(null)} />}
     </Panel>

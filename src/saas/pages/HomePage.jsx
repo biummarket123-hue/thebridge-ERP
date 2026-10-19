@@ -1,7 +1,7 @@
 // 홈 — 요약 지표 4 · 빠른 실행 3 · 지금 처리할 일(전체현황 9구역) · 이번 주 출고 차트 · 최근 주문. 전부 실데이터(지시서 4·5절).
 import { useMemo, useState } from "react";
 import { useSaas } from "../data/SaasData.jsx";
-import { PageHead, TextLink, StatCard, Button, Panel, TaskRow, BarChart, StatusBadge, Empty, Segment, won, manwon, shortId } from "../components/ui.jsx";
+import { PageHead, TextLink, StatCard, Button, Panel, TaskRow, BarChart, StatusBadge, Empty, Segment, won, manwon, shortId, nim } from "../components/ui.jsx";
 import { Modal } from "../components/Modal.jsx";
 import { Icon } from "../icons.jsx";
 import { isHold, isParked, getPayStatus } from "../../constants.js";
@@ -137,7 +137,7 @@ export default function HomePage({ route }) {
   return (
     <>
       <PageHead eyebrow={`${DOW[now.getDay()]}, ${MON[now.getMonth()]} ${now.getDate()}`}
-        title={<>{greet(now.getHours())}, {activeManager || "관리자"}님 <span style={{ fontSize: ".75em" }}>{sun(now.getHours())}</span></>}
+        title={<>{greet(now.getHours())}, {nim(activeManager || "관리자")} <span style={{ fontSize: ".75em" }}>{sun(now.getHours())}</span></>}
         subtitle="오늘 처리할 업무를 한눈에 확인해 보세요."
         right={<TextLink onClick={() => go("/app/orders")}>주문 전체 보기</TextLink>} />
 

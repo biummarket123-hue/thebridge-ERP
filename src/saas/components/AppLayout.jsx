@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { BRAND, OLD_ERP_PATH } from "../config.js";
 import { MENUS } from "../router.js";
 import { Icon, BrandMark } from "../icons.jsx";
+import { nim } from "./ui.jsx";
 import { useSaas } from "../data/SaasData.jsx";
 
 const fmtDate = (d) => `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 ${["일", "월", "화", "수", "목", "금", "토"][d.getDay()]}요일`;
@@ -39,7 +40,7 @@ export function Sidebar({ active, counts = {}, go, manager, onProfile }) {
         <button className="profile" onClick={onProfile} title="담당자 바꾸기 · 로그아웃">
           <div className="avatar">{(manager || "?").slice(0, 1)}</div>
           <div style={{ minWidth: 0 }}>
-            <strong>{manager ? `${manager}님` : "담당자 선택"}</strong>
+            <strong>{manager ? nim(manager) : "담당자 선택"}</strong>
             <small>{config.companyName}</small>
           </div>
         </button>

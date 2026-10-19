@@ -22,6 +22,9 @@ function spawnRipple(e, el) {
  * 버튼. kind: primary | white | danger | green. loading 이면 두 번 못 누르고 회전 표시.
  * onClick 이 Promise 를 돌려주면 끝날 때까지 알아서 loading 으로 둔다.
  */
+/** 이름 + 님 — "사장님"처럼 이미 님으로 끝나면 붙이지 않는다 */
+export const nim = (name) => { const n = String(name || "").trim(); return !n ? "" : n.endsWith("님") ? n : n + "님"; };
+
 export function Button({ kind = "primary", icon, children, className = "", onClick, loading, disabled, size, type = "button", ...rest }) {
   const ref = useRef(null);
   const [busy, setBusy] = useState(false);

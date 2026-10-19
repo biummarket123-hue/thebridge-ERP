@@ -1,7 +1,18 @@
-# 로하이마켓 ERP v2.1
+# 루프 ERP (더브릿지 ERP SaaS)
 
-> 동대문 원단시장 전용 AI 업무관리 플랫폼 
-> LOWHIGH MARKET · 손정현 대표
+> 원단 도매 전용 ERP 를 구독형으로 파는 **SaaS 상품** 저장소.
+> 로하이마켓 사내 ERP(`thebridge-ERP-company`, company.thebridge.ai.kr, 운영 DB `ggvn…`)와는 **코드·DB·배포가 완전히 분리**돼 있다.
+
+| 항목 | 값 |
+|---|---|
+| 로컬 폴더 | `C:\Users\A\ERPsaas` (이 저장소의 유일한 작업 사본) |
+| GitHub | `biummarket123-hue/thebridge-ERP` |
+| Vercel | 프로젝트 `thebridge-erp` → https://erp.thebridge.ai.kr |
+| Supabase | `dcitethfhwqdautonnmo` (SaaS 전용) |
+| 새 UI | `/app` (src/saas) — 회사 아이디·비밀번호 로그인 + 담당자 4자리 PIN |
+| 옛 화면 | `/legacy` (src/ErpApp.jsx) — 같은 세션 |
+
+시작은 `docs/saas-subscription-setup.md`(구조·운영) 와 `docs/saas-db-setup.md`(빈 DB 스키마 순서). 아래는 옛 README(사내 ERP 시절) 그대로.
 
 ---
 

@@ -40,13 +40,14 @@ git 원격·Supabase 프로젝트·Vercel 프로젝트를 전부 따로 쓴다. 
   insert into subscription_events (owner_id, kind, amount, plan, period_end, memo)
     select owner_id, 'payment', 99000, 'basic', current_period_end, '10월 입금' from company_accounts where login_id='<아이디>';
   ```
+  또는 터미널에서 `node ops-subscription.mjs list | extend <아이디> <일수> [요금제] | plan | cancel | resume` (service role, 이력 자동 기록).
   브라우저(auth.uid 있음)는 요금제·기간을 못 바꾼다 — 트리거가 막는다.
 - **만료**: 체험 종료 또는 유료 기간 + 3일 유예 지남 → 읽기 전용. 화면은 배너와 저장 버튼 비활성, DB 는 insert/update/delete 를 거부한다. 데이터는 남는다.
 - **담당자 자리**: `max_managers`(기본 3, 공용 제외). 설정 화면의 "담당자 추가" 가 자리를 센다.
 
 ## 4. 한계와 다음 단계
 
-- **담당자 토큰(2026-10-19 2차)**: PIN 통과 시 `verify_manager_pin` 이 토큰을 주고 브라우저가 `x-manager-token` 헤더로 보낸다. DB 가 `current_manager_is_admin()` 으로 관리자 전용(주문 삭제·담당자 추가/수정/삭제·회사 정보·출고완료 전환)을 막는다. 포장·담당자 잠금 같은 세부 규칙은 아직 브라우저 판정.
+- **담당자 토큰(2026-10-19 2차)**: PIN 통과 시 `verify_manager_pin` 이 토큰을 주고 브라우저가 `x-manager-token` 헤더로 보낸다. DB 가 `current_manager_is_admin()` 으로 관리자 전용(주문 삭제·담당자 추가/수정/삭제·회사 정보·출고완료 전환)을 막는다. 담당자 잠금(남의 주문 수정 금지, 합배송 묶음 예외)·포장 담당 제한(상태·메모·포장 표시만)은 `saas_order_lock.sql` 트리거가 같은 규칙으로 판정한다. 개인 담당자는 PIN 필수(토큰이 신원).
 - 롤·포장 표에는 구독 만료 트리거가 있어 security definer RPC 도 막힌다.
 - 결제(토스페이먼츠 빌링) 미연동. 웹훅 서버 함수 하나로 `company_accounts.current_period_end` 를 늘리면 된다.
 - 옛 화면(`/legacy`)은 로하이마켓 운영에 맞춘 문구·기본 담당자(방문고객·마켓24 자동 생성)·품번 접두어(LH)가 남아 있다. 새 UI 로 기능이 옮겨 가면 걷어낸다.

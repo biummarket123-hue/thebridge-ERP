@@ -6,7 +6,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import * as db from "../../lib/db.js";
 import { useUserId, useRealtimeOrdersAndPayments, useRealtimeCustomers, useRealtimeCredits, useRealtimeProducts, useRealtimeStockRolls } from "../../lib/realtime.js";
 import { preloadHolidays } from "../../lib/shipDate.js";
-import { courierMap } from "../../lib/courier.js";
+import { courierMap, setPickupCutoffs } from "../../lib/courier.js";
 import { groupRollsByProduct } from "../../lib/rollStock.js";
 import { isHold, isParked, getPayStatus } from "../../constants.js";
 import { buildOverview } from "../../lib/overview.js";
@@ -178,6 +178,7 @@ export function SaasDataProvider({ children }) {
 
   // 회사별 설정·구독 상태·PIN 게이트
   const config = useMemo(() => resolveConfig(settings, account), [settings, account]);
+  useEffect(() => { setPickupCutoffs(config.pickupCutoff); }, [config.pickupCutoff]);   // 출고예정일·전체현황이 이 마감을 쓴다
   const subscription = useMemo(() => subscriptionState(account, new Date(nowTs)), [account, nowTs]);
   const readOnly = subscription.readOnly;   // 만료 — DB 가 쓰기를 막는다(saas_readonly_when_expired.sql). 화면은 버튼을 숨기고 안내한다
   const pinOf = useCallback((m) => pinStatus.find(p => p.manager_id === m?.id) || null, [pinStatus]);

@@ -36,7 +36,9 @@ export const DEFAULT_CONFIG = {
   lowStockM: LOW_STOCK_M,
   shippingFee: { ...SHIPPING_FEE },
   productPrefix: DEFAULT_PREFIX,   // 품번 접두어(담당자 이니셜이 없을 때). 가입 때 아이디 앞 두 글자로 정해지고 설정에서 바꾼다
+  pickupCutoff: { [CJ]: PICKUP_CUTOFF[CJ], [KD]: PICKUP_CUTOFF[KD] },   // 택배 수거 마감 — lib/courier.js 에 적용된다
 };
+const hhmm = (v, d) => /^\d{1,2}:\d{2}$/.test(String(v || "")) ? String(v) : d;
 
 const num = (v, d) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : d; };
 
@@ -51,5 +53,6 @@ export function resolveConfig(settings, account) {
       roll: num(s.shippingFee?.roll, DEFAULT_CONFIG.shippingFee.roll),
     },
     productPrefix: PREFIX_RE.test(String(s.productPrefix || "").toUpperCase()) ? String(s.productPrefix).toUpperCase() : DEFAULT_CONFIG.productPrefix,
+    pickupCutoff: { [CJ]: hhmm(s.pickupCutoff?.[CJ], DEFAULT_CONFIG.pickupCutoff[CJ]), [KD]: hhmm(s.pickupCutoff?.[KD], DEFAULT_CONFIG.pickupCutoff[KD]) },
   };
 }

@@ -22,6 +22,12 @@ export const DIRECT_METHODS = ["퀵", "직접 배달", "방문 수령"];
 // 기사가 오는 시각은 매일 조금씩 다르다(CJ 14:30~15:30, 경동 16:00~17:30).
 // 가장 늦은 쪽에 맞춘다: 이르게 잡으면 아직 기사가 안 왔는데 '놓쳤다'고 뜬다.
 export const PICKUP_CUTOFF = { [CJ]: "15:30", [KD]: "17:30" };
+/** 회사 설정(settings.data.saas.pickupCutoff)으로 마감 시각을 바꾼다 — SaasData 가 로드 때 부른다. "HH:MM" 만 받는다. */
+export function setPickupCutoffs(map) {
+  for (const [k, v] of Object.entries(map || {})) {
+    if ((k === CJ || k === KD) && /^\d{1,2}:\d{2}$/.test(String(v))) PICKUP_CUTOFF[k] = String(v);
+  }
+}
 
 // ── 메모에서 읽는 신호 ───────────────────────────────────────
 // 일반 메모(note)와 담당자 메모(memo)만 본다. 배송지 메모(deliveryMessage)는 보지 않는다 —

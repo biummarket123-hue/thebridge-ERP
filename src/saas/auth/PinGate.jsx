@@ -177,22 +177,21 @@ export function PinGate() {
   const { manager, managerHasPin, markPinVerified, setActiveManager, pinned, setPinned, config, account, pinOf } = useSaas();
   const [forgot, setForgot] = useState(false);
   const [setup, setSetup] = useState(false);
-  const [skip, setSkip] = useState(() => { try { return sessionStorage.getItem("erp_pin_skip_" + manager?.name) === "1"; } catch { return false; } });
   if (!manager) return null;
   const locked = pinOf(manager)?.locked_until;
 
-  // PIN 이 아직 없는 담당자 — 구독 회사면 만들라고 권한다(사내 계정은 묻지 않는다). 건너뛰면 이 세션에선 다시 안 묻는다.
+  // PIN 이 아직 없는 담당자 — 구독 회사면 반드시 만든다(사내 계정은 묻지 않는다).
+  // 토큰이 곧 "누구인지"라서 PIN 없이 들어가면 자기 주문도 남의 주문처럼 잠긴다(saas_order_lock.sql).
   if (!managerHasPin) {
-    if (!account || skip) { markPinVerified(); return null; }
+    if (!account) { markPinVerified(); return null; }
     return (
       <div className="gate">
         <div className="sheet" role="dialog" aria-modal="true" aria-label="PIN 만들기">
           <div className="brand" style={{ margin: "0 0 18px" }}><div className="logo"><BrandMark /></div><div><div className="brand-name">{BRAND.name}<span>{BRAND.suffix}</span></div><div className="brand-caption">{config.companyName}</div></div></div>
           <div className="sheethead"><h2>{nim(manager.name)}, PIN 을 만들어 주세요</h2></div>
-          <p className="helptext">담당자 이름만으로는 누구나 그 이름으로 작업할 수 있습니다. 4자리 PIN 을 만들면 다음부터는 PIN 만 누르고 들어옵니다.</p>
+          <p className="helptext">담당자 이름만으로는 누구나 그 이름으로 작업할 수 있습니다. 4자리 PIN 을 만들면 다음부터는 PIN 만 누르고 들어오고, 내 주문을 내가 고칠 수 있습니다.</p>
           <Button icon="pin" onClick={() => setSetup(true)}>PIN 만들기</Button>
           <div className="btnrow" style={{ marginTop: 10 }}>
-            <Button kind="white" onClick={() => { try { sessionStorage.setItem("erp_pin_skip_" + manager.name, "1"); } catch {} setSkip(true); }}>나중에</Button>
             <Button kind="white" icon="user" onClick={() => setActiveManager("")}>다른 담당자</Button>
           </div>
           {setup && <PinSetupModal manager={manager} hasPin={false} onDone={async (pin) => {

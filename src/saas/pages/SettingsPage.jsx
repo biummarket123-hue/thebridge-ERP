@@ -7,7 +7,7 @@ import { useToast } from "../components/Toast.jsx";
 import { Modal, ConfirmModal } from "../components/Modal.jsx";
 import { PageHead, Panel, Button, StatusBadge, Chip, Empty, nim } from "../components/ui.jsx";
 import { Icon } from "../icons.jsx";
-import { PICKUP, OLD_ERP_PATH } from "../config.js";
+import { OLD_ERP_PATH } from "../config.js";
 import { CJ, KD, COURIER_SHORT } from "../../lib/courier.js";
 import { PLANS, managerSeatsLeft, subscriptionNotice } from "../lib/subscription.js";
 import { PinSetupModal, PinVerifyModal } from "../auth/PinGate.jsx";
@@ -101,15 +101,18 @@ function OpsPanel() {
   const [roll, setRoll] = useState(String(config.shippingFee.roll));
   const [low, setLow] = useState(String(config.lowStockM));
   const [prefix, setPrefix] = useState(config.productPrefix);
-  useEffect(() => { setCut(String(config.shippingFee.cut)); setRoll(String(config.shippingFee.roll)); setLow(String(config.lowStockM)); setPrefix(config.productPrefix); }, [config]);
+  const [cjCut, setCjCut] = useState(config.pickupCutoff[CJ]);
+  const [kdCut, setKdCut] = useState(config.pickupCutoff[KD]);
+  useEffect(() => { setCut(String(config.shippingFee.cut)); setRoll(String(config.shippingFee.roll)); setLow(String(config.lowStockM)); setPrefix(config.productPrefix); setCjCut(config.pickupCutoff[CJ]); setKdCut(config.pickupCutoff[KD]); }, [config]);
   const num = (v) => { const n = Number(String(v).replace(/[^\d.]/g, "")); return Number.isFinite(n) && n >= 0 ? n : null; };
   const save = async () => {
     const c = num(cut), r = num(roll), l = num(low);
     if (c === null || r === null || l === null) return toast("숫자만 넣어 주세요", "error");
     const px = prefix.trim().toUpperCase();
     if (!/^[A-Z][A-Z0-9]{0,5}$/.test(px)) return toast("품번 접두어는 영문 대문자로 시작하는 영문·숫자 1~6자", "error");
+    if (!/^\d{1,2}:\d{2}$/.test(cjCut) || !/^\d{1,2}:\d{2}$/.test(kdCut)) return toast("수거 마감은 15:30 처럼 시:분으로", "error");
     try {
-      await db.saveSaasSettings({ shippingFee: { cut: c, roll: r }, lowStockM: l, productPrefix: px });
+      await db.saveSaasSettings({ shippingFee: { cut: c, roll: r }, lowStockM: l, productPrefix: px, pickupCutoff: { [CJ]: cjCut, [KD]: kdCut } });
       await reloadSettings();
       toast("운영 값을 저장했습니다", "ok");
     } catch (e) { toast(e.message || "저장하지 못했습니다", "error"); }
@@ -125,9 +128,10 @@ function OpsPanel() {
         <Field label="재고 부족 기준(마)" htmlFor="st-low" hint="가장 긴 롤이 이보다 짧으면 부족"><input id="st-low" className="forminput" inputMode="numeric" value={low} onChange={e => setLow(e.target.value)} disabled={!isAdmin || readOnly} /></Field>
         <Field label="품번 접두어" htmlFor="st-prefix" hint="영문 1~6자 · 예: TE-2610-0001"><input id="st-prefix" className="forminput" value={prefix} maxLength={6} onChange={e => setPrefix(e.target.value.toUpperCase())} disabled={!isAdmin || readOnly} /></Field>
       </div>
-      <dl className="kv">
-        <dt>수거 마감</dt><dd>{COURIER_SHORT[CJ]} {PICKUP[CJ]} · {COURIER_SHORT[KD]} {PICKUP[KD]} <small style={{ color: "#8d9aab", fontWeight: 700 }}>(코드 설정 · 다음 단계)</small></dd>
-      </dl>
+      <div className="formrow">
+        <Field label={`${COURIER_SHORT[CJ]} 수거 마감`} htmlFor="st-cj" hint="이 시각 전 포장완료면 당일 출고"><input id="st-cj" className="forminput" value={cjCut} onChange={e => setCjCut(e.target.value)} placeholder="15:30" disabled={!isAdmin || readOnly} /></Field>
+        <Field label={`${COURIER_SHORT[KD]} 수거 마감`} htmlFor="st-kd"><input id="st-kd" className="forminput" value={kdCut} onChange={e => setKdCut(e.target.value)} placeholder="17:30" disabled={!isAdmin || readOnly} /></Field>
+      </div>
       {isAdmin && <div style={{ marginTop: 18 }}><Button icon="check" onClick={save} disabled={readOnly}>저장</Button></div>}
     </Panel>
   );

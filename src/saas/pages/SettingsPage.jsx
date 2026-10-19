@@ -100,13 +100,16 @@ function OpsPanel() {
   const [cut, setCut] = useState(String(config.shippingFee.cut));
   const [roll, setRoll] = useState(String(config.shippingFee.roll));
   const [low, setLow] = useState(String(config.lowStockM));
-  useEffect(() => { setCut(String(config.shippingFee.cut)); setRoll(String(config.shippingFee.roll)); setLow(String(config.lowStockM)); }, [config]);
+  const [prefix, setPrefix] = useState(config.productPrefix);
+  useEffect(() => { setCut(String(config.shippingFee.cut)); setRoll(String(config.shippingFee.roll)); setLow(String(config.lowStockM)); setPrefix(config.productPrefix); }, [config]);
   const num = (v) => { const n = Number(String(v).replace(/[^\d.]/g, "")); return Number.isFinite(n) && n >= 0 ? n : null; };
   const save = async () => {
     const c = num(cut), r = num(roll), l = num(low);
     if (c === null || r === null || l === null) return toast("숫자만 넣어 주세요", "error");
+    const px = prefix.trim().toUpperCase();
+    if (!/^[A-Z][A-Z0-9]{0,5}$/.test(px)) return toast("품번 접두어는 영문 대문자로 시작하는 영문·숫자 1~6자", "error");
     try {
-      await db.saveSaasSettings({ shippingFee: { cut: c, roll: r }, lowStockM: l });
+      await db.saveSaasSettings({ shippingFee: { cut: c, roll: r }, lowStockM: l, productPrefix: px });
       await reloadSettings();
       toast("운영 값을 저장했습니다", "ok");
     } catch (e) { toast(e.message || "저장하지 못했습니다", "error"); }
@@ -118,7 +121,10 @@ function OpsPanel() {
         <Field label="택배비 · 소량(마)" htmlFor="st-cut"><input id="st-cut" className="forminput" inputMode="numeric" value={cut} onChange={e => setCut(e.target.value)} disabled={!isAdmin || readOnly} /></Field>
         <Field label="택배비 · 롤" htmlFor="st-roll"><input id="st-roll" className="forminput" inputMode="numeric" value={roll} onChange={e => setRoll(e.target.value)} disabled={!isAdmin || readOnly} /></Field>
       </div>
-      <Field label="재고 부족 기준(마)" htmlFor="st-low" hint="가장 긴 롤이 이보다 짧으면 부족"><input id="st-low" className="forminput" inputMode="numeric" value={low} onChange={e => setLow(e.target.value)} disabled={!isAdmin || readOnly} /></Field>
+      <div className="formrow">
+        <Field label="재고 부족 기준(마)" htmlFor="st-low" hint="가장 긴 롤이 이보다 짧으면 부족"><input id="st-low" className="forminput" inputMode="numeric" value={low} onChange={e => setLow(e.target.value)} disabled={!isAdmin || readOnly} /></Field>
+        <Field label="품번 접두어" htmlFor="st-prefix" hint="영문 1~6자 · 예: TE-2610-0001"><input id="st-prefix" className="forminput" value={prefix} maxLength={6} onChange={e => setPrefix(e.target.value.toUpperCase())} disabled={!isAdmin || readOnly} /></Field>
+      </div>
       <dl className="kv">
         <dt>수거 마감</dt><dd>{COURIER_SHORT[CJ]} {PICKUP[CJ]} · {COURIER_SHORT[KD]} {PICKUP[KD]} <small style={{ color: "#8d9aab", fontWeight: 700 }}>(코드 설정 · 다음 단계)</small></dd>
       </dl>

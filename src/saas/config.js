@@ -2,6 +2,7 @@
 // 2차에서 회사 설정 화면으로 옮길 후보. 옛 코드(constants·courier·freight)가 쓰는 값은 거기서 그대로 읽는다 —
 // 여기는 새 UI 가 화면에 보여주거나 기본값으로 쓰는 것만.
 import { PICKUP_CUTOFF, CJ, KD } from "../lib/courier.js";
+import { PREFIX_RE, DEFAULT_PREFIX } from "../lib/rollStock.js";
 
 export const BRAND = {
   name: "루프",          // 시안의 서비스 이름(가칭). 한 글자도 안 바꾼다 — 시안 재현이 목표다.
@@ -34,6 +35,7 @@ export const DEFAULT_CONFIG = {
   companyName: BRAND.tenant || "내 회사",   // 사이드바 프로필 아래 줄·담당자 선택 화면. company_accounts.name 이 있으면 그게 우선
   lowStockM: LOW_STOCK_M,
   shippingFee: { ...SHIPPING_FEE },
+  productPrefix: DEFAULT_PREFIX,   // 품번 접두어(담당자 이니셜이 없을 때). 가입 때 아이디 앞 두 글자로 정해지고 설정에서 바꾼다
 };
 
 const num = (v, d) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : d; };
@@ -48,5 +50,6 @@ export function resolveConfig(settings, account) {
       cut: num(s.shippingFee?.cut, DEFAULT_CONFIG.shippingFee.cut),
       roll: num(s.shippingFee?.roll, DEFAULT_CONFIG.shippingFee.roll),
     },
+    productPrefix: PREFIX_RE.test(String(s.productPrefix || "").toUpperCase()) ? String(s.productPrefix).toUpperCase() : DEFAULT_CONFIG.productPrefix,
   };
 }

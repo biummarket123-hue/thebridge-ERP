@@ -285,9 +285,10 @@ function ErpApp() {
         if (i.length) setInv(i);
         if (l.length) setLogs(l);
         if (c.length) setCustomers(c);
-        // 담당자: 비어있거나 방문고객/마켓24 가 누락됐으면 시드
+        // 담당자: 비어있거나 방문고객/마켓24 가 누락됐으면 시드 — 로하이마켓 사내(company) 모드에서만.
+        // SaaS 회사가 /legacy 를 열었을 때 남의 가게 담당자(마켓24)가 생기면 안 된다(2026-10-19).
         try {
-          const seeded = await db.ensureDefaultManagers();
+          const seeded = import.meta.env.VITE_MODE === "company" ? await db.ensureDefaultManagers() : m;
           setManagers(seeded);
         } catch (e) {
           console.error("담당자 시드 실패:", e);

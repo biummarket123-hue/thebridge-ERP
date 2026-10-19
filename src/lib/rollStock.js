@@ -60,13 +60,15 @@ export const SCAN_SAFE = /^[A-Z0-9-]+$/;
 // 서버(next_product_code)도 같은 규칙으로 한 번 더 거른다 — 여기는 화면에 미리 보여주기 위한 것.
 export const PREFIX_RE = /^[A-Z][A-Z0-9]{0,5}$/;
 export const DEFAULT_PREFIX = "LH";
-export function codePrefixOf(managerCode) {
+export function codePrefixOf(managerCode, fallback = DEFAULT_PREFIX) {
   const c = String(managerCode || "").trim().toUpperCase();
-  return PREFIX_RE.test(c) ? c : DEFAULT_PREFIX;
+  if (PREFIX_RE.test(c)) return c;
+  const f = String(fallback || "").trim().toUpperCase();
+  return PREFIX_RE.test(f) ? f : DEFAULT_PREFIX;
 }
-/** 담당자 이름 → 품번 접두어. managers 목록에서 code 를 찾는다. */
-export function prefixForManager(managers, name) {
-  return codePrefixOf((managers || []).find(m => m?.name === name)?.code);
+/** 담당자 이름 → 품번 접두어. managers 목록에서 code 를 찾고, 없으면 fallback(회사 설정의 접두어, SaaS) → LH. */
+export function prefixForManager(managers, name, fallback = DEFAULT_PREFIX) {
+  return codePrefixOf((managers || []).find(m => m?.name === name)?.code, fallback);
 }
 export const isScanSafe = (code) => SCAN_SAFE.test(String(code || ""));
 

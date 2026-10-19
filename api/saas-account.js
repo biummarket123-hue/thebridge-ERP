@@ -158,7 +158,10 @@ export default async function handler(req, res) {
       const { data: pinRes, error: pErr } = await sb.rpc("service_reset_manager_pin", { p_owner_id: ownerId, p_manager_id: adminRow.id, p_pin: adminPin });
       if (pErr || !pinRes?.ok) throw pErr || new Error(pinRes?.error || "PIN 설정 실패");
       // 회사 설정 기본값(새 UI 의 config 가 읽는다)
-      r = await sb.from("settings").upsert({ user_id: ownerId, data: { senderName: companyName, saas: { companyName } }, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+      // 품번 접두어: 아이디의 영문 앞 두 글자(예 rohi → RO). 영문으로 시작하지 않으면 LH. 설정 화면에서 바꿀 수 있다.
+      const px = loginId.replace(/[^a-z0-9]/g, "").slice(0, 2).toUpperCase();
+      const productPrefix = /^[A-Z][A-Z0-9]?$/.test(px) ? px : "LH";
+      r = await sb.from("settings").upsert({ user_id: ownerId, data: { senderName: companyName, saas: { companyName, productPrefix } }, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
       if (r.error) console.warn("[saas-account] settings 기본값 실패(무시):", r.error.message);
     } catch (e) {
       console.error("[saas-account] 가입 후속 실패, 계정 되돌림:", e?.message || e);

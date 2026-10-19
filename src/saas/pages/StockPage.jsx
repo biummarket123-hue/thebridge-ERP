@@ -60,7 +60,7 @@ function InvCard({ g, onOpen }) {
 
 /** 입고 등록 — 옛 InspectionTab.receive 를 그대로 옮긴 흐름: 품번 고르기(없으면 insertProduct) → receiveRolls(롤마다 길이). */
 function ReceiveModal({ onClose, initialProduct }) {
-  const { products, managers, activeManager, reloadProducts, reloadRolls } = useSaas();
+  const { products, managers, activeManager, reloadProducts, reloadRolls, config } = useSaas();
   const toast = useToast();
   const [q, setQ] = useState(initialProduct ? initialProduct.code : "");
   const [picked, setPicked] = useState(initialProduct || null);
@@ -72,7 +72,7 @@ function ReceiveModal({ onClose, initialProduct }) {
   const [location, setLocation] = useState("");
   const [busy, setBusy] = useState(false);
   const suggestions = useMemo(() => !q.trim() || picked ? [] : products.filter(p => matchProduct(p, q)).slice(0, 8), [products, q, picked]);
-  const ownerPrefix = prefixForManager(managers, activeManager);
+  const ownerPrefix = prefixForManager(managers, activeManager, config.productPrefix);
   const parsed = lengths.slice(0, count).map(v => parseMeasured(v));
   const lensOk = count >= 1 && parsed.every(p => p.ok && p.value > 0);
   const canGo = (picked || (newOpen && np.name.trim())) && lensOk && !busy;

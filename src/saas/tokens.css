@@ -1,0 +1,35 @@
+/* 디자인 토큰 — design-reference/erp_saas_ui_prototype.html 의 :root 를 그대로 옮긴 것.
+   새 UI(src/saas) 만 쓴다. 옛 ERP 는 ThemeCtx(인라인 style)를 그대로 쓴다. */
+:root {
+  --saas-blue: #3678f6;
+  --saas-blue-dark: #245ed0;
+  --saas-blue-soft: #eef4ff;
+  --saas-ink: #202c3d;
+  --saas-sub: #64748b;
+  --saas-muted: #8391a4;
+  --saas-line: #e7ecf3;
+  --saas-bg: #f5f7fb;
+  --saas-white: #fff;
+  --saas-mint: #e5f8f2;
+  --saas-green: #178b68;
+  --saas-orange: #f5a440;
+  --saas-red: #e56a63;
+  --saas-shadow: 0 10px 34px rgba(39, 59, 90, .045);
+  --saas-font: 'Pretendard', 'Noto Sans CJK KR', 'NanumBarunGothic', system-ui, -apple-system, sans-serif;
+  /* 모바일 하단 메뉴 높이 — 콘텐츠 아래 여백과 토스트 위치가 같이 쓴다 */
+  --saas-bottom-nav: 79px;
+}
+
+/* 새 UI 가 떠 있는 동안만 body 를 덮는다. index.css 의 어두운 body 규칙은 그대로 둔다 —
+   옛 ERP(/) 와 공개 페이지가 그걸 쓴다. 속성은 SaasApp 이 마운트될 때 붙이고 떠날 때 뗀다. */
+body[data-saas] {
+  background: var(--saas-bg);
+  color: var(--saas-ink);
+  font-family: var(--saas-font);
+}
+body[data-saas] button,
+body[data-saas] input,
+body[data-saas] textarea,
+body[data-saas] select {
+  font-family: var(--saas-font);
+}

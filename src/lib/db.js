@@ -4012,3 +4012,52 @@ export async function unpackItem(orderId, itemId, by) {
   });
   if (error) throw error;
 }
+
+// ── 새 SaaS UI(src/saas) 전용 읽기 — 2026-10-19 추가. 기존 함수는 손대지 않는다(지시서 4절). ──
+// 홈·정산의 "이번 달 매출"은 입금 로그 기준이다. 기존 fetchPaymentLogs() 는 전체(수천 건)를 받아오므로
+// 기간을 잘라 필요한 칸만 읽는 함수를 따로 둔다. 1000건 페이지네이션은 같은 이유로 유지한다.
+export async function fetchPaymentLogsBetween(startIso, endIso) {
+  const userId = await getUserId();
+  if (!userId) return [];
+  const PAGE = 1000;
+  const all = [];
+  let cursor = 0;
+  while (true) {
+    let q = supabase.from("payment_logs").select("id, order_id, customer, type, amount, note, created_at").eq("user_id", userId);
+    if (startIso) q = q.gte("created_at", startIso);
+    if (endIso) q = q.lt("created_at", endIso);
+    const { data, error } = await q.order("created_at", { ascending: false }).range(cursor, cursor + PAGE - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    all.push(...data);
+    if (data.length < PAGE) break;
+    cursor += PAGE;
+  }
+  return all;
+}
+
+// 최근 출고완료 주문 — shipped_at 이 sinceIso 이후인 것만. 홈의 "이번 주 출고 차트"와 재고의 "이번 달 판매"가 쓴다.
+// 기존 fetchShippedOrders() 는 출고완료 전부(수천 건, 품목 포함)를 받아와 이 두 칸에는 과하다.
+export async function fetchShippedOrdersSince(sinceIso) {
+  const userId = await getUserId();
+  if (!userId) return [];
+  const PAGE = 1000;
+  const all = [];
+  let cursor = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("status", "출고완료")
+      .gte("shipped_at", sinceIso)
+      .order("shipped_at", { ascending: false })
+      .range(cursor, cursor + PAGE - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    all.push(...data);
+    if (data.length < PAGE) break;
+    cursor += PAGE;
+  }
+  return all.map(toCamel);
+}

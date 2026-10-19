@@ -11,8 +11,11 @@ import { GATE_TOKEN_KEY, GATE_UNTIL_KEY } from "./lib/db.js";
 import { supabase } from "./lib/supabase.js";
 
 const SaasRoot = lazy(() => import("./SaasRoot.jsx"));
+// 새 SaaS UI(/app) — 옛 ErpApp 과 같은 회사 세션·담당자 선택을 쓴다. 로그인이 끝난 뒤에만 그린다(2026-10-19).
+const SaasApp = lazy(() => import("./saas/SaasApp.jsx"));
 
-function CompanyRoot() {
+// saasUi: main.jsx 가 경로(/app)로 정한다. 참이면 로그인 뒤 옛 ErpApp 대신 새 UI 를 그린다.
+function CompanyRoot({ saasUi = false }) {
   const [authenticated, setAuthenticated] = useState(() => {
     // 만료시각까지 로그인 유지. 게이트 토큰(서버가 세션을 내주는 근거)이 함께 있어야 한다 —
     // 예전 플래그만 있는 기기는 세션을 받을 수 없으므로 한 번 다시 로그인한다.
@@ -33,6 +36,14 @@ function CompanyRoot() {
 
   if (!authenticated) {
     return <CompanyLogin onSuccess={() => setAuthenticated(true)} />;
+  }
+
+  if (saasUi) {
+    return (
+      <Suspense fallback={<LoadingScreen />}>
+        <SaasApp />
+      </Suspense>
+    );
   }
 
   return (
@@ -76,14 +87,14 @@ function CompanyRoot() {
 
 const LoadingScreen = () => <CuteFullLoader brand="로하이마켓 ERP" />;
 
-export default function AppEntry() {
+export default function AppEntry({ saasUi = false }) {
   // 런타임 체크 - Vite tree-shaking 방지를 위해 컴포넌트 내부에서 분기
   const [mode] = useState(() => {
     try { return import.meta.env.VITE_MODE || "saas"; } catch { return "saas"; }
   });
 
   if (mode === "company") {
-    return <CompanyRoot />;
+    return <CompanyRoot saasUi={saasUi} />;
   }
 
   return (

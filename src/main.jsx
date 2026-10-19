@@ -1,6 +1,7 @@
 // 진입점 — 경로만 보고 둘 중 하나를 lazy 로 부른다.
 //   /o/{품번}  → 공개 주문 페이지(src/public/OrderLink.jsx). ERP·회사 세션·supabase 를 한 줄도 안 내려받는다.
 //   /r/{롤번호} → 롤 정보 공개 화면(src/public/RollInfo.jsx). 롤 라벨 QR 을 핸드폰으로 찍으면 열린다. 같은 경계.
+//   /app/…     → 새 SaaS UI(src/saas/SaasApp.jsx). 로그인은 AppEntry 의 CompanyRoot 가 그대로 맡고, 끝나면 새 화면을 그린다(2026-10-19).
 //   그 외      → ERP(src/AppEntry.jsx — 예전 main.jsx 의 CompanyRoot / SaaS 분기).
 // 여기에 ErpApp·db.js·supabase.js 를 정적으로 import 하면 안 된다 — 그 순간 공개 페이지 청크에 딸려 간다
 // (4단계 지시서 1절·완료 기준 11).
@@ -10,6 +11,7 @@ import "./index.css";
 
 const isOrderLink = typeof location !== "undefined" && /^\/o(\/|$)/.test(location.pathname);
 const isRollInfo = typeof location !== "undefined" && /^\/r(\/|$)/.test(location.pathname);
+const isSaasUi = typeof location !== "undefined" && /^\/app(\/|$)/.test(location.pathname);
 const OrderLink = lazy(() => import("./public/OrderLink.jsx"));
 const RollInfo = lazy(() => import("./public/RollInfo.jsx"));
 const AppEntry = lazy(() => import("./AppEntry.jsx"));
@@ -24,7 +26,7 @@ const Fallback = () => (
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <Suspense fallback={<Fallback />}>
-      {isOrderLink ? <OrderLink /> : isRollInfo ? <RollInfo /> : <AppEntry />}
+      {isOrderLink ? <OrderLink /> : isRollInfo ? <RollInfo /> : <AppEntry saasUi={isSaasUi} />}
     </Suspense>
   </StrictMode>
 );

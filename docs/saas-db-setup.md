@@ -9,9 +9,9 @@
 1. 옛 표가 남아 있는 프로젝트(2026-04 체험판: companies·users·orders 2건·inventory 15건 등)면 먼저
    `migrations/_saas_reset_public.sql` 을 SQL Editor 에 붙여 넣고 Run. public 의 표·함수·정책을 전부 지운다(되돌릴 수 없음).
    체험판 로그인 계정까지 지우려면 그 파일 안의 `delete from auth.users;` 줄 주석을 푼다.
-2. `migrations/_saas_fresh_db_all.sql` 을 통째로 붙여 넣고 Run. 아래 46개 파일을 검증된 순서로 이어 붙인 산출물이다
+2. `migrations/_saas_fresh_db_all.sql` 을 통째로 붙여 넣고 Run. 아래 47개 파일을 검증된 순서로 이어 붙인 산출물이다
    (`node scripts-build-fresh-db.mjs` 로 다시 생성, 테스트가 최신인지 검사).
-3. 확인: `select count(*) from pg_tables where schemaname='public';` → 27.
+3. 확인: `select count(*) from pg_tables where schemaname='public';` → 28.
 
 ## 실행 순서 (파일을 하나씩 돌리고 싶을 때 — SQL Editor 에 그대로 붙여 넣어 Run)
 
@@ -35,6 +35,7 @@
 | 42–44 | `add_link_order_drafts` `add_link_drafts_offer` `add_link_drafts_credit` | 링크 주문 초안 |
 | 45 | `migrations/saas_company_accounts.sql` | 회사 계정·구독·담당자 PIN |
 | 46 | `migrations/saas_readonly_when_expired.sql` | 구독 만료 시 읽기 전용 |
+| 47 | `migrations/saas_manager_sessions.sql` | 담당자 토큰 — 관리자 전용 작업(삭제·담당자 관리·출고완료)을 DB 가 판정 |
 
 정확한 파일 순서는 `tests/saas/test-fresh-db.mjs` 의 `FRESH_DB_ORDER` 배열이 단일 출처다.
 

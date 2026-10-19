@@ -66,7 +66,7 @@ check("1. 빈 DB 에 순서대로 전부 실행", !firstFail, firstFail);
   let allErr = null;
   try { await db2.exec(buildFreshDbSql(ROOT)); } catch (e) { allErr = e.message; }
   const n = allErr ? 0 : (await db2.query(`select count(*)::int n from pg_tables where schemaname='public'`)).rows[0].n;
-  check("1b. _saas_fresh_db_all.sql 한 덩어리 실행 → 표 27개", !allErr && n === 27, allErr || `tables=${n}`);
+  check("1b. _saas_fresh_db_all.sql 한 덩어리 실행 → 표 28개", !allErr && n === 28, allErr || `tables=${n}`);
 }
 
 // 2회차(재실행 안전)
@@ -120,6 +120,8 @@ await db.exec(`set test.uid = '${U1}'`);
 const tables = (await db.query(`select tablename from pg_tables where schemaname='public' order by 1`)).rows.map(r => r.tablename);
 const noRls = (await db.query(`select tablename from pg_tables where schemaname='public' and not rowsecurity`)).rows.map(r => r.tablename);
 check(`4a. public 표 ${tables.length}개 전부 RLS 켜짐`, noRls.length === 0, noRls.join(", "));
+check("4a2. 담당자 토큰 함수·트리거가 있음", (await db.query(`select count(*)::int n from pg_proc where proname in ('current_manager_id','current_manager_is_admin','revoke_manager_token')`)).rows[0].n === 3
+  && (await db.query(`select count(*)::int n from pg_trigger where tgname in ('orders_ship_guard','saas_active_guard')`)).rows[0].n >= 5);
 check("4b. is_company_active() 가 행 없는 회사에 참", (await db.query(`select is_company_active() a`)).rows[0].a === true);
 await db.exec(`insert into managers (user_id, name, is_admin) values ('${U1}', '관리자', true)`);
 const mid = (await db.query(`select id from managers limit 1`)).rows[0].id;

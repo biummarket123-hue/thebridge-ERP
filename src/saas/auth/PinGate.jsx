@@ -54,7 +54,7 @@ export function PinVerifyModal({ manager, title, onOk, onClose, onForgot, inline
       try {
         const r = await db.verifyManagerPin(manager.id, pin);
         if (!alive) return;
-        if (r.ok) { onOk(pin); return; }
+        if (r.ok) { onOk(r); return; }
         if (r.locked_until) { setMsg(`너무 많이 틀렸습니다. ${fmtUntil(r.locked_until)} 이후 다시 시도하세요.`); reloadPinStatus(); }
         else if (r.no_pin) setMsg("이 담당자는 아직 PIN 이 없습니다.");
         else if (r.attempts_left !== undefined) setMsg(`PIN 이 맞지 않습니다. ${r.attempts_left}번 더 틀리면 10분 잠깁니다.`);
@@ -195,7 +195,11 @@ export function PinGate() {
             <Button kind="white" onClick={() => { try { sessionStorage.setItem("erp_pin_skip_" + manager.name, "1"); } catch {} setSkip(true); }}>나중에</Button>
             <Button kind="white" icon="user" onClick={() => setActiveManager("")}>다른 담당자</Button>
           </div>
-          {setup && <PinSetupModal manager={manager} hasPin={false} onDone={() => { setSetup(false); markPinVerified(); }} onClose={() => setSetup(false)} />}
+          {setup && <PinSetupModal manager={manager} hasPin={false} onDone={async (pin) => {
+            setSetup(false);
+            // 방금 만든 PIN 으로 바로 검증해 담당자 토큰을 받는다 — 관리자 작업(삭제·담당자 관리)에 필요하다
+            try { const r = await db.verifyManagerPin(manager.id, pin); markPinVerified(r?.ok ? r.token : undefined); } catch { markPinVerified(); }
+          }} onClose={() => setSetup(false)} />}
         </div>
       </div>
     );
@@ -206,7 +210,7 @@ export function PinGate() {
       <div className="sheet" role="dialog" aria-modal="true" aria-label="PIN 확인">
         <div className="brand" style={{ margin: "0 0 18px" }}><div className="logo"><BrandMark /></div><div><div className="brand-name">{BRAND.name}<span>{BRAND.suffix}</span></div><div className="brand-caption">{config.companyName}</div></div></div>
         <div className="sheethead"><h2>PIN 을 눌러 주세요</h2></div>
-        <PinVerifyModal inline manager={manager} title={locked ? `${fmtUntil(locked)} 까지 잠겨 있습니다` : "PIN 4자리"} onOk={() => markPinVerified()} onForgot={() => setForgot(true)} />
+        <PinVerifyModal inline manager={manager} title={locked ? `${fmtUntil(locked)} 까지 잠겨 있습니다` : "PIN 4자리"} onOk={(r) => markPinVerified(r?.token)} onForgot={() => setForgot(true)} />
         <label className="row-check" style={{ marginTop: 14, borderBottom: 0 }}>
           <input type="checkbox" checked={pinned} onChange={e => setPinned(e.target.checked)} />
           <span className="left"><strong>이 기기에 {manager.name} 고정</strong><small>포장 패드처럼 사람이 바뀌지 않는 기기용 — 다시 묻지 않습니다</small></span>

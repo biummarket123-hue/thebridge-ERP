@@ -46,8 +46,8 @@ git 원격·Supabase 프로젝트·Vercel 프로젝트를 전부 따로 쓴다. 
 
 ## 4. 한계와 다음 단계
 
-- 담당자 권한(관리자·포장·담당자 잠금)은 아직 **브라우저가 판정**한다. 2차: PIN 통과 시 서버가 담당자 토큰 발급 → 요청 헤더 → RLS·RPC 가 확인.
-- security definer RPC(롤 수량·포장)는 만료 읽기 전용 정책을 거치지 않는다. 2차: 함수 안에 `is_company_active()` 검사.
+- **담당자 토큰(2026-10-19 2차)**: PIN 통과 시 `verify_manager_pin` 이 토큰을 주고 브라우저가 `x-manager-token` 헤더로 보낸다. DB 가 `current_manager_is_admin()` 으로 관리자 전용(주문 삭제·담당자 추가/수정/삭제·회사 정보·출고완료 전환)을 막는다. 포장·담당자 잠금 같은 세부 규칙은 아직 브라우저 판정.
+- 롤·포장 표에는 구독 만료 트리거가 있어 security definer RPC 도 막힌다.
 - 결제(토스페이먼츠 빌링) 미연동. 웹훅 서버 함수 하나로 `company_accounts.current_period_end` 를 늘리면 된다.
 - 옛 화면(`/legacy`)은 로하이마켓 운영에 맞춘 문구·기본 담당자(방문고객·마켓24 자동 생성)·품번 접두어(LH)가 남아 있다. 새 UI 로 기능이 옮겨 가면 걷어낸다.
 - `api/company-session.js`, `api/link/*`(LINK_COMPANY_USER_ID) 는 사내 모드 전용이라 SaaS 배포에서는 쓰이지 않는다.

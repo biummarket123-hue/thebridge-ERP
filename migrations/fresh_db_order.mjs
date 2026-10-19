@@ -48,4 +48,5 @@ export const FRESH_DB_ORDER = [
   "migrations/add_link_drafts_credit.sql",
   "migrations/saas_company_accounts.sql",
   "migrations/saas_readonly_when_expired.sql",
+  "migrations/saas_manager_sessions.sql",
 ];

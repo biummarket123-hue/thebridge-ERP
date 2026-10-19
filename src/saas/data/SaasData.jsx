@@ -54,8 +54,13 @@ export function SaasDataProvider({ children }) {
     _setActiveManager(n);
     writeLS(MANAGER_KEY, n);
     _setPinVerifiedAt(0); writeLS(PIN_AT_KEY, "");
+    db.revokeManagerToken();   // 다른 사람 토큰을 물려받지 않는다
   }, []);
-  const markPinVerified = useCallback(() => { const t = Date.now(); _setPinVerifiedAt(t); writeLS(PIN_AT_KEY, String(t)); }, []);
+  // token: verify_manager_pin 이 준 담당자 토큰(없으면 PIN 없는 담당자·건너뛰기 — 관리자 작업은 DB 가 막는다)
+  const markPinVerified = useCallback((token) => {
+    const t = Date.now(); _setPinVerifiedAt(t); writeLS(PIN_AT_KEY, String(t));
+    if (token) db.setManagerToken(token);
+  }, []);
   const setPinned = useCallback((v) => { _setPinned(!!v); writeLS(PIN_PINNED_KEY, v ? "1" : ""); }, []);
   const manager = useMemo(() => managers.find(m => m.name === activeManager) || null, [managers, activeManager]);
   const isAdmin = !!manager?.isAdmin;

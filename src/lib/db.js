@@ -4105,6 +4105,30 @@ export async function fetchSubscriptionEvents() {
   return data || [];
 }
 
+// ── 담당자 토큰 — PIN 통과 시 서버가 준 토큰을 모든 요청의 x-manager-token 헤더로 보낸다 ──
+// DB 쪽(migrations/saas_manager_sessions.sql)이 이 헤더로 "지금 작업하는 담당자"를 알고, 관리자 전용 작업을 정책·트리거로 막는다.
+// 기기별 localStorage 에 두고(erp_manager_token), 담당자를 바꾸거나 로그아웃하면 지운다.
+export const MANAGER_TOKEN_KEY = "erp_manager_token";
+const MANAGER_HEADER = "x-manager-token";
+function applyManagerHeader(token) {
+  const h = supabase?.rest?.headers;
+  if (!h || typeof h.set !== "function") return;
+  if (token) h.set(MANAGER_HEADER, token); else h.delete(MANAGER_HEADER);
+}
+export function setManagerToken(token) {
+  try { if (token) localStorage.setItem(MANAGER_TOKEN_KEY, token); else localStorage.removeItem(MANAGER_TOKEN_KEY); } catch { /* 저장소 불가 */ }
+  applyManagerHeader(token);
+}
+export function getManagerToken() { try { return localStorage.getItem(MANAGER_TOKEN_KEY) || ""; } catch { return ""; } }
+// 모듈이 로드될 때 기기에 남은 토큰을 바로 헤더에 싣는다 — 옛 화면(/legacy)도 같은 토큰으로 관리자 작업을 한다.
+try { applyManagerHeader(getManagerToken()); } catch { /* 서버 환경 */ }
+// 서버 쪽 세션도 지운다(로그아웃·담당자 바꾸기). 실패해도 로컬 토큰은 지운다.
+export async function revokeManagerToken() {
+  const had = getManagerToken();
+  if (had) { try { await supabase.rpc("revoke_manager_token"); } catch (e) { console.warn("[manager-token] 폐기 실패(무시)", e?.message); } }
+  setManagerToken("");
+}
+
 // 담당자별 PIN 상태 — [{manager_id, has_pin, locked_until}]. 해시는 절대 내려오지 않는다.
 // RPC 가 없으면(마이그레이션 전) 빈 배열 → 화면은 "PIN 없음"으로 보고 묻지 않는다.
 export async function fetchManagerPinStatus() {

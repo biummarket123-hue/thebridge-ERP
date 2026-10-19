@@ -24,6 +24,7 @@ import { subscriptionNotice } from "./lib/subscription.js";
 import { TodoModal } from "./pages/HomePage.jsx";
 
 async function logout() {
+  try { await db.revokeManagerToken(); } catch { /* 무시 */ }
   try { await supabase.auth.signOut({ scope: "local" }); } catch (e) { console.warn("[logout]", e); }
   localStorage.removeItem(db.GATE_UNTIL_KEY);
   localStorage.removeItem(db.GATE_TOKEN_KEY);

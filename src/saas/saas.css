@@ -418,3 +418,25 @@
 }
 .saas .manager-pick .pin-mark { display: inline-flex; color: #9aabba; }
 .saas .manager-pick .pin-mark svg { width: 16px; height: 16px; }
+
+/* ── 홈(랜딩)·체험 ───────────────────────────────────────────── */
+.saas .landing { max-width: 1080px; margin: 0 auto; padding: 22px 20px 60px; }
+.saas .landing-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.saas .landing-hero { text-align: center; padding: 64px 0 36px; }
+.saas .landing-hero .eyebrow { color: var(--saas-blue); font-weight: 900; font-size: 14px; letter-spacing: .06em; margin: 0 0 14px; }
+.saas .landing-hero h1 { font-size: 44px; line-height: 1.2; letter-spacing: -1.6px; margin: 0 0 18px; font-weight: 900; }
+.saas .landing-hero .lead { color: #63748b; font-size: 17px; line-height: 1.7; max-width: 620px; margin: 0 auto 28px; }
+.saas .landing-cta { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.saas .landing-cta .btn { min-width: 220px; }
+.saas .landing-note { color: #8d9aab; font-size: 13px; line-height: 1.6; max-width: 560px; margin: 18px auto 0; }
+.saas .landing-features { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 30px; }
+.saas .landing-features .panel { padding: 22px 20px; }
+.saas .landing-features h3 { margin: 14px 0 8px; font-size: 17px; }
+.saas .landing-features p { margin: 0; color: #63748b; font-size: 14px; line-height: 1.6; }
+.saas .feat-icon { width: 42px; height: 42px; border-radius: 13px; background: #e5efff; color: #396dda; display: flex; align-items: center; justify-content: center; }
+.saas .feat-icon svg { width: 22px; height: 22px; }
+.saas .landing-foot { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 50px; color: #8d9aab; font-size: 13px; }
+.saas .landing-foot a { color: var(--saas-blue); font-weight: 800; text-decoration: none; }
+.saas .sub-banner.demo { background: #eef5ff; color: #2e5bb8; border-color: #cdddff; }
+@media (max-width: 900px) { .saas .landing-features { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .saas .landing-hero h1 { font-size: 30px; } .saas .landing-features { grid-template-columns: 1fr; } .saas .landing-hero { padding: 40px 0 28px; } }

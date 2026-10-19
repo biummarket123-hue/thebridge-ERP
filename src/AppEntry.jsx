@@ -17,6 +17,7 @@ const MODE = (() => { try { return import.meta.env.VITE_MODE || "saas"; } catch 
 const BRAND_LABEL = MODE === "company" ? "로하이마켓 ERP" : `${BRAND.name} ${BRAND.suffix}`;
 
 const SaasAuth = lazy(() => import("./saas/auth/SaasAuth.jsx"));
+const Landing = lazy(() => import("./saas/Landing.jsx"));
 
 const LoadingScreen = () => <CuteFullLoader brand={BRAND_LABEL} />;
 
@@ -98,8 +99,9 @@ function LegacyCompanyRoot() {
   );
 }
 
-// saasUi: 경로가 /app… 인가(main.jsx 가 정한다). saas 모드는 경로와 무관하게 새 UI.
-export default function AppEntry({ saasUi = false }) {
+// saasUi: 경로가 /app… 인가. landing: 루트(/) 인가. main.jsx 가 정한다.
+export default function AppEntry({ saasUi = false, landing = false }) {
   if (MODE === "company") return saasUi ? <SaasRootGate /> : <LegacyCompanyRoot />;
+  if (landing) return <Suspense fallback={<LoadingScreen />}><Landing /></Suspense>;
   return <SaasRootGate />;
 }

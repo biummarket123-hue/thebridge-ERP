@@ -13,11 +13,12 @@ import "./index.css";
 const isOrderLink = typeof location !== "undefined" && /^\/o(\/|$)/.test(location.pathname);
 const isRollInfo = typeof location !== "undefined" && /^\/r(\/|$)/.test(location.pathname);
 const MODE = import.meta.env.VITE_MODE || "saas";
-if (typeof location !== "undefined" && MODE !== "company" && !/^\/(app|o|r)(\/|$)/.test(location.pathname)) {
-  // 구독형 상품은 새 UI 가 곧 서비스다 — /app 밖의 경로(루트·옛 /legacy 등)는 /app 으로.
+if (typeof location !== "undefined" && MODE !== "company" && !/^\/(app|o|r)(\/|$)/.test(location.pathname) && !/^\/?$/.test(location.pathname)) {
+  // 구독형 상품: / 는 홈(로그인·체험 갈림길), /app 은 ERP. 그 밖의 경로는 /app 으로.
   history.replaceState(null, "", "/app" + location.search + location.hash);
 }
 const isSaasUi = typeof location !== "undefined" && /^\/app(\/|$)/.test(location.pathname);
+const isLanding = typeof location !== "undefined" && /^\/?$/.test(location.pathname);
 const OrderLink = lazy(() => import("./public/OrderLink.jsx"));
 const RollInfo = lazy(() => import("./public/RollInfo.jsx"));
 const AppEntry = lazy(() => import("./AppEntry.jsx"));
@@ -32,7 +33,7 @@ const Fallback = () => (
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <Suspense fallback={<Fallback />}>
-      {isOrderLink ? <OrderLink /> : isRollInfo ? <RollInfo /> : <AppEntry saasUi={isSaasUi} />}
+      {isOrderLink ? <OrderLink /> : isRollInfo ? <RollInfo /> : <AppEntry saasUi={isSaasUi} landing={isLanding} />}
     </Suspense>
   </StrictMode>
 );

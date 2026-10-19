@@ -99,6 +99,7 @@ function LoginForm({ onDone, onSignup }) {
       <div style={{ marginTop: 22 }}><Button type="submit" loading={busy} icon="check">로그인</Button></div>
       <div className="link-old" style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
         <a href="#signup" onClick={e => { e.preventDefault(); onSignup(); }}>새 회사 가입</a>
+        <a href="/">가입 없이 1시간 체험</a>
         {LEGACY_LOGIN && <a href="#legacy" onClick={e => { e.preventDefault(); setErr(""); setMode(mode === "id" ? "legacy" : "id"); }}>{mode === "id" ? "사내 비밀번호로 로그인" : "회사 아이디로 로그인"}</a>}
       </div>
     </form>

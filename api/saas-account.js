@@ -174,6 +174,36 @@ export default async function handler(req, res) {
     return res.status(200).json({ session: session ? pickSession(session) : null, account });
   }
 
+  // ── 체험: {} → { session, manager:{id,name,pin}, expiresAt } ──
+  // 방문자마다 임시 회사(auth 유저)를 만들고 demo_seed 로 샘플 데이터를 채운다. 1시간 뒤 읽기 전용, 크론이 삭제(api/demo-cleanup.js).
+  if (action === "demo") {
+    if (tooManyFails(ip)) return res.status(429).json({ error: "시도가 너무 많습니다. 10분 뒤 다시 해주세요." });
+    noteFail(ip);   // 체험 생성도 IP 당 10분에 10번까지 — 임시 회사 남발 방지
+    const sb = admin();
+    const rnd = Math.random().toString(36).slice(2, 10);
+    const loginId = `demo-${rnd}`;
+    const email = `${loginId}@${EMAIL_DOMAIN}`;
+    const password = `Demo-${Math.random().toString(36).slice(2, 12)}-${Date.now().toString(36)}`;
+    const pin = String(1000 + Math.floor(Math.random() * 9000));
+    const { data: created, error: cErr } = await sb.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { demo: true, login_id: loginId } });
+    if (cErr || !created?.user) {
+      console.error("[saas-account] demo createUser 실패:", cErr?.message);
+      return res.status(502).json({ error: "체험 환경을 만들지 못했습니다. 잠시 후 다시 시도해 주세요." });
+    }
+    const ownerId = created.user.id;
+    try {
+      const { data: seed, error: sErr } = await sb.rpc("demo_seed", { p_owner_id: ownerId, p_login_id: loginId, p_admin_pin: pin });
+      if (sErr || !seed?.ok) throw sErr || new Error(seed?.error || "seed 실패");
+      const session = await signIn(email, password);
+      if (!session) throw new Error("세션 발급 실패");
+      return res.status(200).json({ session: pickSession(session), manager: { id: seed.manager_id, name: seed.manager_name, pin }, expiresAt: seed.expires_at });
+    } catch (e) {
+      console.error("[saas-account] demo 실패, 되돌림:", e?.message || e);
+      try { await sb.auth.admin.deleteUser(ownerId); } catch (e2) { console.error("[saas-account] demo 되돌림 실패:", e2?.message); }
+      return res.status(502).json({ error: "체험 환경을 만들지 못했습니다. 잠시 후 다시 시도해 주세요." });
+    }
+  }
+
   // ── 관리자 PIN 리셋: { loginId, password, managerId, pin } → { ok } ──
   // 회사 비밀번호가 본인 확인이다. 관리자가 PIN 을 잃어 잠겼을 때 쓴다.
   if (action === "reset-admin-pin") {

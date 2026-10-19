@@ -127,6 +127,18 @@ await db.exec(`insert into managers (user_id, name, is_admin) values ('${U1}', '
 const mid = (await db.query(`select id from managers limit 1`)).rows[0].id;
 const pin = (await db.query(`select set_manager_pin($1, '1234') r`, [mid])).rows[0].r;
 check("4c. 담당자 PIN 설정 RPC 동작", pin.ok === true, JSON.stringify(pin));
+// 체험 회사 시드(서버 전용) — 빈 DB 전체 체인 위에서 실제로 채워지는지
+await db.exec(`set test.uid = ''`);
+const U9 = "99999999-9999-9999-9999-999999999999";
+await db.exec(`insert into auth.users values ('${U9}', 'demo@thebridge.erp')`);
+const seed = (await db.query(`select demo_seed($1, 'demo-test1', '1234') r`, [U9])).rows[0].r;
+const cnt = async (t) => (await db.query(`select count(*)::int n from ${t} where user_id = $1`, [U9])).rows[0].n;
+check("4e. demo_seed: 주문 6·고객 4·품번 3·롤 4·입금 4·담당자 2, 1시간 체험", seed.ok === true && await cnt("orders") === 6 && await cnt("customers") === 4 && await cnt("products") === 3 && await cnt("stock_rolls") === 4 && await cnt("payment_logs") === 4 && await cnt("managers") === 2
+  && (await db.query(`select is_demo, trial_end > now() + interval '55 minutes' as soon from company_accounts where owner_id=$1`, [U9])).rows[0].is_demo === true, JSON.stringify(seed));
+await db.exec(`set test.uid = '${U9}'`);
+check("4f. 체험 회사 PIN 으로 토큰 발급", (await db.query(`select verify_manager_pin($1, '1234') r`, [seed.manager_id])).rows[0].r.ok === true);
+check("4g. 지난 체험 목록은 아직 비어 있음(방금 만듦)", (await db.query(`select count(*)::int n from demo_expired_owners()`)).rows[0].n === 0);
+await db.exec(`set test.uid = '${U1}'`);
 const code = (await db.query(`select next_product_code() c`)).rows[0].c;
 check("4d. 품번 채번 RPC 동작", /^[A-Z]+-\d{4}-\d{4}$/.test(code), code);
 

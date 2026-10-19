@@ -21,9 +21,38 @@ import SettlementPage from "./pages/SettlementPage.jsx";
 import SettingsPage from "./pages/SettingsPage.jsx";
 import { PinGate } from "./auth/PinGate.jsx";
 import { subscriptionNotice } from "./lib/subscription.js";
+import { DEMO_UNTIL_KEY } from "./Landing.jsx";
+
+// 체험 세션: 홈에서 시작할 때 localStorage 에 만료 시각을 적는다. 지나면 로그아웃하고 홈으로.
+const readDemoUntil = () => { try { return Number(localStorage.getItem(DEMO_UNTIL_KEY)) || 0; } catch { return 0; } };
+async function endDemo() {
+  try { await db.revokeManagerToken(); } catch { /* 무시 */ }
+  try { await supabase.auth.signOut({ scope: "local" }); } catch { /* 무시 */ }
+  for (const k of [DEMO_UNTIL_KEY, "erp_manager", "erp_manager_pinned", "erp_manager_pin_at"]) { try { localStorage.removeItem(k); } catch { /* 무시 */ } }
+  window.location.href = "/?expired=1";
+}
+function DemoBanner() {
+  const [left, setLeft] = useState(() => readDemoUntil() - Date.now());
+  useEffect(() => {
+    const t = setInterval(() => {
+      const l = readDemoUntil() - Date.now();
+      setLeft(l);
+      if (l <= 0) { clearInterval(t); endDemo(); }
+    }, 1000);
+    return () => clearInterval(t);
+  }, []);
+  const m = Math.max(0, Math.floor(left / 60000)), s = Math.max(0, Math.floor((left % 60000) / 1000));
+  return (
+    <div className="sub-banner demo">
+      <span>🧪 체험 중 — 남은 시간 <b>{m}:{String(s).padStart(2, "0")}</b>. 입력한 내용은 1시간 뒤 자동으로 지워집니다.</span>
+      <Button kind="white" size="sm" icon="logout" onClick={endDemo}>체험 끝내기</Button>
+    </div>
+  );
+}
 import { TodoModal } from "./pages/HomePage.jsx";
 
 async function logout() {
+  if (readDemoUntil() > 0) return endDemo();
   try { await db.revokeManagerToken(); } catch { /* 무시 */ }
   try { await supabase.auth.signOut({ scope: "local" }); } catch (e) { console.warn("[logout]", e); }
   localStorage.removeItem(db.GATE_UNTIL_KEY);
@@ -87,7 +116,8 @@ function Shell() {
   const [picker, setPicker] = useState(false);
   const [todo, setTodo] = useState(false);
   const menu = ALL_ROUTES.find(m => m.key === route.menu) || ALL_ROUTES[0];
-  const subNotice = subscriptionNotice(subscription);
+  const isDemo = readDemoUntil() > 0;
+  const subNotice = isDemo ? "" : subscriptionNotice(subscription);
 
   // 변경 기록에 "어느 화면에서" — 옛 화면의 탭 이름과 구별되게 접두어를 붙인다
   db.setScreen(`새 UI · ${menu.label}`);
@@ -116,6 +146,7 @@ function Shell() {
   return (
     <AppLayout active={menu.key} crumb={menu.crumb} counts={counts} go={route.go} manager={activeManager}
       onBell={() => setTodo(true)} onProfile={() => setPicker(true)} bellCount={overview.flagged}>
+      {isDemo && <DemoBanner />}
       {subNotice && menu.key !== "settings" && (
         <div className={`sub-banner${readOnly ? " ro" : ""}`}>
           <span>{subNotice}</span>

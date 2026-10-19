@@ -4,8 +4,11 @@
   "installCommand": "npm install",
   "framework": "vite",
   "git": {
-    "deploymentEnabled": false
+    "deploymentEnabled": true
   },
+  "crons": [
+    { "path": "/api/demo-cleanup", "schedule": "0 * * * *" }
+  ],
   "redirects": [
     {
       "source": "/",

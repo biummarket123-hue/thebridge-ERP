@@ -9,54 +9,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
-export const FRESH_DB_ORDER = [
-  "migrations/saas_init_schema.sql",
-  "migrations/add_stock_rolls.sql",
-  "migrations/add_product_manager.sql",
-  "migrations/add_item_packing.sql",
-  "migrations/add_roll_pieces.sql",
-  "migrations/add_manager_flags.sql",
-  "migrations/add_packer_flag.sql",
-  "migrations/add_customer_address_detail.sql",
-  "migrations/add_customer_address2.sql",
-  "migrations/add_delivery_message.sql",
-  "migrations/add_delivery_message_presets.sql",
-  "migrations/add_fabric_missing.sql",
-  "migrations/add_held_at.sql",
-  "migrations/add_merge_group.sql",
-  "migrations/add_orders_images.sql",
-  "migrations/add_other_cost.sql",
-  "migrations/add_packed_at.sql",
-  "migrations/add_parked.sql",
-  "migrations/add_receipt_issued.sql",
-  "migrations/add_receipt_type.sql",
-  "migrations/add_ship_date.sql",
-  "migrations/add_ship_request.sql",
-  "migrations/add_shipped_at.sql",
-  "migrations/add_shipping_fee_held.sql",
-  "migrations/add_refund_request.sql",
-  "migrations/add_refund_history.sql",
-  "migrations/add_credits_order_id.sql",
-  "migrations/add_credits_manager_memo.sql",
-  "migrations/add_order_events.sql",
-  "migrations/add_order_events_retention.sql",
-  "migrations/add_order_notes.sql",
-  "migrations/add_order_notes_customer.sql",
-  "migrations/add_note_reactions.sql",
-  "migrations/add_notices.sql",
-  "migrations/add_order_returns.sql",
-  "migrations/alter_order_returns_exchange.sql",
-  "migrations/alter_order_returns_exchange_items.sql",
-  "migrations/add_label_printed.sql",
-  "migrations/add_label_request.sql",
-  "migrations/add_label_station.sql",
-  "migrations/add_thanks_label.sql",
-  "migrations/add_link_order_drafts.sql",
-  "migrations/add_link_drafts_offer.sql",
-  "migrations/add_link_drafts_credit.sql",
-  "migrations/saas_company_accounts.sql",
-  "migrations/saas_readonly_when_expired.sql",
-];
+import { FRESH_DB_ORDER } from "../../migrations/fresh_db_order.mjs";
+import { buildFreshDbSql } from "../../scripts-build-fresh-db.mjs";
 
 const results = [];
 const check = (name, ok, detail = "") => { results.push(!!ok); console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? "  — " + detail : ""}`); };
@@ -81,8 +35,11 @@ await db.exec(`
 const missing = FRESH_DB_ORDER.filter(f => !fs.existsSync(path.join(ROOT, f)));
 check("0. 순서에 적힌 파일이 전부 있음", missing.length === 0, missing.join(", "));
 const listed = new Set(FRESH_DB_ORDER.map(f => path.basename(f)));
-const unlisted = fs.readdirSync(path.join(ROOT, "migrations")).filter(f => f.endsWith(".sql") && !listed.has(f));
+const unlisted = fs.readdirSync(path.join(ROOT, "migrations")).filter(f => f.endsWith(".sql") && !f.startsWith("_") && !listed.has(f));
 check("0b. migrations/ 의 모든 파일이 순서에 들어 있음", unlisted.length === 0, unlisted.join(", "));
+const allPath = path.join(ROOT, "migrations/_saas_fresh_db_all.sql");
+const allFresh = fs.existsSync(allPath) && fs.readFileSync(allPath, "utf8").replace(/\r\n/g, "\n") === buildFreshDbSql(ROOT);
+check("0c. _saas_fresh_db_all.sql 이 최신(node scripts-build-fresh-db.mjs)", allFresh);
 
 // 1회차
 let firstFail = null;
@@ -91,6 +48,26 @@ for (const f of FRESH_DB_ORDER) {
   catch (e) { firstFail = `${f}: ${e.message}`; break; }
 }
 check("1. 빈 DB 에 순서대로 전부 실행", !firstFail, firstFail);
+
+// 1b. 한 덩어리로 붙인 산출물(_saas_fresh_db_all.sql)도 빈 DB 에서 한 번에 돈다 — 사용자가 SQL Editor 에 붙여 넣는 바로 그 파일
+{
+  const db2 = new PGlite({ extensions: { pgcrypto } });
+  await db2.exec(`
+    create schema auth; create table auth.users (id uuid primary key, email text);
+    create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('test.uid', true), '')::uuid $$;
+    create function auth.email() returns text language sql stable as $$ select '' $$;
+    create role authenticated; create role anon; create role service_role;
+    create schema storage;
+    create table storage.buckets (id text primary key, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]);
+    create table storage.objects (id uuid primary key default gen_random_uuid(), bucket_id text, name text, owner uuid);
+    alter table storage.objects enable row level security;
+    create publication supabase_realtime;
+  `);
+  let allErr = null;
+  try { await db2.exec(buildFreshDbSql(ROOT)); } catch (e) { allErr = e.message; }
+  const n = allErr ? 0 : (await db2.query(`select count(*)::int n from pg_tables where schemaname='public'`)).rows[0].n;
+  check("1b. _saas_fresh_db_all.sql 한 덩어리 실행 → 표 27개", !allErr && n === 27, allErr || `tables=${n}`);
+}
 
 // 2회차(재실행 안전)
 let secondFail = null;

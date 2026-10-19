@@ -4,7 +4,16 @@
 `tests/saas/test-fresh-db.mjs` 가 같은 순서(`FRESH_DB_ORDER`)를 PGlite(메모리 Postgres)에 돌려 매번 검증한다 —
 에러 없이 돌고, 두 번 돌려도 안전하고, `src/lib/db.js` 가 읽는 칸이 전부 생기는지.
 
-## 실행 순서 (Supabase 대시보드 → SQL Editor, 파일 내용을 그대로 붙여 넣어 Run)
+## 가장 쉬운 방법 — 파일 두 개
+
+1. 옛 표가 남아 있는 프로젝트(2026-04 체험판: companies·users·orders 2건·inventory 15건 등)면 먼저
+   `migrations/_saas_reset_public.sql` 을 SQL Editor 에 붙여 넣고 Run. public 의 표·함수·정책을 전부 지운다(되돌릴 수 없음).
+   체험판 로그인 계정까지 지우려면 그 파일 안의 `delete from auth.users;` 줄 주석을 푼다.
+2. `migrations/_saas_fresh_db_all.sql` 을 통째로 붙여 넣고 Run. 아래 46개 파일을 검증된 순서로 이어 붙인 산출물이다
+   (`node scripts-build-fresh-db.mjs` 로 다시 생성, 테스트가 최신인지 검사).
+3. 확인: `select count(*) from pg_tables where schemaname='public';` → 27.
+
+## 실행 순서 (파일을 하나씩 돌리고 싶을 때 — SQL Editor 에 그대로 붙여 넣어 Run)
 
 | # | 파일 | 무엇 |
 |---|---|---|

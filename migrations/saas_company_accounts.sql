@@ -11,6 +11,7 @@
 --
 -- 저장소의 옛 supabase-saas-schema.sql(company_id 기반 RLS, owner_email) 은 적용되지 않은 설계다. 이 파일과 섞지 말 것.
 
+-- Supabase 는 pgcrypto 가 extensions 스키마에 이미 있다(crypt·gen_salt). 함수마다 search_path 에 extensions 를 넣는다.
 create extension if not exists pgcrypto;
 
 -- ── 1. 회사 계정 ──────────────────────────────────────────────
@@ -74,7 +75,7 @@ create trigger company_accounts_guard before update on company_accounts for each
 -- 행이 없으면(사내 계정·가입 전 이식 데이터) 참. 체험: trial_end 전. 유료: current_period_end + 3일 유예 전.
 -- status 가 canceled 면 거짓. past_due 는 유예 안이면 참.
 create or replace function is_company_active() returns boolean
-language sql stable security definer set search_path = public as $$
+language sql stable security definer set search_path = public, extensions as $$
   select coalesce((
     select case
       when a.status = 'canceled' then false
@@ -101,7 +102,7 @@ alter table manager_pins enable row level security;
 
 -- 잠금 규칙: 5회 틀리면 10분. 4자리(10,000 조합)는 이 잠금이 없으면 의미가 없다.
 create or replace function manager_pin_status() returns jsonb
-language sql stable security definer set search_path = public as $$
+language sql stable security definer set search_path = public, extensions as $$
   select coalesce(jsonb_agg(jsonb_build_object(
       'manager_id', m.id,
       'has_pin', p.manager_id is not null,
@@ -113,7 +114,7 @@ $$;
 grant execute on function manager_pin_status() to authenticated;
 
 create or replace function verify_manager_pin(p_manager_id bigint, p_pin text) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   r manager_pins%rowtype;
   own uuid;
@@ -147,7 +148,7 @@ grant execute on function verify_manager_pin(bigint, text) to authenticated;
 --   · 이미 있으면: 본인이 현재 PIN 을 맞추거나, 관리자(is_admin) 담당자가 자기 PIN 을 맞춰야 바꿀 수 있다.
 --   p_by_manager_id / p_by_pin 이 그 증명이다.
 create or replace function set_manager_pin(p_manager_id bigint, p_pin text, p_by_manager_id bigint default null, p_by_pin text default null) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   own uuid;
   has_pin boolean;
@@ -189,7 +190,7 @@ grant execute on function set_manager_pin(bigint, text, bigint, text) to authent
 -- 서버(service role) 전용 — 회사 비밀번호를 확인한 뒤 PIN 을 강제로 다시 놓는다(관리자가 PIN 을 잃었을 때).
 -- auth.uid() 가 있는(브라우저) 요청은 거부한다.
 create or replace function service_reset_manager_pin(p_owner_id uuid, p_manager_id bigint, p_pin text) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 begin
   if auth.uid() is not null then
     return jsonb_build_object('ok', false, 'error', '서버 전용 함수입니다');

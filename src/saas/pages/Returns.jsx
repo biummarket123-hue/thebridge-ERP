@@ -1,5 +1,5 @@
 // 반품·교환 — 목록, 등록(출고완료 주문을 서버에서 찾는다), 진행(반품신청 → 수거중 → 반품입고(롤 재고 복구) → 완료). 옛 ReturnsTab 의 흐름.
-// 교환 기록·완료 되돌리기는 옛 화면으로 보낸다.
+// 교환 기록·완료 되돌리기는 아직 없다(다음 단계).
 import { useEffect, useMemo, useState } from "react";
 import * as db from "../../lib/db.js";
 import { useSaas } from "../data/SaasData.jsx";
@@ -11,7 +11,6 @@ import { checkOrderLock } from "../../lib/managerLock.js";
 import { nowT } from "../../constants.js";
 import { rollErrorText } from "../../lib/rollStock.js";
 import { itemsSummary } from "../lib/metrics.js";
-import { OLD_ERP_PATH } from "../config.js";
 
 const TONE = { "반품신청": "wait", "수거중": "progress", "반품입고": "purple", "완료": "done" };
 
@@ -151,8 +150,6 @@ export default function Returns() {
                 {r.status === "반품신청" && <Button size="sm" kind="white" loading={busy === r.id} onClick={() => advance(r, "수거중")}>수거중으로</Button>}
                 {r.status === "수거중" && <Button size="sm" loading={busy === r.id} onClick={() => advance(r, "반품입고")}>반품입고 (재고 복구)</Button>}
                 {r.status === "반품입고" && <Button size="sm" kind="green" loading={busy === r.id} onClick={() => advance(r, "완료")}>완료</Button>}
-                {r.status === "반품입고" && <a className="btn btn-white btn-sm" href={OLD_ERP_PATH} style={{ textDecoration: "none" }}>교환은 옛 화면</a>}
-                {r.status === "완료" && isAdmin && <a className="btn btn-white btn-sm" href={OLD_ERP_PATH} style={{ textDecoration: "none" }}>되돌리기는 옛 화면</a>}
               </div>
             </div>
           );

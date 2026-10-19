@@ -11,7 +11,7 @@ import { AppLayout } from "./components/AppLayout.jsx";
 import { Modal } from "./components/Modal.jsx";
 import { Button } from "./components/ui.jsx";
 import { useRoute, ALL_ROUTES, menuPath } from "./router.js";
-import { BRAND, OLD_ERP_PATH } from "./config.js";
+import { BRAND } from "./config.js";
 import { BrandMark, Icon } from "./icons.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import OrdersPage from "./pages/OrdersPage.jsx";
@@ -56,7 +56,6 @@ function ManagerPicker({ onClose, required, go }) {
             <Button kind="white" icon="settings" onClick={() => { onClose?.(); go?.("/app/settings"); }}>회사 설정</Button>
             <Button kind="white" icon="logout" onClick={logout}>로그아웃</Button>
           </div>
-          <div className="link-old"><a href={OLD_ERP_PATH}>옛 ERP 화면 열기</a></div>
         </>
       )}
     </>

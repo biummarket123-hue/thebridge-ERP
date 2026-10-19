@@ -1,7 +1,7 @@
 // 뼈대 — PC: 사이드바 + 상단 헤더 + 본문. 모바일(≤720px): 상단 브랜드 바 + 본문 + 하단 고정 메뉴.
 // 어느 쪽이 보일지는 CSS 가 정한다(둘 다 그려 두고 media query 로 숨긴다).
 import { useEffect } from "react";
-import { BRAND, OLD_ERP_PATH } from "../config.js";
+import { BRAND } from "../config.js";
 import { MENUS } from "../router.js";
 import { Icon, BrandMark } from "../icons.jsx";
 import { nim } from "./ui.jsx";
@@ -30,10 +30,6 @@ export function Sidebar({ active, counts = {}, go, manager, onProfile }) {
         ))}
       </nav>
       <div className="sidebar-bottom">
-        <div className="support">
-          <strong>옛 화면이 필요하신가요?</strong>
-          <p>포장 스캔·라벨 출력·공지·메모 채팅은<br /><a href={OLD_ERP_PATH}>기존 ERP 화면</a>에서 처리합니다.</p>
-        </div>
         <button className={`nav settings${active === "settings" ? " active" : ""}`} onClick={() => go("/app/settings")} aria-current={active === "settings" ? "page" : undefined}>
           <Icon name="settings" /><span>회사 설정</span>
         </button>

@@ -16,7 +16,7 @@ git 원격·Supabase 프로젝트·Vercel 프로젝트를 전부 따로 쓴다. 
 | 서버 함수 | `/api/saas-account` — `login`(아이디→세션), `signup`(초대 코드·체험 14일·관리자 담당자+PIN), `reset-admin-pin`(회사 비밀번호로 본인 확인) | `api/saas-account.js` |
 | 화면 | 회사 로그인·가입(`src/saas/auth/SaasAuth.jsx`), PIN 게이트(`src/saas/auth/PinGate.jsx`), 회사 설정(`src/saas/pages/SettingsPage.jsx`) | `src/saas` |
 | 규칙 | 아이디·비밀번호·PIN 형식, 구독 상태 판정(SQL 과 같은 답), PIN 재확인(30분·기기 고정) | `src/saas/lib/subscription.js` |
-| 경로 | `/` → `/app`(새 UI). `/legacy` → 옛 화면(ErpApp)을 같은 세션으로. `/o`, `/r` 공개 페이지 | `src/main.jsx`, `src/AppEntry.jsx` |
+| 경로 | `/app` 새 UI(그 밖의 경로는 `/app` 으로). `/o`, `/r` 공개 페이지. 옛 화면(ErpApp)은 SaaS 에서 쓰지 않는다 | `src/main.jsx`, `src/AppEntry.jsx` |
 
 `VITE_MODE=company` 는 로하이마켓 사내 배포 호환용으로 코드에만 남아 있다(사내 비밀번호 게이트). 이 저장소의 배포는 항상 `saas`.
 
@@ -50,7 +50,7 @@ git 원격·Supabase 프로젝트·Vercel 프로젝트를 전부 따로 쓴다. 
 - **담당자 토큰(2026-10-19 2차)**: PIN 통과 시 `verify_manager_pin` 이 토큰을 주고 브라우저가 `x-manager-token` 헤더로 보낸다. DB 가 `current_manager_is_admin()` 으로 관리자 전용(주문 삭제·담당자 추가/수정/삭제·회사 정보·출고완료 전환)을 막는다. 담당자 잠금(남의 주문 수정 금지, 합배송 묶음 예외)·포장 담당 제한(상태·메모·포장 표시만)은 `saas_order_lock.sql` 트리거가 같은 규칙으로 판정한다. 개인 담당자는 PIN 필수(토큰이 신원).
 - 롤·포장 표에는 구독 만료 트리거가 있어 security definer RPC 도 막힌다.
 - 결제(토스페이먼츠 빌링) 미연동. 웹훅 서버 함수 하나로 `company_accounts.current_period_end` 를 늘리면 된다.
-- 옛 화면(`/legacy`)은 로하이마켓 운영에 맞춘 문구·기본 담당자(방문고객·마켓24 자동 생성)·품번 접두어(LH)가 남아 있다. 새 UI 로 기능이 옮겨 가면 걷어낸다.
+- 옛 화면(ErpApp)은 SaaS 에서 열 수 없다(2026-10-19 결정). 그 화면에만 있던 기능(포장 스캔·라벨 출력·공지·메모 채팅·교환 기록·합배송 묶기/분리·운임비 조정·택배사 변경·이미지 첨부)은 필요해지면 새 UI 에 만든다.
 - `api/company-session.js`, `api/link/*`(LINK_COMPANY_USER_ID) 는 사내 모드 전용이라 SaaS 배포에서는 쓰이지 않는다.
 
 ## 5. 테스트

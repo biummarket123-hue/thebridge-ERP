@@ -1,8 +1,8 @@
 // ERP 쪽 진입점 — main.jsx 가 React.lazy 로 부른다(공개 페이지 /o, /r 는 이 파일을 내려받지 않는다).
 //
 // 모드(VITE_MODE):
-//   saas    (기본, 구독형 상품)  /app → 새 UI. 회사 로그인·세션은 src/saas/auth/SaasAuth.jsx 가 맡는다.
-//                               /legacy → 옛 화면(ErpApp)을 같은 세션으로 연다(포장 스캔·라벨 등 아직 옛 화면에만 있는 기능).
+//   saas    (기본, 구독형 상품)  모든 경로 → 새 UI(/app). 회사 로그인·세션은 src/saas/auth/SaasAuth.jsx 가 맡는다.
+//                               옛 화면(ErpApp)은 SaaS 상품에서 쓰지 않는다(2026-10-19 사용자 결정).
 //   company (사내 배포 호환용)  / → 사내 비밀번호 게이트 + 옛 ErpApp.  /app → 새 UI.
 // 두 모드는 코드만 같이 있을 뿐 서로 다른 Supabase 프로젝트를 가리킨다(.env.local).
 import { useState, useEffect, lazy, Suspense } from "react";
@@ -30,7 +30,7 @@ function SaasRootGate() {
 }
 
 // 옛 화면 틀 — 위 44px 바(브랜드·로그아웃) + ErpApp. 두 모드가 같이 쓴다.
-function LegacyShell({ onLogout, newUiPath }) {
+function LegacyShell({ onLogout }) {
   return (
     <>
       <div style={{
@@ -46,9 +46,6 @@ function LegacyShell({ onLogout, newUiPath }) {
         {/* 가운데 자리 — 휴대폰에서 ErpApp 이 여기에 '입고' 버튼을 그려 넣는다(createPortal). PC 에서는 비어 있다. */}
         <div id="app-top-slot" style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)" }} />
         <div style={{ display: "flex", gap: 8 }}>
-          {newUiPath && (
-            <a href={newUiPath} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #2E2820", color: "#C084FC", fontWeight: 600, fontSize: 11, textDecoration: "none", fontFamily: "'Noto Sans KR',sans-serif" }}>새 화면으로</a>
-          )}
           <button onClick={onLogout} style={{
             padding: "6px 12px", borderRadius: 8,
             border: "1px solid #2E2820", background: "transparent",
@@ -63,27 +60,6 @@ function LegacyShell({ onLogout, newUiPath }) {
         <ErpApp trialMode={false} />
       </div>
     </>
-  );
-}
-
-// saas 모드의 /legacy — 새 UI 와 같은 Supabase 세션으로 옛 화면을 연다. 세션이 없으면 /app 로그인으로.
-function LegacyWithSession() {
-  const [state, setState] = useState("checking");   // checking | ok | none
-  useEffect(() => {
-    let alive = true;
-    supabase.auth.getSession().then(({ data: { session } }) => { if (alive) setState(session ? "ok" : "none"); }).catch(() => { if (alive) setState("none"); });
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => { if (event === "SIGNED_OUT") setState("none"); });
-    const onLost = () => setState("none");
-    window.addEventListener("company-gate-lost", onLost);
-    return () => { alive = false; sub?.subscription?.unsubscribe?.(); window.removeEventListener("company-gate-lost", onLost); };
-  }, []);
-  useEffect(() => { if (state === "none") window.location.replace("/app"); }, [state]);
-  if (state !== "ok") return <LoadingScreen />;
-  return (
-    <LegacyShell newUiPath="/app" onLogout={async () => {
-      try { await supabase.auth.signOut({ scope: "local" }); } catch (e) { console.warn("[logout]", e); }
-      window.location.href = "/app";
-    }} />
   );
 }
 
@@ -122,8 +98,8 @@ function LegacyCompanyRoot() {
   );
 }
 
-// saasUi: 경로가 /app… 인가.  legacy: 경로가 /legacy… 인가. 둘 다 main.jsx 가 정한다.
-export default function AppEntry({ saasUi = false, legacy = false }) {
+// saasUi: 경로가 /app… 인가(main.jsx 가 정한다). saas 모드는 경로와 무관하게 새 UI.
+export default function AppEntry({ saasUi = false }) {
   if (MODE === "company") return saasUi ? <SaasRootGate /> : <LegacyCompanyRoot />;
-  return legacy ? <LegacyWithSession /> : <SaasRootGate />;
+  return <SaasRootGate />;
 }

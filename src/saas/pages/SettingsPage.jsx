@@ -7,7 +7,6 @@ import { useToast } from "../components/Toast.jsx";
 import { Modal, ConfirmModal } from "../components/Modal.jsx";
 import { PageHead, Panel, Button, StatusBadge, Chip, Empty, nim } from "../components/ui.jsx";
 import { Icon } from "../icons.jsx";
-import { OLD_ERP_PATH } from "../config.js";
 import { CJ, KD, COURIER_SHORT } from "../../lib/courier.js";
 import { PLANS, managerSeatsLeft, subscriptionNotice } from "../lib/subscription.js";
 import { PinSetupModal, PinVerifyModal } from "../auth/PinGate.jsx";
@@ -119,7 +118,7 @@ function OpsPanel() {
   };
   return (
     <Panel title="운영 값" small>
-      <p className="helptext" style={{ margin: "6px 0 0" }}>주문 등록 폼의 택배비 버튼과 재고 "부족" 판정이 이 값을 씁니다. 옛 ERP 화면의 값(택배사 마감 등)은 거기서 그대로 읽습니다.</p>
+      <p className="helptext" style={{ margin: "6px 0 0" }}>주문 등록 폼의 택배비 버튼, 재고 "부족" 판정, 품번 발급, 출고예정일 계산이 이 값을 씁니다.</p>
       <div className="formrow">
         <Field label="택배비 · 소량(마)" htmlFor="st-cut"><input id="st-cut" className="forminput" inputMode="numeric" value={cut} onChange={e => setCut(e.target.value)} disabled={!isAdmin || readOnly} /></Field>
         <Field label="택배비 · 롤" htmlFor="st-roll"><input id="st-roll" className="forminput" inputMode="numeric" value={roll} onChange={e => setRoll(e.target.value)} disabled={!isAdmin || readOnly} /></Field>
@@ -246,10 +245,6 @@ export default function SettingsPage() {
         <CompanyPanel />
         <SubscriptionPanel />
         <OpsPanel />
-        <Panel title="옛 ERP 화면" small>
-          <p className="helptext" style={{ margin: "6px 0 14px" }}>포장 스캔·라벨 출력·공지·메모 채팅·카카오 설정은 아직 옛 화면에서 처리합니다.</p>
-          <a className="btn btn-white" href={OLD_ERP_PATH} style={{ textDecoration: "none", width: "auto" }}><Icon name="layers" /> 기존 ERP 화면 열기</a>
-        </Panel>
       </div>
       <div style={{ height: 18 }} />
       <ManagersPanel />

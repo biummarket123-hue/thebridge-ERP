@@ -20,9 +20,6 @@ export const SHIPPING_FEE = { cut: 4000, roll: 7000 };
 // 택배 수거 마감 — courier.js 가 단일 출처. 화면 안내 문구용으로 다시 내보낸다.
 export const PICKUP = { [CJ]: PICKUP_CUTOFF[CJ], [KD]: PICKUP_CUTOFF[KD] };
 
-// 옛 ERP 로 보내는 링크 — 5메뉴 밖의 기능(포장 스캔·라벨·공지·메모 채팅·링크 관리)은 거기서 처리한다(지시서 1절 5항).
-// saas 모드에서는 /legacy(같은 세션), company 모드(사내 배포)에서는 / (사내 게이트).
-export const OLD_ERP_PATH = import.meta.env.VITE_MODE === "company" ? "/" : "/legacy";
 
 // 홈의 "최근 주문" 줄 수, 목록 페이지 크기.
 export const RECENT_ORDERS = 5;

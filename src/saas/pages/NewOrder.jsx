@@ -12,7 +12,6 @@ import { analyzeText, analyzeImage, registerOrder } from "../actions/register.js
 import { defaultShipDate, todayYmd, holidayName } from "../../lib/shipDate.js";
 import { autoCourier, COURIER_SHORT, CJ, KD } from "../../lib/courier.js";
 import { matchProduct } from "../../lib/rollStock.js";
-import { OLD_ERP_PATH } from "../config.js";
 
 const UNIT_OPTS = ["마", "세트", "필", "롤", "kg"];
 const RECEIPTS = [[null, "발행 안 함"], ["cash", "현금영수증"], ["business", "지출증빙"], ["tax_invoice", "계산서"]];
@@ -184,7 +183,6 @@ export default function NewOrder({ onClose, onRegistered }) {
             <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={e => { analyzeImg(e.target.files?.[0]); e.target.value = ""; }} />
             <Button kind="white" className="narrow" onClick={() => { fillFrom({}); setStep("form"); }}>직접 입력</Button>
           </div>
-          <div className="link-old">로하톡 메모·링크 주문 초안·이미지 첨부가 필요하면 <a href={OLD_ERP_PATH}>옛 화면(주문입력)</a>을 쓰세요.</div>
         </>
       ) : (
         <>
@@ -224,7 +222,7 @@ export default function NewOrder({ onClose, onRegistered }) {
                   <Field label="단가"><input className="forminput" inputMode="numeric" value={it.unitPrice} onChange={e => setItem(i, "unitPrice", e.target.value)} /></Field>
                   <Field label="금액"><input className="forminput" inputMode="numeric" value={it.amount} onChange={e => setItem(i, "amount", e.target.value)} /></Field>
                 </div>
-                {g ? <p className="helptext" style={{ margin: "8px 0 0" }}>재고: 판매 가능 롤 {g.availableCount}개 · 최대 재단 {g.maxRemaining}마{parseFloat(it.qty) > g.maxRemaining ? " — ⚠ 한 롤로 못 끊는 수량입니다(나눠 등록하거나 옛 화면에서 확인)" : ""}</p> : null}
+                {g ? <p className="helptext" style={{ margin: "8px 0 0" }}>재고: 판매 가능 롤 {g.availableCount}개 · 최대 재단 {g.maxRemaining}마{parseFloat(it.qty) > g.maxRemaining ? " — ⚠ 한 롤로 못 끊는 수량입니다(품목을 나눠 등록해 주세요)" : ""}</p> : null}
                 {f.items.length > 1 && <button className="text-link" style={{ padding: "8px 0 0" }} onClick={() => setF(p => ({ ...p, items: p.items.filter((_, j) => j !== i) }))}>이 품목 빼기</button>}
               </div>
             );

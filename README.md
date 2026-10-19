@@ -10,7 +10,6 @@
 | Vercel | 프로젝트 `thebridge-erp` → https://erp.thebridge.ai.kr |
 | Supabase | `dcitethfhwqdautonnmo` (SaaS 전용) |
 | 새 UI | `/app` (src/saas) — 회사 아이디·비밀번호 로그인 + 담당자 4자리 PIN |
-| 옛 화면 | `/legacy` (src/ErpApp.jsx) — 같은 세션 |
 
 시작은 `docs/saas-subscription-setup.md`(구조·운영) 와 `docs/saas-db-setup.md`(빈 DB 스키마 순서). 아래는 옛 README(사내 ERP 시절) 그대로.
 

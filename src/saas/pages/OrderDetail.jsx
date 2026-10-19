@@ -14,7 +14,6 @@ import { patchOrdersWithGroupResult } from "../../lib/freight.js";
 import { orderBadges } from "./HomePage.jsx";
 import * as act from "../actions/orders.js";
 import { shipOut, canShipByPayment } from "../actions/ship.js";
-import { OLD_ERP_PATH } from "../config.js";
 
 const UNIT_OPTS = ["마", "세트", "필", "롤", "kg"];
 
@@ -240,7 +239,7 @@ export default function OrderDetail({ order, onClose, go }) {
                 {!canShipByPayment(o) && <p className="helptext" style={{ margin: "8px 0 0" }}>입금 확인 전에는 출고완료가 되지 않습니다(업무 규칙).</p>}
               </>
             )}
-            {o.status === "출고완료" && <div className="notice-box" style={{ marginTop: 14 }}>출고완료 {o.shippedAt ? new Date(o.shippedAt).toLocaleString("ko-KR") : ""}{o.shippedVia ? ` · ${o.shippedVia}` : ""}. 출고 취소·반품은 옛 화면 또는 반품 탭에서 처리합니다.</div>}
+            {o.status === "출고완료" && <div className="notice-box" style={{ marginTop: 14 }}>출고완료 {o.shippedAt ? new Date(o.shippedAt).toLocaleString("ko-KR") : ""}{o.shippedVia ? ` · ${o.shippedVia}` : ""}. 반품은 주문 관리의 반품·교환 탭에서 처리합니다.</div>}
 
             <div className="inline-actions">
               {!isPacker && o.status !== "출고완료" && <Button kind="white" icon="edit" onClick={() => setMode("edit")} disabled={!!lock}>수정</Button>}
@@ -252,7 +251,6 @@ export default function OrderDetail({ order, onClose, go }) {
               }}>삭제</Button>}
               <Button kind="white" icon="users" onClick={() => go(`/app/customers?q=${encodeURIComponent(o.customer)}`)}>거래처 보기</Button>
             </div>
-            <div className="link-old">합배송 묶기·분리, 운임비 조정, 택배사 변경, 원단 호출, 라벨·메모 채팅은 <a href={OLD_ERP_PATH}>옛 화면(주문현황)</a>에서 처리합니다.</div>
           </>
         )}
     </Modal>

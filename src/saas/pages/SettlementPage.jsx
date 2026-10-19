@@ -11,7 +11,6 @@ import { checkOrderLock } from "../../lib/managerLock.js";
 import { settlePackingBefore, settleMessage } from "../../lib/packingGuard.js";
 import { orderStats, depositSum, monthRange, monthlyDeposits, orderTotal, orderUnpaid, orderPaid, itemsSummary, relativeWhen, isActiveOrder } from "../lib/metrics.js";
 import * as act from "../actions/orders.js";
-import { OLD_ERP_PATH } from "../config.js";
 
 const H = { isHold, isParked, getPayStatus };
 function Field({ label, children, opt, htmlFor }) {
@@ -272,7 +271,6 @@ export default function SettlementPage({ route }) {
             ))}
           </>
         )}
-        <div className="link-old">적립금 사용 이력·무료배송권 발급·환불 취소는 <a href={OLD_ERP_PATH}>옛 화면(정산관리)</a>에서.</div>
       </Panel>
       {selected && <OrderMoneyModal order={selected} onClose={() => setSel(null)} go={go} />}
       {creditOpen && <CreditModal onClose={() => setCreditOpen(false)} />}

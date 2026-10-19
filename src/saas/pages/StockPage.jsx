@@ -9,7 +9,6 @@ import { PageHead, StatCard, Button, Panel, SearchInput, FilterChips, StatusBadg
 import { Icon } from "../icons.jsx";
 import { stockStats, stockStatus, stockRatio, stockLocations, monthShippedLength } from "../lib/metrics.js";
 import { matchProduct, fmtLen, parseMeasured, prefixForManager, ROLL_STATUS, MOVEMENT_LABEL, PIECE_ORIGIN, rollErrorText, round2 } from "../../lib/rollStock.js";
-import { OLD_ERP_PATH } from "../config.js";
 
 // 시안의 원단 텍스처 — 사진이 없는 품번은 색상 이름으로 비슷한 색을 고른다. 사진이 있으면 사진.
 const SWATCHES = [
@@ -94,8 +93,8 @@ function ReceiveModal({ onClose, initialProduct }) {
       }
       const { rolls: made, failed, labelRequested } = await db.receiveRolls(product.id, { lengths: parsed.map(p => p.value), supplier, location }, activeManager || "");
       const range = made.length ? `${made[0].rollCode}${made.length > 1 ? ` ~ ${made[made.length - 1].rollCode.slice(-3)}` : ""}` : "";
-      if (failed.length) toast(`입고 ${made.length}롤 판매 가능 — ${failed.join(", ")} 은(는) 실패해 검단 대기로 남았습니다(옛 화면 입고·검단에서 마저 처리)`, "error");
-      else if (!labelRequested) toast(`📥 입고 ${made.length}롤 (${range}) — 라벨 요청에 실패했습니다. 옛 화면 롤 재고에서 다시 요청해 주세요`, "error");
+      if (failed.length) toast(`입고 ${made.length}롤 판매 가능 — ${failed.join(", ")} 은(는) 실패해 검단 대기로 남았습니다`, "error");
+      else if (!labelRequested) toast(`📥 입고 ${made.length}롤 (${range}) — 라벨 요청에 실패했습니다. 잠시 뒤 다시 시도해 주세요`, "error");
       else toast(`📥 입고 ${made.length}롤 (${range}) · 판매 가능 · 라벨 출력 요청됨`);
       await reloadRolls();
       onClose();
@@ -132,7 +131,7 @@ function ReceiveModal({ onClose, initialProduct }) {
               <div><label className="formlabel" htmlFor="np-price" style={{ marginTop: 4 }}>단가 (원/마)<span className="opt">선택</span></label><input id="np-price" className="forminput" inputMode="numeric" value={np.unitPrice} onChange={e => setNp({ ...np, unitPrice: e.target.value })} /></div>
               <div><label className="formlabel" htmlFor="np-note" style={{ marginTop: 4 }}>메모<span className="opt">선택</span></label><input id="np-note" className="forminput" value={np.note} onChange={e => setNp({ ...np, note: e.target.value })} /></div>
             </div>
-            <p className="helptext" style={{ margin: "10px 0 0" }}>품번은 서버가 발급합니다({ownerPrefix}-년월-번호). 사진은 옛 화면의 입고·검단에서 붙일 수 있습니다.</p>
+            <p className="helptext" style={{ margin: "10px 0 0" }}>품번은 서버가 발급합니다({ownerPrefix}-년월-번호).</p>
           </div>
         )}
       <div className="formrow">
@@ -228,7 +227,6 @@ function StockDetail({ group, onClose, onReceive }) {
           <div className="inline-actions">
             <Button icon="plus" onClick={() => onReceive(p)}>이 품번 입고</Button>
           </div>
-          <div className="link-old">검단 대기 롤·라벨 재출력·품번 사진·삭제는 <a href={OLD_ERP_PATH}>옛 화면(입고·검단, 롤 재고)</a>에서 처리합니다.</div>
         </>
       )}
       {mode?.kind === "adjust" && (

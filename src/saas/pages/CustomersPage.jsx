@@ -9,7 +9,7 @@ import { PageHead, StatCard, Button, SearchInput, FilterChips, StatusBadge, Empt
 import { maskPhone } from "../../constants.js";
 import { customerStats, regionOf, orderTotal, isActiveOrder, itemsSummary, monthRange, dayKey, parseKoDate } from "../lib/metrics.js";
 import { orderBadges } from "./HomePage.jsx";
-import { PAGE_SIZE, OLD_ERP_PATH } from "../config.js";
+import { PAGE_SIZE } from "../config.js";
 
 function Field({ label, children, opt, htmlFor }) {
   return <div><label className="formlabel" htmlFor={htmlFor}>{label}{opt ? <span className="opt">선택</span> : null}</label>{children}</div>;
@@ -117,7 +117,7 @@ function CustomerDetail({ customer: c, stat, onClose, go }) {
         <Button kind="white" icon="plus" onClick={() => go("/app/orders/new")}>주문 등록</Button>
         {isAdmin && <Button kind="danger" icon="trash" onClick={remove}>삭제</Button>}
       </div>
-      <div className="link-old">적립금 등록·사용 이력, 무료배송권 발급은 <a href="/app/settlement">정산</a> 또는 <a href={OLD_ERP_PATH}>옛 화면</a>에서.</div>
+      <div className="link-old">적립금 등록·사용 이력은 <a href="/app/settlement">정산</a>에서.</div>
     </Modal>
   );
 }

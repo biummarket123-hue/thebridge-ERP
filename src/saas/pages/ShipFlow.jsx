@@ -13,7 +13,6 @@ import { itemsSummary, orderTotal, isActiveOrder } from "../lib/metrics.js";
 import { shipOut, canShipByPayment, shipGroupOf } from "../actions/ship.js";
 import { exportInvoices } from "../actions/invoice.js";
 import * as act from "../actions/orders.js";
-import { OLD_ERP_PATH } from "../config.js";
 
 export default function ShipFlow({ onClose, go }) {
   const { orders, customers, managers, activeManager, isAdmin, isPacker, setOrders, reloadOrders, courierById } = useSaas();
@@ -105,7 +104,6 @@ export default function ShipFlow({ onClose, go }) {
               <Button kind="white" className="narrow" onClick={() => setSel(new Set(toPack.map(o => o.id)))}>전체 선택</Button>
               <Button icon="check" onClick={packSelected} loading={busy === "pack"} disabled={selIn(toPack).length === 0}>{selIn(toPack).length}건 포장완료</Button>
             </div>
-            <div className="link-old">롤을 찍어 포장 기록을 남기려면 포장 태블릿의 <a href={OLD_ERP_PATH}>옛 화면(포장)</a>을 씁니다. 여기서는 상태만 바꿉니다.</div>
           </>
         )}
         {step === "invoice" && (
@@ -119,7 +117,6 @@ export default function ShipFlow({ onClose, go }) {
               <Button kind="white" className="narrow" onClick={() => setSel(new Set(invoiceList.filter(o => o.address).map(o => o.id)))}>배송지 있는 것 전체</Button>
               <Button icon="download" onClick={exportSel} loading={busy === "inv"} disabled={!isAdmin || selIn(invoiceList).length === 0}>{COURIER_SHORT[courier]} 송장 {boxes(invoiceList.filter(o => sel.has(o.id))).length}장 엑셀</Button>
             </div>
-            <div className="link-old">택배사를 바꾸거나 송장 출력 표시를 지우려면 <a href={OLD_ERP_PATH}>옛 화면(주문현황 · 송장 출력)</a>에서.</div>
           </>
         )}
         {step === "ship" && (
@@ -130,7 +127,6 @@ export default function ShipFlow({ onClose, go }) {
               <Button kind="white" className="narrow" onClick={() => setSel(new Set(toShip.map(o => o.id)))}>전체 선택</Button>
               <Button kind="green" icon="truck" onClick={shipSelected} loading={busy === "ship"} disabled={!isAdmin || selIn(toShip).length === 0}>{boxes(toShip.filter(o => sel.has(o.id))).length}박스 출고완료</Button>
             </div>
-            <div className="link-old">기사에게 건넨 뒤 택배사별로 한 번에 넘기는 인계 화면은 <a href={OLD_ERP_PATH}>옛 화면(포장 · 완료 칸)</a>에 있습니다.</div>
           </>
         )}
       </div>

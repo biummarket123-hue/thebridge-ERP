@@ -10,6 +10,7 @@ import { maskPhone } from "../../constants.js";
 import { customerStats, regionOf, orderTotal, isActiveOrder, itemsSummary, monthRange, dayKey, parseKoDate } from "../lib/metrics.js";
 import { orderBadges } from "./HomePage.jsx";
 import { PAGE_SIZE } from "../config.js";
+import { downloadXlsx, customerRows, safeName, todayStamp } from "../lib/xlsx.js";
 
 function Field({ label, children, opt, htmlFor }) {
   return <div><label className="formlabel" htmlFor={htmlFor}>{label}{opt ? <span className="opt">선택</span> : null}</label>{children}</div>;
@@ -123,7 +124,8 @@ function CustomerDetail({ customer: c, stat, onClose, go }) {
 }
 
 export default function CustomersPage({ route }) {
-  const { customers, orders, shipped, loaded, credits } = useSaas();
+  const { customers, orders, shipped, loaded, credits, config } = useSaas();
+  const toast = useToast();
   const [q, setQ] = useState(() => new URLSearchParams(window.location.search).get("q") || "");
   const [filter, setFilter] = useState("all");
   const [shown, setShown] = useState(PAGE_SIZE);
@@ -156,10 +158,19 @@ export default function CustomersPage({ route }) {
   useEffect(() => { setShown(PAGE_SIZE); }, [filter, q]);
   const selected = route.id ? customers.find(c => String(c.id) === route.id) : null;
   const lastLabel = (s) => { const k = s?.lastAt; if (!k) return "주문 없음"; const t = dayKey(new Date()); return k === t ? "최근 주문 오늘" : `최근 주문 ${k.slice(5).replace("-", "월 ")}일`; };
+  // 엑셀 내려받기 — 지금 보이는 목록(검색·필터 적용). 파일명은 회사명.
+  const download = () => {
+    if (!list.length) { toast("내려받을 거래처가 없습니다", "error"); return; }
+    try {
+      const fileName = `${safeName(config.companyName)}_거래처_${todayStamp()}.xlsx`;
+      downloadXlsx({ sheets: [{ name: "거래처", rows: customerRows(list, stats) }], fileName });
+      toast(`${list.length}곳 → ${fileName}`);
+    } catch (e) { toast("내려받기 실패: " + e.message, "error"); }
+  };
 
   return (
     <>
-      <PageHead eyebrow="CUSTOMERS" title="거래처" subtitle="거래처 정보와 거래 현황을 한곳에서 관리하세요." />
+      <PageHead eyebrow="CUSTOMERS" title="거래처" subtitle="거래처 정보와 거래 현황을 한곳에서 관리하세요." right={<Button kind="white" icon="download" onClick={download}>엑셀 내려받기</Button>} />
       <div className="stats">
         <StatCard title="등록된 거래처" value={customers.length} unit="곳" icon="users" note="전체 거래처" noteTone="muted" />
         <StatCard title="이번 달 거래" value={monthActive} unit="곳" icon="trend" tone="mint" note={`${start.getMonth() + 1}월 주문이 있는 업체`} onClick={() => setFilter("month")} />

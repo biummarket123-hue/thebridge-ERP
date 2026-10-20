@@ -25,12 +25,17 @@ function spawnRipple(e, el) {
 /** 이름 + 님 — "사장님"처럼 이미 님으로 끝나면 붙이지 않는다 */
 export const nim = (name) => { const n = String(name || "").trim(); return !n ? "" : n.endsWith("님") ? n : n + "님"; };
 
+/** 읽기 전용 가드 — 구독이 끝난 회사에서 primary·danger·green 버튼을 누르면 저장 대신 안내만. SaasDataProvider 가 켜고 끈다. data-ro-ok 가 붙은 버튼은 통과. */
+let buttonGuard = null;
+export const setButtonGuard = (fn) => { buttonGuard = typeof fn === "function" ? fn : null; };
+
 export function Button({ kind = "primary", icon, children, className = "", onClick, loading, disabled, size, type = "button", ...rest }) {
   const ref = useRef(null);
   const [busy, setBusy] = useState(false);
   const isLoading = loading || busy;
   const handle = async (e) => {
     if (isLoading || disabled) return;
+    if (buttonGuard && kind !== "white" && !rest["data-ro-ok"]) { buttonGuard(); return; }
     spawnRipple(e, ref.current);
     if (!onClick) return;
     const r = onClick(e);

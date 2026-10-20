@@ -6,6 +6,8 @@
 //        /app/customers  거래처        /app/customers/:id     거래처 상세(모달)
 //        /app/settlement 정산
 //        /app/settings   회사 설정(구독·담당자 PIN·운영 값) — 메뉴에는 없고 프로필에서 들어간다
+//        /app/pack       포장대(롤 스캔·재단 기록·박스 포장)   /app/history  변경 기록(누가 언제 무엇을)
+//        /app/orders/import  채널 주문 엑셀 가져오기(모달)
 // 모달은 경로에 담는다 — 뒤로가기로 닫히고, 주소를 복사해 다른 사람에게 줄 수 있다.
 import { useEffect, useState, useCallback } from "react";
 
@@ -22,6 +24,8 @@ export const MENUS = [
 /** 경로 문자열 → { menu, sub, params } */
 // 메뉴 밖 경로 — 하단 탭·사이드바 메뉴에는 안 나오고 프로필 메뉴에서 들어간다.
 export const EXTRA_ROUTES = [
+  { key: "pack", path: "/app/pack", label: "포장대", short: "포장", icon: "box", crumb: "포장대", eyebrow: "PACKING" },
+  { key: "history", path: "/app/history", label: "변경 기록", short: "기록", icon: "clock", crumb: "변경 기록", eyebrow: "HISTORY" },
   { key: "settings", path: "/app/settings", label: "회사 설정", short: "설정", icon: "settings", crumb: "회사 설정", eyebrow: "SETTINGS" },
 ];
 export const ALL_ROUTES = [...MENUS, ...EXTRA_ROUTES];

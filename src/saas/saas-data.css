@@ -1,0 +1,32 @@
+/* 데이터 기능(채널 주문 가져오기·엑셀 내려받기·판매처별 매출) 전용 스타일 — saas.css 는 다른 작업자가 고치므로 여기에만 더한다. */
+.saas .ci-drop { display: block; border: 2px dashed #c7d3e2; border-radius: 16px; padding: 34px 20px; text-align: center; cursor: pointer; background: #f8fafd; transition: .16s; }
+.saas .ci-drop:hover { border-color: var(--saas-blue, #3576e2); background: #f2f7ff; }
+.saas .ci-drop strong { display: block; font-size: 17px; margin-bottom: 4px; }
+.saas .ci-drop small { color: #8b9bb0; font-size: 14px; }
+.saas .ci-drop input { display: none; }
+.saas .ci-file { display: flex; align-items: center; gap: 10px; background: #f5f8ff; border-radius: 12px; padding: 10px 14px; font-size: 14px; margin: 12px 0; }
+.saas .ci-file strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.saas .ci-map { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px 14px; margin: 10px 0 4px; }
+.saas .ci-map label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #5e6c7d; font-weight: 650; }
+.saas .ci-map label.req { color: #324458; }
+.saas .ci-map label.miss select { border-color: #d76964; }
+.saas .ci-map select.forminput { padding: 8px 10px; font-size: 14px; }
+.saas .ci-rows { max-height: 46vh; overflow: auto; border: 1px solid #eef2f7; border-radius: 12px; padding: 0 4px; margin-top: 8px; }
+.saas .ci-rows .row-check.bad { background: #fff6f5; }
+.saas .ci-rows .row-check.bad strong { color: #d76964; }
+.saas .ci-rows .row-check.dim { opacity: .55; }
+.saas .ci-rows .row-check .amt { font-weight: 850; white-space: nowrap; color: #324458; }
+.saas .ci-sum { display: flex; gap: 14px; flex-wrap: wrap; font-size: 14px; color: #5e6c7d; margin: 10px 0; }
+.saas .ci-sum b { color: #324458; }
+.saas .ci-toggle { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 650; color: #324458; cursor: pointer; }
+.saas .ci-toggle input { width: 18px; height: 18px; accent-color: var(--saas-blue, #3576e2); }
+.saas .dl-menu { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+.saas .dl-menu small { color: #8b9bb0; font-size: 13px; }
+.saas .chan-list .invrow strong { font-variant-numeric: tabular-nums; }
+.saas .chan-list .invrow small { color: #8b9bb0; font-weight: 600; margin-left: 6px; }
+/* 판매처별 매출 — saas.css 의 .kv 는 2열 격자(120px 1fr)라 줄(.invrow)이 칸에 끼어 금액이 잘린다. 한 줄 한 행으로(2026-10-20) */
+.saas .chan-list .kv { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 6px 0 0; }
+.saas .chan-list .kv .invrow { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.saas .chan-list .kv .invrow > span:first-child { color: #44566b; font-weight: 750; }
+.saas .chan-list .kv .invrow strong { white-space: nowrap; }
+.saas .chan-list .kv .invrow:last-child { border-top: 1px solid #edf1f6; padding-top: 10px; }

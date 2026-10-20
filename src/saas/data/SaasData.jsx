@@ -12,7 +12,9 @@ import { isHold, isParked, getPayStatus } from "../../constants.js";
 import { buildOverview } from "../../lib/overview.js";
 import { monthRange } from "../lib/metrics.js";
 import { resolveConfig } from "../config.js";
-import { subscriptionState, pinNeeded } from "../lib/subscription.js";
+import { subscriptionState, pinNeeded, aiAccess } from "../lib/subscription.js";
+import { setButtonGuard } from "../components/ui.jsx";
+import { useToast } from "../components/Toast.jsx";
 
 const Ctx = createContext(null);
 export const useSaas = () => useContext(Ctx);
@@ -21,12 +23,17 @@ const MANAGER_KEY = "erp_manager";
 const SCOPE_KEY = "erp_overview_scope";   // 옛 OverviewTab 과 같은 키 — 범위 선택을 두 화면이 공유한다
 const PIN_AT_KEY = "erp_manager_pin_at";   // 마지막 PIN 확인 시각(ms) — 담당자 이름과 짝
 const PIN_PINNED_KEY = "erp_manager_pinned"; // "1" 이면 이 기기에 담당자 고정(한 번 확인하면 다시 묻지 않음 — 포장 패드)
+const ZOOM_KEY = "erp_ui_zoom";             // 글씨 크기(화면 배율) — 기기마다 따로(창고 태블릿은 크게)
+export const ZOOM_STEPS = [0.9, 1, 1.1, 1.2, 1.3];
 const readLS = (k) => { try { return localStorage.getItem(k) || ""; } catch { return ""; } };
 const writeLS = (k, v) => { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch {} };
 const readScope = () => { try { const v = localStorage.getItem(SCOPE_KEY); return v === "all" || v === "mine" ? v : null; } catch { return null; } };
 
 export function SaasDataProvider({ children }) {
   const userId = useUserId();
+  const toast = useToast();
+  const [uiZoom, _setUiZoom] = useState(() => { const v = Number(readLS(ZOOM_KEY)); return ZOOM_STEPS.includes(v) ? v : 1; });
+  const setUiZoom = useCallback((v) => { const z = ZOOM_STEPS.includes(Number(v)) ? Number(v) : 1; _setUiZoom(z); writeLS(ZOOM_KEY, z === 1 ? "" : String(z)); }, []);
   const [orders, setOrders] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [managers, setManagers] = useState([]);
@@ -181,13 +188,19 @@ export function SaasDataProvider({ children }) {
   useEffect(() => { setPickupCutoffs(config.pickupCutoff); }, [config.pickupCutoff]);   // 출고예정일·전체현황이 이 마감을 쓴다
   const subscription = useMemo(() => subscriptionState(account, new Date(nowTs)), [account, nowTs]);
   const readOnly = subscription.readOnly;   // 만료 — DB 가 쓰기를 막는다(saas_readonly_when_expired.sql). 화면은 버튼을 숨기고 안내한다
+  // 읽기 전용이면 저장류 버튼(primary·danger·green)이 눌리는 대신 안내만 — 화면마다 readOnly 를 일일이 보지 않아도 된다
+  useEffect(() => { setButtonGuard(readOnly ? () => toast("구독이 끝나 읽기 전용입니다 — 결제하면 바로 다시 쓸 수 있습니다 (회사 설정 › 구독)", "error") : null); return () => setButtonGuard(null); }, [readOnly, toast]);
+  const isDemo = !!account?.is_demo;
+  // AI 분석(토큰 비용) — 유료 구독 회사만. 체험·데모는 서버(api/analyze.js)가 SAAS_TRIAL_AI_CALLS 만큼만 허용한다(기본 0)
+  const ai = useMemo(() => aiAccess(account, subscription), [account, subscription]);
   const pinOf = useCallback((m) => pinStatus.find(p => p.manager_id === m?.id) || null, [pinStatus]);
   const managerHasPin = !!pinOf(manager)?.has_pin;
   const pinRequired = !!manager && !manager.isPublic && pinNeeded({ hasPin: managerHasPin, verifiedAt: pinVerifiedAt, pinned, now: nowTs });
 
   const value = {
     userId, loaded, syncLost, error,
-    account, subscription, readOnly, config, reloadAccount, reloadSettings, reloadManagers,
+    account, subscription, readOnly, isDemo, config, reloadAccount, reloadSettings, reloadManagers,
+    aiAllowed: ai.allowed, aiReason: ai.reason, uiZoom, setUiZoom,
     pinStatus, pinOf, managerHasPin, pinRequired, pinVerifiedAt, markPinVerified, pinned, setPinned, reloadPinStatus,
     orders, setOrders, customers, setCustomers, managers, settings, products, rolls, groups, productById,
     credits, setCredits, freeShipping, returns, setReturns, paymentLogs, shipped, overviewMates,

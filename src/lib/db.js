@@ -135,6 +135,7 @@ const toCamel = (row) => ({
   refundHistory: Array.isArray(row.refund_history) ? row.refund_history : [],
   paymentStatus: row.payment_status || "unpaid",
   salesChannel: row.sales_channel || "",
+  channelOrderId: row.channel_order_id || "",   // 판매 채널(쿠팡·스마트스토어)의 주문번호 — 같은 주문을 두 번 안 넣는 열쇠(saas_features.sql)
   images: Array.isArray(row.images) ? row.images : [],
   mergeGroupId: row.merge_group_id || null,
   splitShipping: !!row.split_shipping,
@@ -456,6 +457,7 @@ export async function insertOrder(order, opts = {}) {
     refund_note: order.refundNote || "",
     payment_status: order.paymentStatus || "unpaid",
     sales_channel: order.salesChannel || "",
+    ...(order.channelOrderId ? { channel_order_id: String(order.channelOrderId) } : {}),
     images: order.images || [],
     receipt_type: order.receiptType || null,
     receipt_issued: !!order.receiptIssued,
@@ -705,8 +707,8 @@ const stampOf = (route) => _stampOn
 const STAMP_COLS = ["last_actor", "last_route", "last_actor_at"];
 // 나중에 붙은 칸 — 마이그레이션을 안 돌린 DB 에는 없다. 없으면 그 칸만 빼고 저장한다.
 // 여기 없는 칸이 빠졌다고 나오면 그건 진짜 오류라 그대로 돌려준다.
-const OPTIONAL_COLS = [...STAMP_COLS, "invoice_printed_at", "courier", "shipped_via", "shipping_fee_held"];
-const MIGRATION_OF = (col) => col === "shipping_fee_held" ? "add_shipping_fee_held.sql" : "add_order_events.sql";
+const OPTIONAL_COLS = [...STAMP_COLS, "invoice_printed_at", "courier", "shipped_via", "shipping_fee_held", "channel_order_id"];
+const MIGRATION_OF = (col) => col === "shipping_fee_held" ? "add_shipping_fee_held.sql" : col === "channel_order_id" ? "saas_features.sql" : "add_order_events.sql";
 
 // PostgREST 가 "그런 칸 없다"고 할 때 어느 칸인지 — 메시지에서 이름을 꺼낸다.
 //   PGRST204  Could not find the 'last_actor' column of 'orders' in the schema cache
@@ -781,6 +783,7 @@ function orderFieldsToRow(fields) {
   if ("invoicePrintedAt" in f) { f.invoice_printed_at = f.invoicePrintedAt || null; delete f.invoicePrintedAt; }
   if ("courier" in f) { f.courier = f.courier || null; }
   if ("shippedVia" in f) { f.shipped_via = f.shippedVia || null; delete f.shippedVia; }
+  if ("channelOrderId" in f) { f.channel_order_id = f.channelOrderId || null; delete f.channelOrderId; }
   return f;
 }
 
@@ -4072,7 +4075,7 @@ export async function fetchCompanyAccount() {
   if (!userId) return null;
   const { data, error } = await supabase
     .from("company_accounts")
-    .select("owner_id, login_id, name, contact, plan, status, trial_end, current_period_end, max_managers, created_at")
+    .select("owner_id, login_id, name, contact, plan, status, trial_end, current_period_end, max_managers, created_at, is_demo")
     .eq("owner_id", userId)
     .maybeSingle();
   if (error) { console.warn("[company_accounts] 조회 실패(마이그레이션 전?):", error.message); return null; }
@@ -4163,4 +4166,21 @@ export async function saveSaasSettings(patch) {
   const next = { ...current, saas: { ...(current.saas || {}), ...patch } };
   await saveSettings(next);
   return next;
+}
+
+// ── 채널 주문 가져오기(새 UI, saas_features.sql) ────────────────────────
+/** 이미 들어온 채널 주문번호 — 같은 판매처·같은 번호는 건너뛴다. 반환 Set(channel_order_id). 칸이 없는 DB 에서는 빈 Set. */
+export async function fetchChannelOrderIds(salesChannel, channelOrderIds) {
+  const userId = await getUserId();
+  if (!userId) return new Set();
+  const ids = [...new Set((channelOrderIds || []).map(String).filter(Boolean))];
+  if (!ids.length) return new Set();
+  const out = new Set();
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data, error } = await supabase.from("orders").select("channel_order_id")
+      .eq("user_id", userId).eq("sales_channel", salesChannel).in("channel_order_id", ids.slice(i, i + 200));
+    if (error) { if (missingColumnOf(error)) return out; throw error; }
+    for (const r of data || []) if (r.channel_order_id) out.add(String(r.channel_order_id));
+  }
+  return out;
 }

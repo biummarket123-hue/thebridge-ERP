@@ -13,9 +13,24 @@ import { itemsSummary, orderTotal, isActiveOrder } from "../lib/metrics.js";
 import { shipOut, canShipByPayment, shipGroupOf } from "../actions/ship.js";
 import { exportInvoices } from "../actions/invoice.js";
 import * as act from "../actions/orders.js";
+import { supabase } from "../../lib/supabase.js";
+
+// 출고 안내 문자(/api/notify) — 서버가 Coolsms 키를 들고 있고, 유료 구독 회사만 통과시킨다(api/_ai_gate.js).
+// 세션 토큰을 Bearer 로 보내는 방식은 src/constants.js 의 /api/analyze 호출과 같다.
+async function sendShipNotice(orderIds) {
+  const { data: { session } } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
+  const res = await fetch("/api/notify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) },
+    body: JSON.stringify({ action: "ship", orderIds }),
+  });
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(d.error?.message || `문자 서버 오류 (${res.status})`);
+  return d;
+}
 
 export default function ShipFlow({ onClose, go }) {
-  const { orders, customers, managers, activeManager, isAdmin, isPacker, setOrders, reloadOrders, courierById } = useSaas();
+  const { orders, customers, managers, activeManager, isAdmin, isPacker, setOrders, reloadOrders, courierById, config, aiAllowed } = useSaas();
   const toast = useToast();
   const { confirm, host } = useAsk();
   const [step, setStep] = useState("pack");
@@ -53,7 +68,7 @@ export default function ShipFlow({ onClose, go }) {
     const ids = selIn(invoiceList); if (!ids.length) return;
     setBusy("inv");
     try {
-      const r = await exportInvoices(ids, courier, { orders, customers });
+      const r = await exportInvoices(ids, courier, { orders, customers, config });
       if (r.printedAt) setOrders(p => p.map(o => r.printedIds.includes(o.id) ? { ...o, invoicePrintedAt: r.printedAt } : o));
       toast(`${COURIER_SHORT[courier]} 송장 ${r.count}장 출력`); setSel(new Set());
     } catch (e) { toast(e.message, "error"); }
@@ -72,6 +87,21 @@ export default function ShipFlow({ onClose, go }) {
     }
     await reloadOrders(); setSel(new Set()); setBusy("");
     if (n) toast(`${n}건 출고완료`);
+    // 출고 안내 문자 — 회사 설정에서 켜 둔(notifySms) 유료 회사만 묻는다. 꺼져 있으면 아무것도 묻지 않는다.
+    if (n && config?.notifySms && aiAllowed) {
+      const targets = [...done].map(id => orders.find(x => x.id === id)).filter(o => o && String(o.phone || "").replace(/\D/g, "").length >= 10);
+      if (targets.length && await confirm(`${targets.length}명에게 출고 안내 문자를 보낼까요?`)) {
+        setBusy("sms");
+        try {
+          const r = await sendShipNotice(targets.map(o => o.id));
+          const fails = Array.isArray(r.failed) ? r.failed : [];
+          if (r.sent) toast(`출고 안내 문자 ${r.sent}건 발송${r.dev ? " (개발 모드 — 실제로는 안 나감)" : ""}`);
+          if (fails.length) toast(`문자 ${fails.length}건 못 보냄: ${fails.slice(0, 3).map(f => `${orders.find(x => x.id === f.id)?.customer || shortId(f.id)} (${f.reason})`).join(", ")}${fails.length > 3 ? " …" : ""}`, "error");
+          if (!r.sent && !fails.length) toast("보낼 문자가 없습니다");
+        } catch (e) { toast(e.message, "error"); }
+        finally { setBusy(""); }
+      }
+    }
   };
 
   const Row = ({ o, extra }) => {

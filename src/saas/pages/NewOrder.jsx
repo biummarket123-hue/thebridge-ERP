@@ -14,6 +14,8 @@ import { autoCourier, COURIER_SHORT, CJ, KD } from "../../lib/courier.js";
 import { matchProduct } from "../../lib/rollStock.js";
 
 const UNIT_OPTS = ["마", "세트", "필", "롤", "kg"];
+// 판매처 빠른 선택 — 밴드는 빈값(옛 데이터 규칙 "밴드는 비움"). 기존 input 은 그대로 두고 칩은 값을 넣어 줄 뿐이다.
+const CHANNELS = [["카톡", "카톡"], ["밴드", ""], ["쿠팡", "쿠팡"], ["스마트스토어", "스마트스토어"], ["자사몰", "자사몰"], ["매장", "매장"]];
 const RECEIPTS = [[null, "발행 안 함"], ["cash", "현금영수증"], ["business", "지출증빙"], ["tax_invoice", "계산서"]];
 const emptyItem = () => ({ itemNo: "", fabric: "", color: "", qty: "", unit: "마", amount: "", unitPrice: "" });
 
@@ -71,7 +73,7 @@ function MatchPopup({ match, parsed, onConfirm, onNew, onCancel }) {
 }
 
 export default function NewOrder({ onClose, onRegistered }) {
-  const { products, customers, orders, activeManager, setOrders, setCustomers, reloadOrders, reloadCredits, isPacker, groups, config } = useSaas();
+  const { products, customers, orders, activeManager, setOrders, setCustomers, reloadOrders, reloadCredits, isPacker, groups, config, aiAllowed, aiReason } = useSaas();
   const SHIPPING_FEE = config.shippingFee;
   const toast = useToast();
   const { confirm, host } = useAsk();
@@ -124,19 +126,24 @@ export default function NewOrder({ onClose, onRegistered }) {
     } catch (e) { setErr(e.message || "이미지 분석 실패"); }
     finally { setParsing(false); }
   };
-  // 붙여넣기 — 붙여넣기 화면에서 Ctrl+V 하면 바로 분석(옛 화면과 같다)
+  // 직접 입력 — 붙여넣어 둔 글이 있으면 메모(원문)로 넘긴다. AI 가 꺼진 회사(체험·데모)는 이 길만 쓴다.
+  const manual = () => { fillFrom({ note: txt }); setMismatches([]); setStep("form"); };
+  // 붙여넣기 — 붙여넣기 화면에서 Ctrl+V 하면 바로 분석(옛 화면과 같다).
+  // AI 가 꺼져 있으면 분석하지 않고 textarea 에만 넣는다 — "직접 입력"을 누르면 메모(원문)로 넘어간다.
   useEffect(() => {
     if (step !== "paste") return;
     const onPaste = (e) => {
       const el = document.activeElement;
       if (el && (el.tagName === "TEXTAREA" || el.tagName === "INPUT")) return;
       const t = e.clipboardData?.getData("text");
-      if (t && t.trim()) { setTxt(t); analyze(t); }
+      if (!t || !t.trim()) return;
+      setTxt(t);
+      if (aiAllowed) analyze(t);
     };
     document.addEventListener("paste", onPaste);
     return () => document.removeEventListener("paste", onPaste);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, products, customers]);
+  }, [step, products, customers, aiAllowed]);
 
   const setItem = (i, k, v) => setF(p => ({ ...p, items: p.items.map((it, j) => j === i ? { ...it, [k]: v } : it) }));
   const pickProduct = (i, p) => setItem(i, "_pick", null) || setF(prev => ({ ...prev, items: prev.items.map((it, j) => j === i ? { ...it, itemNo: p.code, productId: p.id, fabric: it.fabric || p.name, color: it.color || p.color || "", unitPrice: it.unitPrice || p.unitPrice || "", amount: it.amount || ((parseFloat(it.qty) || 0) * (p.unitPrice || 0) || ""), _pick: null } : it) }));
@@ -174,15 +181,30 @@ export default function NewOrder({ onClose, onRegistered }) {
       {host}
       {step === "paste" ? (
         <>
-          <p className="helptext">카톡·밴드 주문 글을 붙여넣으면 AI 가 고객·품목·금액·주소를 읽어 폼에 채웁니다. 이 화면 아무 데서나 <b>Ctrl+V</b> 해도 됩니다.</p>
+          {aiAllowed
+            ? <p className="helptext">카톡·밴드 주문 글을 붙여넣으면 AI 가 고객·품목·금액·주소를 읽어 폼에 채웁니다. 이 화면 아무 데서나 <b>Ctrl+V</b> 해도 됩니다.</p>
+            : <p className="helptext">주문 글을 붙여넣어 두면 "직접 입력" 폼의 메모(원문)에 들어갑니다. 고객·품목은 폼에서 적어 주세요.</p>}
           <textarea className="forminput" value={txt} onChange={e => setTxt(e.target.value)} placeholder={"예)\n홍길동3914(방방방)\n010-3914-5678\n서울 중구 을지로 123 상가 2층\n린넨코튼 베이지 3마 @5,500\n= 20,500원 (배송비 4,000 포함)\n입금완료"} rows={9} />
           {err && <p className="helptext err">{err}</p>}
-          <div className="btnrow" style={{ marginTop: 16 }}>
-            <Button icon="sparkle" onClick={() => analyze()} loading={parsing} disabled={!txt.trim()}>AI 분석</Button>
-            <Button kind="white" icon="camera" className="narrow" onClick={() => fileRef.current?.click()} loading={parsing}>이미지로 분석</Button>
-            <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={e => { analyzeImg(e.target.files?.[0]); e.target.value = ""; }} />
-            <Button kind="white" className="narrow" onClick={() => { fillFrom({}); setStep("form"); }}>직접 입력</Button>
-          </div>
+          {aiAllowed ? (
+            <div className="btnrow" style={{ marginTop: 16 }}>
+              <Button icon="sparkle" onClick={() => analyze()} loading={parsing} disabled={!txt.trim()}>AI 분석</Button>
+              <Button kind="white" icon="camera" className="narrow" onClick={() => fileRef.current?.click()} loading={parsing}>이미지로 분석</Button>
+              <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={e => { analyzeImg(e.target.files?.[0]); e.target.value = ""; }} />
+              <Button kind="white" className="narrow" onClick={manual}>직접 입력</Button>
+            </div>
+          ) : (
+            <>
+              {/* AI 분석(토큰 비용)은 유료 구독 회사만 — 사용자 결정 2026-10-20. 서버(api/analyze.js)도 같은 규칙으로 막는다. */}
+              <div className="notice-box" style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <span style={{ flex: "none", marginTop: 2, color: "#8a69da" }}><Icon name="sparkle" size={20} /></span>
+                <span><b>AI 분석 · 이미지로 분석</b> — {aiReason || "구독 후 사용 가능합니다."}</span>
+              </div>
+              <div className="btnrow" style={{ marginTop: 16 }}>
+                <Button icon="edit" onClick={manual}>직접 입력</Button>
+              </div>
+            </>
+          )}
         </>
       ) : (
         <>
@@ -196,7 +218,12 @@ export default function NewOrder({ onClose, onRegistered }) {
             <Field label="고객명" htmlFor="no-cust"><input id="no-cust" className="forminput" value={f.customer} onChange={e => setF({ ...f, customer: e.target.value })} /></Field>
             <Field label="연락처" htmlFor="no-phone"><input id="no-phone" className="forminput" value={f.phone} onChange={e => setF({ ...f, phone: e.target.value })} /></Field>
             <Field label="닉네임" opt><input className="forminput" value={f.customerNickname} onChange={e => setF({ ...f, customerNickname: e.target.value })} /></Field>
-            <Field label="판매처" opt><input className="forminput" value={f.salesChannel} onChange={e => setF({ ...f, salesChannel: e.target.value })} placeholder="밴드는 비움" /></Field>
+            <Field label="판매처" opt>
+              <input className="forminput" value={f.salesChannel} onChange={e => setF({ ...f, salesChannel: e.target.value })} placeholder="밴드는 비움" />
+              <div className="chiprow" style={{ marginTop: 6 }}>
+                {CHANNELS.map(([label, v]) => <Chip key={label} on={(f.salesChannel || "") === v} onClick={() => setF({ ...f, salesChannel: v })} title={v ? undefined : "밴드 주문은 판매처를 비워 둡니다"}>{label}</Chip>)}
+              </div>
+            </Field>
           </div>
           <Field label="주소"><input className="forminput" value={f.address} onChange={e => setF({ ...f, address: e.target.value })} /></Field>
           <div className="formrow">

@@ -2,7 +2,7 @@
 // 어느 쪽이 보일지는 CSS 가 정한다(둘 다 그려 두고 media query 로 숨긴다).
 import { useEffect } from "react";
 import { BRAND } from "../config.js";
-import { MENUS } from "../router.js";
+import { MENUS, EXTRA_ROUTES } from "../router.js";
 import { Icon, BrandMark } from "../icons.jsx";
 import { nim } from "./ui.jsx";
 import { useSaas } from "../data/SaasData.jsx";
@@ -30,6 +30,11 @@ export function Sidebar({ active, counts = {}, go, manager, onProfile }) {
         ))}
       </nav>
       <div className="sidebar-bottom">
+        {EXTRA_ROUTES.filter(r => r.key !== "settings").map(r => (
+          <button key={r.key} className={`nav${active === r.key ? " active" : ""}`} onClick={() => go(r.path)} aria-current={active === r.key ? "page" : undefined}>
+            <Icon name={r.icon} /><span>{r.label}</span>
+          </button>
+        ))}
         <button className={`nav settings${active === "settings" ? " active" : ""}`} onClick={() => go("/app/settings")} aria-current={active === "settings" ? "page" : undefined}>
           <Icon name="settings" /><span>회사 설정</span>
         </button>
@@ -84,13 +89,14 @@ export function MobileNavigation({ active, go, counts = {} }) {
 }
 
 export function AppLayout({ active, crumb, counts, go, manager, onBell, onProfile, bellCount, children }) {
+  const { uiZoom } = useSaas();
   // 화면이 바뀌면 맨 위로 — 시안의 go() 가 하던 일
   useEffect(() => {
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" });
   }, [active]);
   return (
-    <div className="app">
+    <div className="app" style={uiZoom !== 1 ? { zoom: uiZoom } : undefined}>
       <Sidebar active={active} counts={counts} go={go} manager={manager} onProfile={onProfile} />
       <main className="main">
         <Header crumb={crumb} manager={manager} onBell={onBell} onProfile={onProfile} bellCount={bellCount} />

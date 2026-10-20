@@ -139,7 +139,7 @@ export default function HomePage({ route }) {
       <PageHead eyebrow={`${DOW[now.getDay()]}, ${MON[now.getMonth()]} ${now.getDate()}`}
         title={<>{greet(now.getHours())}, {nim(activeManager || "관리자")} <span style={{ fontSize: ".75em" }}>{sun(now.getHours())}</span></>}
         subtitle="오늘 처리할 업무를 한눈에 확인해 보세요."
-        right={<TextLink onClick={() => go("/app/orders")}>주문 전체 보기</TextLink>} />
+        right={<span style={{ display: "inline-flex", gap: 14 }}><TextLink onClick={() => go("/app/history")} icon="clock">변경 기록</TextLink><TextLink onClick={() => go("/app/orders")}>주문 전체 보기</TextLink></span>} />
 
       <div className="stats">
         <StatCard title="오늘 들어온 주문" value={st.todayCount} unit="건" icon="orders"
@@ -158,6 +158,7 @@ export default function HomePage({ route }) {
           <Button className="action" icon="plus" onClick={() => go("/app/orders/new")}>주문 등록</Button>
           <Button className="action" kind="white" icon="box" onClick={() => go("/app/stock/receive")}>입고 등록</Button>
           <Button className="action" kind="white" icon="truck" onClick={() => go("/app/orders/ship")}>출고 처리</Button>
+          <Button className="action" kind="white" icon="layers" onClick={() => go("/app/pack")}>포장대</Button>
         </div>
       </section>
 

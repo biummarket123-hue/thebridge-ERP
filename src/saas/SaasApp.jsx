@@ -19,6 +19,9 @@ import StockPage from "./pages/StockPage.jsx";
 import CustomersPage from "./pages/CustomersPage.jsx";
 import SettlementPage from "./pages/SettlementPage.jsx";
 import SettingsPage from "./pages/SettingsPage.jsx";
+import PackPage from "./pages/PackPage.jsx";
+import HistoryPage from "./pages/HistoryPage.jsx";
+import Onboarding from "./pages/Onboarding.jsx";
 import { PinGate } from "./auth/PinGate.jsx";
 import { subscriptionNotice } from "./lib/subscription.js";
 import { DEMO_UNTIL_KEY } from "./Landing.jsx";
@@ -112,7 +115,7 @@ function ManagerPicker({ onClose, required, go }) {
 
 function Shell() {
   const route = useRoute();
-  const { loaded, error, activeManager, managers, overview, orders, syncLost, reloadOrders, pinRequired, subscription, readOnly } = useSaas();
+  const { loaded, error, activeManager, managers, overview, orders, syncLost, reloadOrders, pinRequired, subscription, readOnly, account, settings, isAdmin } = useSaas();
   const [picker, setPicker] = useState(false);
   const [todo, setTodo] = useState(false);
   const menu = ALL_ROUTES.find(m => m.key === route.menu) || ALL_ROUTES[0];
@@ -138,9 +141,11 @@ function Shell() {
   const noManagers = managers.filter(m => !m.isPublic).length === 0;
   if (!activeManager && managers.length > 0 && !(noManagers && menu.key === "settings")) return <ManagerPicker required go={route.go} />;
   if (activeManager && pinRequired) return <PinGate />;
+  // 가입 직후 첫 설정(온보딩) — 구독 회사의 관리자에게 한 번. 체험(데모)·사내 계정은 건너뛴다. settings 를 아직 못 읽었으면 기다린다.
+  if (account && !account.is_demo && !isDemo && isAdmin && settings && !settings.saas?.onboardingDone && menu.key !== "settings") return <Onboarding go={route.go} />;
 
   const counts = { orders: orders.filter(o => o.status !== "출고완료" && o.payment !== "환불").length };
-  const pages = { home: HomePage, orders: OrdersPage, stock: StockPage, customers: CustomersPage, settlement: SettlementPage, settings: SettingsPage };
+  const pages = { home: HomePage, orders: OrdersPage, stock: StockPage, customers: CustomersPage, settlement: SettlementPage, settings: SettingsPage, pack: PackPage, history: HistoryPage };
   const Page = pages[menu.key] || HomePage;
 
   return (

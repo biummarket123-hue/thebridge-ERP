@@ -83,7 +83,7 @@ export async function shipOut(order, { orders, isAdmin, confirm, onShipped, onPa
   const toShip = shipGroupOf(order, orders);
   if (toShip.length > 1) {
     const unpaid = toShip.filter(o => !canShipByPayment(o));
-    if (unpaid.length) return { ok: false, reason: `합배송 묶음에 입금확인이 안 된 주문이 있습니다: ${unpaid.map(o => o.customer).join(", ")} — 입금확인을 먼저 하거나 옛 화면에서 "분리"로 지정해 주세요` };
+    if (unpaid.length) return { ok: false, reason: `합배송 묶음에 입금확인이 안 된 주문이 있습니다: ${unpaid.map(o => o.customer).join(", ")} — 입금확인을 먼저 하거나 주문 상세에서 분리 배송으로 지정해 주세요` };
     const stuck = toShip.some(o => isHold(o) || isParked(o));
     const ok = await confirm?.(`합배송 묶음 ${toShip.length}건을 함께 출고합니다.\n\n${toShip.map(o => `· ${o.customer}${isHold(o) ? " [보관]" : ""}${isParked(o) ? " [보류]" : ""}`).join("\n")}${stuck ? "\n\n⚠ 보관·보류 중인 주문이 들어 있습니다. 같이 나가는 게 맞는지 확인해 주세요." : ""}`);
     if (!ok) return { ok: false, reason: "취소했습니다" };

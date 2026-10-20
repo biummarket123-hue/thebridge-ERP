@@ -11,6 +11,8 @@ import { checkOrderLock } from "../../lib/managerLock.js";
 import { settlePackingBefore, settleMessage } from "../../lib/packingGuard.js";
 import { orderStats, depositSum, monthRange, monthlyDeposits, orderTotal, orderUnpaid, orderPaid, itemsSummary, relativeWhen, isActiveOrder } from "../lib/metrics.js";
 import * as act from "../actions/orders.js";
+import { salesByChannel, printMonthlyReport } from "../lib/monthlyReport.js";
+import "../saas-data.css";
 
 const H = { isHold, isParked, getPayStatus };
 function Field({ label, children, opt, htmlFor }) {
@@ -176,9 +178,10 @@ function CreditModal({ onClose }) {
 }
 
 export default function SettlementPage({ route }) {
-  const { orders, paymentLogs, customers, loaded } = useSaas();
+  const { orders, paymentLogs, customers, loaded, shipped, config } = useSaas();
   const toast = useToast();
   const [tab, setTab] = useState("unpaid");
+  const [reportMonth, setReportMonth] = useState("this");   // this | last
   const [q, setQ] = useState("");
   const [sel, setSel] = useState(null);
   const [creditOpen, setCreditOpen] = useState(false);
@@ -203,6 +206,14 @@ export default function SettlementPage({ route }) {
     };
   }, [base, q]);
   const recentDeposits = useMemo(() => paymentLogs.filter(l => l.type === "입금").slice(0, 6), [paymentLogs]);
+  // 판매처별 매출·월 리포트의 모집단: 활성 주문 + 최근 60일 출고완료(이번 달 접수 뒤 이미 나간 건). id 로 한 번만.
+  const allRecent = useMemo(() => { const seen = new Set(); const out = []; for (const o of [...orders, ...(shipped || [])]) { if (seen.has(o.id)) continue; seen.add(o.id); out.push(o); } return out; }, [orders, shipped]);
+  const byChannel = useMemo(() => salesByChannel(allRecent, monthRange(now)), [allRecent]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const channelTotal = byChannel.reduce((s, c) => s + c.sum, 0);
+  const printReport = () => {
+    try { printMonthlyReport({ companyName: config.companyName, now, offset: reportMonth === "last" ? -1 : 0, orders: allRecent, paymentLogs }); }
+    catch (e) { toast(e.message, "error"); }
+  };
   const selected = sel ? orders.find(o => o.id === sel) : null;
   const downloadStatements = async (targets) => {
     if (!targets.length) { toast("출력할 주문이 없습니다", "error"); return; }
@@ -247,6 +258,22 @@ export default function SettlementPage({ route }) {
               <TaskRow key={l.id} icon="finance" tone="mint" title={l.customer || "(고객 없음)"} hint={`${relativeWhen(l.created_at)}${l.note ? ` · ${l.note}` : ""}`} count={won(l.amount)} arrow={!!l.order_id} onClick={() => l.order_id && (orders.some(o => o.id === l.order_id) ? setSel(l.order_id) : go(`/app/orders/${l.order_id}`))} />
             ))}
           </div>
+        </Panel>
+      </div>
+      <div className="panels">
+        <Panel title="판매처별 매출" small={`${now.getMonth() + 1}월 접수 · 받은 돈 기준`} className="chan-list">
+          {byChannel.length === 0 ? <Empty small>이번 달 결제된 주문이 아직 없어요.</Empty> : (
+            <div className="kv">
+              {byChannel.map(c => <div key={c.channel} className="invrow"><span>{c.channel}<small>{c.count}건</small></span><strong>{won(c.sum)}{channelTotal ? <small>{Math.round(c.sum / channelTotal * 100)}%</small> : null}</strong></div>)}
+              <div className="invrow"><span>합계</span><strong>{won(channelTotal)}</strong></div>
+            </div>
+          )}
+          <div className="chartfoot" style={{ marginTop: 8 }}>판매처가 빈 주문(밴드·전화·방문)은 "직접·밴드". 주문 등록 때 판매처를 적으면 여기 나뉩니다.</div>
+        </Panel>
+        <Panel title="월 리포트" small="회사명 · 기간 · 매출 · 미수금 · 판매처 · 상위 품목/고객 · 일별 입금">
+          <p className="helptext" style={{ marginTop: 0 }}>인쇄용 화면이 새 창으로 열립니다. 브라우저 인쇄 창에서 PDF 로 저장할 수도 있어요.</p>
+          <Segment options={[["this", `이번 달 (${now.getMonth() + 1}월)`], ["last", `지난달 (${monthRange(now, -1).start.getMonth() + 1}월)`]]} value={reportMonth} onChange={setReportMonth} />
+          <div className="inline-actions"><Button icon="file" onClick={printReport}>월 리포트 인쇄</Button></div>
         </Panel>
       </div>
       <Panel full title="입금 · 환불 처리" right={<Segment options={[["unpaid", `미입금 ${lists.unpaid.length}`], ["refund", `환불 신청 ${lists.refund.length}`], ["paid", `명세서 ${lists.paid.length}`]]} value={tab} onChange={setTab} />}>

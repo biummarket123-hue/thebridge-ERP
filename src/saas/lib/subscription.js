@@ -9,10 +9,11 @@ export const GRACE_DAYS = 3;            // 유료 기간 끝난 뒤 유예
 export const EXPIRING_SOON_DAYS = 7;    // 이 안이면 배너
 export const PIN_IDLE_MS = 30 * 60 * 1000;   // 마지막 PIN 확인 뒤 이 시간이 지나면 다시 묻는다
 
+// price 는 화면 기본값(원/월). 실제 청구 금액은 서버(api/_billing_logic.js · SAAS_PRICE_*)가 정하고 /api/billing status 가 내려준다.
 export const PLANS = {
-  trial: { label: "무료 체험", maxManagers: 3 },
-  basic: { label: "베이직", maxManagers: 3 },
-  pro: { label: "프로", maxManagers: 99 },
+  trial: { label: "무료 체험", maxManagers: 3, price: 0, desc: "14일 동안 모든 기능(AI 분석 제외)" },
+  basic: { label: "베이직", maxManagers: 3, price: 99000, desc: "담당자 3명 · 주문·재고·거래처·정산 · AI 분석 포함" },
+  pro: { label: "프로", maxManagers: 99, price: 199000, desc: "담당자 무제한 · 베이직의 모든 것 · AI 분석 포함" },
 };
 
 /** 아이디 정리 — 소문자, 앞뒤 공백 제거. 형식이 틀리면 "" */
@@ -89,6 +90,19 @@ export function pinNeeded({ hasPin, verifiedAt, pinned, now = Date.now(), idleMs
   if (!verifiedAt) return true;
   if (pinned) return false;
   return now - verifiedAt > idleMs;
+}
+
+/**
+ * AI 분석(토큰 비용) 허용 — 사용자 결정(2026-10-20): 유료 구독 회사만. 사내 계정(행 없음)은 허용.
+ * 체험·데모는 화면에서 "구독 후 사용 가능" 안내. 서버(api/analyze.js)가 같은 규칙으로 막고, SAAS_TRIAL_AI_CALLS 가 있으면 그만큼만 열어 준다.
+ * 돌려주는 값 { allowed, reason } — reason 은 안내 문구(허용이면 "").
+ */
+export function aiAccess(account, state) {
+  if (!account) return { allowed: true, reason: "" };
+  if (account.is_demo) return { allowed: false, reason: "체험 환경에서는 AI 분석이 꺼져 있습니다. 직접 입력으로 등록해 보세요 — 구독하면 바로 켜집니다." };
+  if (state?.readOnly) return { allowed: false, reason: "구독이 끝나 AI 분석을 쓸 수 없습니다." };
+  if (account.plan === "trial") return { allowed: false, reason: "AI 분석(글·사진 읽기)은 구독 회사 전용입니다. 체험 중에는 직접 입력으로 등록할 수 있습니다." };
+  return { allowed: true, reason: "" };
 }
 
 /** 담당자 수 제한 — 공용 담당자는 세지 않는다 */

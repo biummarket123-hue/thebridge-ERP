@@ -89,7 +89,7 @@ function LoginForm({ onDone, onSignup }) {
       <p className="helptext" style={{ marginTop: 8 }}>{mode === "id" ? "회사 아이디와 비밀번호를 넣어 주세요. 담당자는 다음 화면에서 PIN 으로 고릅니다." : "로하이마켓 사내 기기용 예전 방식입니다."}</p>
       {mode === "id" && (
         <Field label="회사 아이디" htmlFor="login-id">
-          <input id="login-id" className="forminput" autoComplete="username" autoCapitalize="none" spellCheck={false} value={id} onChange={e => setId(e.target.value)} placeholder="예: rohi" />
+          <input id="login-id" className="forminput" autoComplete="username" autoCapitalize="none" spellCheck={false} value={id} onChange={e => setId(e.target.value)} placeholder="예: mycompany" />
         </Field>
       )}
       <Field label={mode === "id" ? "비밀번호" : "사내 비밀번호"} htmlFor="login-pw">
@@ -138,7 +138,7 @@ function SignupForm({ onDone, onBack }) {
       <div className="sheethead"><h2>회사 계정 만들기</h2></div>
       <p className="helptext" style={{ marginTop: 8 }}>회사 하나에 계정 하나입니다. 직원은 계정을 따로 만들지 않고, 로그인 뒤 담당자 이름과 4자리 PIN 으로 작업합니다.</p>
       <Field label="초대 코드" htmlFor="su-code" hint="운영자에게 받은 코드"><input id="su-code" className="forminput" value={f.inviteCode} onChange={set("inviteCode")} autoCapitalize="none" /></Field>
-      <Field label="회사명" htmlFor="su-company"><input id="su-company" className="forminput" value={f.companyName} onChange={set("companyName")} placeholder="예: 로하이마켓" /></Field>
+      <Field label="회사명" htmlFor="su-company"><input id="su-company" className="forminput" value={f.companyName} onChange={set("companyName")} placeholder="예: 우리 원단" /></Field>
       <div className="formrow">
         <Field label="회사 아이디" htmlFor="su-id"><input id="su-id" className="forminput" value={f.loginId} onChange={set("loginId")} autoComplete="username" autoCapitalize="none" spellCheck={false} placeholder="영문·숫자 3~20자" /></Field>
         <Field label="연락처" htmlFor="su-contact" hint="선택"><input id="su-contact" className="forminput" value={f.contact} onChange={set("contact")} inputMode="tel" placeholder="010-" /></Field>

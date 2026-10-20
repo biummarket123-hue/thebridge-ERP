@@ -25,3 +25,6 @@ code-dump.json
 
 # Claude Code 로컬 잠금/상태 파일
 .claude/*.lock
+
+# 운영자 데이터 이관 로그(고객 정보 포함) — 커밋 금지
+ops-import-*.log

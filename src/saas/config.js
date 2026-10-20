@@ -34,16 +34,26 @@ export const DEFAULT_CONFIG = {
   shippingFee: { ...SHIPPING_FEE },
   productPrefix: DEFAULT_PREFIX,   // 품번 접두어(담당자 이니셜이 없을 때). 가입 때 아이디 앞 두 글자로 정해지고 설정에서 바꾼다
   pickupCutoff: { [CJ]: PICKUP_CUTOFF[CJ], [KD]: PICKUP_CUTOFF[KD] },   // 택배 수거 마감 — lib/courier.js 에 적용된다
+  // 발송인 정보(송장·명세서) — name 이 비면 회사명, phone 이 비면 company_accounts.contact
+  sender: { name: "", phone: "", address: "", zip: "" },
+  // 경동화물 송장 기본값 — actions/invoice.js 의 경동 행이 쓴다
+  kd: { payType: "선불", itemName: "원단", unitPrice: 100, extraFee: 100 },
+  // 출고 안내 문자(유료 전용). 문자 발송 API 는 따로 만든다 — 여기는 켜짐 여부와 문구만.
+  notifySms: false,
+  notifySmsTemplate: "[{회사명}] {고객명}님, 주문하신 원단이 오늘 {택배사}로 출고되었습니다.",
 };
+export const KD_PAY_TYPES = ["선불", "후불"];
 const hhmm = (v, d) => /^\d{1,2}:\d{2}$/.test(String(v || "")) ? String(v) : d;
 
 const num = (v, d) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : d; };
+const str = (v, d = "") => (v === undefined || v === null) ? d : String(v).trim();
 
 /** settings.data.saas + company_accounts → 화면이 쓰는 설정 */
 export function resolveConfig(settings, account) {
   const s = settings?.saas || {};
+  const companyName = String(account?.name || s.companyName || DEFAULT_CONFIG.companyName).trim() || DEFAULT_CONFIG.companyName;
   return {
-    companyName: String(account?.name || s.companyName || DEFAULT_CONFIG.companyName).trim() || DEFAULT_CONFIG.companyName,
+    companyName,
     lowStockM: num(s.lowStockM, DEFAULT_CONFIG.lowStockM),
     shippingFee: {
       cut: num(s.shippingFee?.cut, DEFAULT_CONFIG.shippingFee.cut),
@@ -51,5 +61,19 @@ export function resolveConfig(settings, account) {
     },
     productPrefix: PREFIX_RE.test(String(s.productPrefix || "").toUpperCase()) ? String(s.productPrefix).toUpperCase() : DEFAULT_CONFIG.productPrefix,
     pickupCutoff: { [CJ]: hhmm(s.pickupCutoff?.[CJ], DEFAULT_CONFIG.pickupCutoff[CJ]), [KD]: hhmm(s.pickupCutoff?.[KD], DEFAULT_CONFIG.pickupCutoff[KD]) },
+    sender: {
+      name: str(s.sender?.name) || companyName,
+      phone: str(s.sender?.phone) || str(account?.contact),
+      address: str(s.sender?.address),
+      zip: str(s.sender?.zip),
+    },
+    kd: {
+      payType: KD_PAY_TYPES.includes(s.kd?.payType) ? s.kd.payType : DEFAULT_CONFIG.kd.payType,
+      itemName: str(s.kd?.itemName) || DEFAULT_CONFIG.kd.itemName,
+      unitPrice: num(s.kd?.unitPrice, DEFAULT_CONFIG.kd.unitPrice),
+      extraFee: num(s.kd?.extraFee, DEFAULT_CONFIG.kd.extraFee),
+    },
+    notifySms: s.notifySms === true,
+    notifySmsTemplate: str(s.notifySmsTemplate) || DEFAULT_CONFIG.notifySmsTemplate,
   };
 }

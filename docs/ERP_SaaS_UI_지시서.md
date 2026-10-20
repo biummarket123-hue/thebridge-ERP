@@ -10,7 +10,7 @@
 
 - 작업 폴더: `C:\Users\A\ERPsaas` (원본 저장소 `thebridge-ERP-company` 의 git clone, 브랜치 `saas-ui`).
 - 원본 회사 운영 배포는 원본 폴더의 `master` 에서 나간다. **이 폴더에서는 배포하지 않는다.** `vercel` 명령 금지.
-- 개발 서버 `npm run dev` (포트 3500), 빌드 `npm run build`, 테스트 `npm test` (tests/run.mjs, 32개).
+- 개발 서버 `npm run dev` (포트 3600), 빌드 `npm run build`, 테스트 `npm test` (tests/run.mjs, 32개).
 - `.env.local` 은 원본에서 복사돼 있다. **개발 서버도 실제 운영 DB 를 쓴다.** 시안의 더미 숫자를 저장 경로로 흘리지 말 것. 새 UI 에서 "저장"이 일어나는 기능은 반드시 사용자에게 먼저 알리고 진행한다.
 - 디자인 원본: `design-reference/` 폴더. 파일이 없으면 **작업을 시작하지 말고 사용자에게 파일을 요청**한다.
   - `erp_saas_ui_prototype.html` (최우선), `erp_saas_desktop.png`, `erp_saas_mobile.png`, `erp_saas_inventory_desktop.png`, `erp_saas_inventory_mobile.png`

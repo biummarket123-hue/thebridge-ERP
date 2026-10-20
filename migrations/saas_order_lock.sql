@@ -7,7 +7,7 @@
 -- 규칙(앞에서부터):
 --   1. 서버(service role, auth.uid() null) · 관리자 토큰 → 전부 허용
 --   2. "포장 작업"만 바꾸는 갱신은 누구나 허용 — 상태(접수↔포장완료)·포장 도장·품목 포장 표시·원단 없음·메모·출고/라벨 요청·변경 기록 도장
---      (포장 패드는 남의 주문도 포장한다. 옛 화면과 같은 동작)
+--      (포장 패드는 남의 주문도 포장한다. 옛 화면과 같은 동작). 보관 확정(held_at)은 포장직원이 창고에서 찍는다
 --   3. 그 밖의 갱신(주소·금액·합배송·보관·보류·입금 칸 등)은
 --        · 포장 담당(is_packer, 비관리자) → 거부
 --        · 주문 담당자가 비어 있거나 공용(is_public) → 허용
@@ -21,7 +21,8 @@ language plpgsql security definer set search_path = public as $$
 declare
   pack_cols text[] := array['status','packed_at','packed_sig','items','fabric_missing','fabric_missing_items','fabric_missing_at',
                             'note','memo','last_actor','last_route','last_actor_at','ship_requested_at','ship_requested_by',
-                            'label_requested_at','label_requested_by','label_printed_at','invoice_printed_at'];
+                            'label_requested_at','label_requested_by','label_printed_at','invoice_printed_at',
+                            'held_at'];   -- 보관 확정(창고에 넣음)은 포장직원의 일(2026-10-20 포장대). 보관 요청(is_holding)은 담당자 권한 그대로
   oldj jsonb; newj jsonb;
   mid bigint; me managers%rowtype;
   pack_only boolean;

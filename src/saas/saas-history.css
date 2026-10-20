@@ -1,0 +1,37 @@
+/* 변경 기록(/app/history) 전용 — saas.css 의 토큰·공용 클래스(panel·search·filterline·chip·badge·pager) 위에 얹는 것만. */
+.saas .hist-tools { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.saas .hist-tools .search { width: min(340px, 100%); height: 48px; }
+.saas .hist-chips { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 0 0 12px; }
+.saas .hist-chips .lbl { font-size: 13px; font-weight: 800; color: #98a8ba; margin-right: 2px; }
+.saas .hist-chips .chip { min-height: 38px; padding: 7px 12px; font-size: 13px; }
+.saas .hist-count { font-size: 13px; color: #98a8ba; margin: 0 0 10px; }
+
+.saas .hist-list { display: grid; gap: 8px; }
+.saas .hist-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 6px 14px; align-items: start; padding: 14px 16px; background: #fff; border: 1px solid #edf1f6; border-radius: 16px; }
+.saas .hist-row.single { grid-template-columns: 96px minmax(0, 1fr); }
+.saas .hist-when { font-weight: 850; color: #44566b; font-size: 14px; line-height: 1.3; }
+.saas .hist-when small { display: block; color: #a0aebd; font-size: 12px; font-weight: 700; margin-top: 2px; }
+.saas .hist-main { min-width: 0; }
+.saas .hist-head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: 14px; color: #64748b; }
+.saas .hist-head strong { color: #202c3d; font-size: 15px; }
+.saas .hist-head .mono { font-size: 13px; color: #7b89a0; }
+.saas .hist-actor { background: #eef4ff; color: #3576e2; border-radius: 8px; padding: 3px 8px; font-weight: 800; font-size: 13px; white-space: nowrap; }
+.saas .hist-actor.none { background: #f1f4f8; color: #8d9bab; }
+.saas .hist-route { color: #98a8ba; font-size: 13px; }
+.saas .hist-lines { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 3px; font-size: 14px; color: #344356; line-height: 1.5; word-break: break-word; }
+.saas .hist-lines li::before { content: "·"; margin-right: 6px; color: #a0aebd; }
+.saas .hist-open { align-self: center; }
+.saas .hist-open .btn { width: auto; }
+.saas .hist-order-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
+.saas .hist-order-head strong { font-size: 17px; }
+
+@media (max-width: 720px) {
+  .saas .hist-tools { display: block; }
+  .saas .hist-tools .search { width: 100%; margin-bottom: 10px; }
+  .saas .hist-tools .seg { width: 100%; }
+  .saas .hist-row, .saas .hist-row.single { grid-template-columns: 1fr; gap: 6px; padding: 12px 14px; }
+  .saas .hist-when { display: flex; gap: 8px; align-items: baseline; }
+  .saas .hist-when small { margin: 0; }
+  .saas .hist-open { align-self: stretch; margin-top: 4px; }
+  .saas .hist-open .btn { width: 100%; }
+}

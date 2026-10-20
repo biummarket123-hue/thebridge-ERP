@@ -20,7 +20,7 @@ const fmt = (v) => { const n = Number(v); return Number.isFinite(n) ? String(Mat
  * @param what     하려는 일 — 창 문구에 들어간다. 예: "주문 삭제", "환불 처리", "품목 삭제"
  * @param by       작업자 이름(원장에 남는다)
  * @param itemIds  이 품목들만 본다(수정창에서 줄을 지울 때). 없으면 주문 전체.
- * @param confirm  시험용 주입. 기본 window.confirm
+ * @param confirm  시험용 주입. 기본 window.confirm. Promise 를 돌려주는 confirm(새 UI 의 useAsk)도 된다 — await 로 받는다(2026-10-20)
  * @returns false = 사용자가 돌아가기를 골랐다. 그 외는 진행해도 된다 — true(정리할 것 없음·기록만 지움)
  *          또는 { ok: true, restored: [조각 롤 코드…] }(조각으로 되돌림).
  */
@@ -48,7 +48,7 @@ export async function settlePackingBefore(orderId, { what = "진행", by = "", i
   const lines = recs.map(r => r.rollId
     ? `  · ${r.rollCode || "롤"} ${r.wholeRoll ? "통째" : fmt(r.length) + "마"}`
     : `  · 롤 없이 포장${r.overrideReason ? ` (${r.overrideReason})` : ""}`).join("\n");
-  const restore = ask(
+  const restore = await ask(
     `${what} 전에 확인해 주세요 — 포장대에서 롤을 잘라 둔 품목이 ${withRoll.length}개 있습니다.\n\n${lines}\n\n` +
     `[확인] 잘라 둔 원단을 조각 롤로 되돌리고 ${what}\n` +
     `[취소] 되돌리지 않음 (다음 창에서 다시 고릅니다)`);
@@ -60,7 +60,7 @@ export async function settlePackingBefore(orderId, { what = "진행", by = "", i
     }
     return { ok: true, restored: made };
   }
-  const drop = ask(
+  const drop = await ask(
     `원단을 되돌리지 않고 ${what}할까요?\n\n잘라 둔 원단은 장부에서 사라집니다 — 롤 잔량은 이미 빠져 있고, 조각 롤도 생기지 않습니다.\n\n` +
     `[확인] 기록만 지우고 ${what}\n[취소] 돌아가기`);
   if (!drop) return false;

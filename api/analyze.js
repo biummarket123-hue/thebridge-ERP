@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
+import { aiGate, loadGateInput, monthKey, readTrialCalls } from "./_ai_gate.js";
 
 // 로그인 세션 검증 — 이 프록시는 서버의 앤트로픽 키로 돈을 쓰는 자리라, 누구나 POST 할 수
 // 있으면 키 예산을 남이 태울 수 있다(2026-09-17 보안 진단 H4). 브라우저가 Supabase
@@ -10,7 +11,8 @@ import { createClient } from "@supabase/supabase-js";
 // 무엇이든 그 jwt 자체를 GoTrue 가 검증하므로 둘 다 유효하다. 운영 Vercel 에는 현재
 // service_role 이 없고 VITE_SUPABASE_ANON_KEY 만 있어서 폴백이 있어야 배포 직후에도 동작한다.
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-const VERIFY_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const VERIFY_KEY = SERVICE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
 async function getSessionUser(req) {
   const m = String(req.headers.authorization || "").match(/^Bearer\s+(.+)$/i);
@@ -20,6 +22,29 @@ async function getSessionUser(req) {
   const { data, error } = await sb.auth.getUser(m[1]);
   if (error || !data?.user) return { user: null, reason: "invalid" };
   return { user: data.user, reason: null };
+}
+
+// 구독 게이트(2026-10-20 사용자 결정) — AI 분석은 유료 구독 회사만. 체험·데모는 SAAS_TRIAL_AI_CALLS(월, 기본 0)만큼만.
+// service role 로 company_accounts 와 이번 달 saas_ai_usage 를 읽어 api/_ai_gate.js 의 규칙으로 판정한다.
+// service role 키가 없는 환경(로컬)에서는 경고만 남기고 예전처럼 통과시킨다 — 배포 환경에는 키가 있다.
+async function checkGate(userId) {
+  if (!SERVICE_KEY) {
+    console.warn("[analyze] SUPABASE_SERVICE_ROLE_KEY 가 없어 구독 게이트를 건너뜁니다");
+    return { allow: true, reason: "", countUsage: false, sb: null };
+  }
+  const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+  const now = new Date();
+  const { account, usage } = await loadGateInput(sb, userId, now);
+  const g = aiGate({ account, usage, trialCalls: readTrialCalls(process.env), now });
+  return { ...g, sb };
+}
+
+async function bumpUsage(sb, userId) {
+  try {
+    const { data, error } = await sb.rpc("service_bump_ai_usage", { p_owner: userId, p_month: monthKey(new Date()) });
+    if (error) console.warn("[analyze] AI 사용량 기록 실패(분석은 진행):", error.message);
+    else if (process.env.NODE_ENV !== "production") console.log(`[analyze] 이번 달 AI 호출 ${data}회`);
+  } catch (e) { console.warn("[analyze] AI 사용량 기록 실패(분석은 진행):", e?.message || e); }
 }
 
 // 주문 메시지 분석 프록시 — 브라우저가 앤트로픽 키를 들고 있지 않도록 서버를 한 번 거친다.
@@ -55,6 +80,17 @@ export default async function handler(req, res) {
   if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: { message: "messages 가 비어 있습니다" } });
   }
+
+  // 구독 게이트 — 거부면 403. 화면(NewOrder)은 이 message 를 그대로 보여준다.
+  let gate;
+  try { gate = await checkGate(user.id); }
+  catch (e) {
+    console.error("[analyze] 구독 게이트 판정 실패:", e?.message || e);
+    return res.status(500).json({ error: { message: "구독 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요." } });
+  }
+  if (!gate.allow) return res.status(403).json({ error: { message: gate.reason, code: "AI_NOT_ALLOWED" } });
+  // 호출을 센다(앤트로픽이 실패해도 시도 1회로 센다 — 체험 한도는 "시도"를 막는 게 목적). 실패해도 분석은 진행.
+  if (gate.countUsage && gate.sb) await bumpUsage(gate.sb, user.id);
 
   try {
     const message = await client.messages.create({

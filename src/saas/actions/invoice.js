@@ -21,7 +21,8 @@ const COLS = {
     cols: ["받는분", "주소", "상세주소", "운송장번호", "고객사주문번호", "우편번호", "도착영업소", "전화번호", "기타전화번호", "선불후불", "품목명", "수량", "포장상태", "가로", "세로", "높이", "무게", "개별단가", "배송운임", "기타운임", "별도운임", "할증운임", "도서운임", "메모"],
     widths: [15, 41, 42, 11, 15, 9, 11, 14, 13, 9, 7, 5, 9, 5, 5, 5, 5, 9, 10, 9, 9, 9, 9, 26],
     blue: [0, 1, 2, 7, 12, 18],
-    row: (o, c) => {
+    row: (o, c, cfg) => {
+      const kd = cfg?.kd || {};
       let base = o.address || "", detail = o.addressDetail || "";
       if (base && detail) {
         const alreadyComplete = /[로길]$/.test(base) || /[로길]\s*\d+(?:-\d+)?$/.test(base);
@@ -36,8 +37,8 @@ const COLS = {
       }
       return {
         "받는분": o.customer, "주소": base, "상세주소": detail, "운송장번호": "", "고객사주문번호": "", "우편번호": "", "도착영업소": "",
-        "전화번호": o.phone || c.find(x => x.name === o.customer)?.phone || "", "기타전화번호": "", "선불후불": "선불", "품목명": "원단", "수량": "", "포장상태": "",
-        "가로": "", "세로": "", "높이": "", "무게": "", "개별단가": 100, "배송운임": "", "기타운임": 100, "별도운임": "", "할증운임": "", "도서운임": "", "메모": o.deliveryMessage || "",
+        "전화번호": o.phone || c.find(x => x.name === o.customer)?.phone || "", "기타전화번호": "", "선불후불": kd.payType || "선불", "품목명": kd.itemName || "원단", "수량": "", "포장상태": "",
+        "가로": "", "세로": "", "높이": "", "무게": "", "개별단가": kd.unitPrice ?? 100, "배송운임": "", "기타운임": kd.extraFee ?? 100, "별도운임": "", "할증운임": "", "도서운임": "", "메모": o.deliveryMessage || "",
       };
     },
   },
@@ -45,8 +46,9 @@ const COLS = {
 
 /**
  * 고른 주문(selIds)의 송장 엑셀을 내려받고 출력 표시를 남긴다. 반환 { count, printedIds, printedAt }
+ * config(회사 설정, SaasData 의 config): 경동 행의 선불후불·품목명·개별단가·기타운임(config.kd)과 파일명의 회사명. 없으면 기본값.
  */
-export async function exportInvoices(selIds, courier, { orders, customers }) {
+export async function exportInvoices(selIds, courier, { orders, customers, config }) {
   const seenGroups = new Set();
   const invoiceIds = selIds.filter(id => {
     const o = orders.find(x => x.id === id);
@@ -60,7 +62,7 @@ export async function exportInvoices(selIds, courier, { orders, customers }) {
   if (!targets.length) throw new Error("선택된 주문이 없습니다");
   const fmt = COLS[courier] || COLS["CJ대한통운"];
   const dataRows = targets.map(o => {
-    const r = fmt.row(o, customers || []);
+    const r = fmt.row(o, customers || [], config);
     if (Array.isArray(r)) return r.map(v => v != null ? v : "");
     return fmt.cols.map(col => r[col] != null ? r[col] : "");
   });
@@ -83,7 +85,7 @@ export async function exportInvoices(selIds, courier, { orders, customers }) {
   ws["!rows"] = aoa.map((_, i) => ({ hpt: i === 0 ? 22 : 20 }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, courier === "CJ대한통운" ? "sheet1" : "송장출력");
-  dlXlsx(wb, `로하이마켓_${courier}_송장.xlsx`);
+  dlXlsx(wb, `${String(config?.companyName || "").trim() || "주문"}_${courier}_송장.xlsx`);
 
   const printedIds = [...new Set(selIds.flatMap(id => {
     const o = orders.find(x => x.id === id);

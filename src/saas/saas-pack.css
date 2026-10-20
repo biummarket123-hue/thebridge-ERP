@@ -1,0 +1,104 @@
+/* 포장대(/app/pack) 전용 — saas.css 의 톤(파란 primary, 흰 패널, 21px 라운드)을 따르고 접두어 .pk- 로만 더한다. */
+
+/* 스캔 입력 — 화면 어디서나 스캐너가 치면 이 칸에 글자가 보인다 */
+.saas .pk-scan { display: flex; gap: 10px; align-items: center; background: #fff; border: 2px solid var(--saas-blue); border-radius: 16px; padding: 10px 12px 10px 16px; box-shadow: 0 8px 26px #3b7cf322; margin-bottom: 16px; }
+.saas .pk-scan svg { width: 22px; height: 22px; color: var(--saas-blue); flex: none; }
+.saas .pk-scan input { flex: 1; min-width: 0; border: 0; outline: 0; font-size: 18px; font-weight: 800; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .02em; background: transparent; height: 40px; }
+.saas .pk-scan input::placeholder { color: #a9b6c6; font-family: var(--saas-font); font-weight: 650; letter-spacing: 0; }
+.saas .pk-scan .btn { width: auto; }
+.saas .pk-scan.busy { border-color: #d88e3b; }
+.saas .pk-scan-hint { font-size: 13px; color: #8d9aab; margin: -8px 0 16px; line-height: 1.5; }
+.saas .pk-scan-hint b { color: #2e6ee8; }
+
+/* 판정 배너 — 화면 위에 고정. 거부는 빨강, 안내는 파랑, 확인 필요는 주황 */
+.saas .pk-banner { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 105; width: min(720px, calc(100vw - 32px)); border-radius: 16px; padding: 14px 18px; display: flex; gap: 12px; align-items: flex-start; box-shadow: 0 18px 40px #1b2f4e3a; font-weight: 850; font-size: 16px; line-height: 1.45; animation: pk-drop .18s ease-out; }
+.saas .pk-banner.reject { background: #d9453d; color: #fff; }
+.saas .pk-banner.info { background: #2e6ee8; color: #fff; }
+.saas .pk-banner.warn { background: #e08b2d; color: #fff; }
+.saas .pk-banner.ok { background: #23986f; color: #fff; }
+.saas .pk-banner svg { width: 22px; height: 22px; flex: none; margin-top: 1px; }
+.saas .pk-banner small { display: block; font-weight: 700; font-size: 14px; opacity: .92; margin-top: 4px; }
+.saas .pk-banner .x { margin-left: auto; border: 0; background: #ffffff2a; color: inherit; border-radius: 9px; width: 32px; height: 32px; font-size: 18px; flex: none; }
+@keyframes pk-drop { from { opacity: 0; transform: translate(-50%, -12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@media (max-width: 720px) { .saas .pk-banner { top: 80px; } }
+
+/* 칸 탭 */
+.saas .pk-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.saas .pk-tab { border: 1px solid #e2eaf6; background: #fff; color: #5b6b80; border-radius: 12px; padding: 10px 14px; font-size: 15px; font-weight: 850; min-height: 46px; display: inline-flex; align-items: center; gap: 8px; transition: .17s; }
+.saas .pk-tab .n { background: #f1f4f8; color: #7b89a0; border-radius: 8px; padding: 2px 8px; font-size: 13px; }
+.saas .pk-tab.active { background: #eaf2ff; color: #2263ce; border-color: #cdddff; }
+.saas .pk-tab.active .n { background: #fff; color: #2263ce; }
+.saas .pk-tab.hot:not(.active) .n { background: #ffece9; color: #d76964; }
+
+/* 2열 — 박스 목록 | 선택 박스 상세 */
+.saas .pk-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .95fr); gap: 20px; align-items: start; }
+.saas .pk-detail { position: sticky; top: 16px; }
+@media (max-width: 1100px) { .saas .pk-layout { grid-template-columns: 1fr; } .saas .pk-detail { position: static; } }
+
+/* 박스 카드 */
+.saas .pk-list { display: grid; gap: 10px; }
+.saas .pk-box { width: 100%; text-align: left; border: 1.5px solid #e7ecf3; background: #fff; border-radius: 16px; padding: 14px 16px; transition: .16s; cursor: pointer; }
+.saas .pk-box:hover { border-color: #c9d8f0; box-shadow: 0 8px 20px #234a7810; }
+.saas .pk-box.active { border-color: var(--saas-blue); box-shadow: 0 0 0 3px #3678f61f; background: #f8fbff; }
+.saas .pk-box.flash { animation: pk-flash 2.4s ease-out; }
+@keyframes pk-flash { 0% { box-shadow: 0 0 0 4px #23986f66; } 100% { box-shadow: 0 0 0 0 #23986f00; } }
+.saas .pk-box-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.saas .pk-box-head strong { font-size: 17px; letter-spacing: -.2px; }
+.saas .pk-box-head .id { font-family: ui-monospace, Menlo, Consolas, monospace; color: #8d9bab; font-size: 13px; font-weight: 750; }
+.saas .pk-box-head .prog { margin-left: auto; font-weight: 900; font-size: 14px; color: #2263ce; background: #eaf2ff; border-radius: 9px; padding: 4px 9px; white-space: nowrap; }
+.saas .pk-box-head .prog.full { color: #23986f; background: #e9f8f1; }
+.saas .pk-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.saas .pk-badges .badge { padding: 5px 9px; font-size: 12.5px; border-radius: 8px; }
+.saas .pk-items { display: grid; gap: 6px; margin-top: 10px; }
+.saas .pk-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: #f6f8fb; border-radius: 11px; font-size: 14.5px; }
+.saas .pk-box.active .pk-item { background: #eef4fd; }
+.saas .pk-item .main { flex: 1; min-width: 0; }
+.saas .pk-item .main strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.saas .pk-item .main small { color: #8d9bab; font-size: 13px; display: block; margin-top: 2px; }
+.saas .pk-item .badge { padding: 5px 9px; font-size: 12.5px; border-radius: 8px; max-width: 52%; overflow: hidden; text-overflow: ellipsis; }
+.saas .pk-item .who { color: #8d9bab; font-size: 12.5px; white-space: nowrap; }
+
+/* 상세 패널 */
+.saas .pk-detail .panel { padding: 22px 22px; }
+.saas .pk-dhead { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.saas .pk-dhead h2 { margin: 0; font-size: 21px; letter-spacing: -.4px; font-weight: 900; }
+.saas .pk-dhead .meta { color: #8d9bab; font-size: 14px; width: 100%; line-height: 1.5; }
+.saas .pk-order { border-top: 1px solid #f0f3f7; padding-top: 12px; margin-top: 12px; }
+.saas .pk-order:first-of-type { border-top: 0; padding-top: 0; margin-top: 8px; }
+.saas .pk-order-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14px; color: #5b6b80; font-weight: 800; margin-bottom: 8px; }
+.saas .pk-order-head .mono { color: #8d9bab; font-weight: 750; }
+.saas .pk-ditem { background: #f8fafd; border-radius: 13px; padding: 12px 14px; margin-bottom: 8px; }
+.saas .pk-ditem .top { display: flex; align-items: center; gap: 10px; }
+.saas .pk-ditem .top strong { flex: 1; min-width: 0; font-size: 16px; }
+.saas .pk-ditem .top .qty { font-weight: 900; white-space: nowrap; }
+.saas .pk-ditem .state { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.saas .pk-ditem .state small { color: #8d9bab; font-size: 13px; }
+.saas .pk-ditem .acts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.saas .pk-ditem .acts .btn, .saas .pk-ditem .acts .chip { width: auto; min-height: 40px; padding: 8px 12px; font-size: 14px; }
+.saas .pk-dfoot { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 18px; }
+.saas .pk-dfoot .btn { width: auto; flex: 1; min-width: 150px; }
+.saas .pk-memo { background: #fff7ec; border: 1px solid #f6e3c6; color: #8a5a1c; border-radius: 12px; padding: 10px 12px; font-size: 14px; line-height: 1.55; margin-top: 10px; white-space: pre-wrap; word-break: break-word; }
+.saas .pk-alldone { background: #e9f8f1; color: #1d7f5c; border-radius: 12px; padding: 12px 14px; font-weight: 850; font-size: 15px; margin-top: 12px; }
+
+/* 롤 고르기·후보 고르기 목록(모달 안) */
+.saas .pk-pick { display: grid; gap: 8px; margin: 12px 0 6px; max-height: 50vh; overflow: auto; }
+.saas .pk-pick button { width: 100%; text-align: left; border: 1px solid #e2eaf6; background: #fff; border-radius: 13px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; font-size: 15px; min-height: 54px; transition: .15s; }
+.saas .pk-pick button:hover { border-color: #c9d8f0; background: #f8fbff; }
+.saas .pk-pick button .code { font-weight: 850; font-family: ui-monospace, Menlo, Consolas, monospace; }
+.saas .pk-pick button .sub { color: #8d9bab; font-size: 13px; }
+.saas .pk-pick button .len { margin-left: auto; font-weight: 900; white-space: nowrap; }
+.saas .pk-roll-info { background: #f5f8ff; border-radius: 13px; padding: 12px 14px; font-size: 15px; line-height: 1.6; margin-top: 12px; }
+.saas .pk-roll-info b { font-family: ui-monospace, Menlo, Consolas, monospace; }
+.saas .pk-check { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 800; margin: 14px 0 4px; cursor: pointer; }
+.saas .pk-check input { width: 20px; height: 20px; accent-color: var(--saas-blue); }
+.saas .pk-unpack-choice { display: grid; gap: 10px; margin-top: 12px; }
+.saas .pk-unpack-choice .btn { width: 100%; justify-content: flex-start; text-align: left; white-space: normal; line-height: 1.35; }
+
+@media (max-width: 720px) {
+  .saas .pk-scan { padding: 8px 10px 8px 12px; }
+  .saas .pk-scan input { font-size: 16px; }
+  .saas .pk-box { padding: 12px 13px; }
+  .saas .pk-item .badge { max-width: 48%; }
+  .saas .pk-detail .panel { padding: 18px 16px; }
+  .saas .pk-dfoot .btn { min-width: 0; flex: 1 1 45%; }
+}

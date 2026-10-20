@@ -85,7 +85,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), apiDevServer(env)],
     server: {
-      port: 3500,
+      port: 3600,
     },
     build: {
       outDir: 'dist',

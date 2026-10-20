@@ -9,6 +9,27 @@ import { PageHead, StatCard, Button, Panel, SearchInput, FilterChips, StatusBadg
 import { Icon } from "../icons.jsx";
 import { stockStats, stockStatus, stockRatio, stockLocations, monthShippedLength } from "../lib/metrics.js";
 import { matchProduct, fmtLen, parseMeasured, prefixForManager, ROLL_STATUS, MOVEMENT_LABEL, PIECE_ORIGIN, rollErrorText, round2 } from "../../lib/rollStock.js";
+import { printRollLabels } from "../../lib/rollLabelPrint.js";
+import { markRollLabelsPrinted } from "../data/db-pack.js";
+
+/**
+ * 롤 QR 라벨을 이 브라우저에서 바로 인쇄한다(라벨 PC 없이). 인쇄창을 띄운 뒤 label_printed_at 표시를 남긴다 —
+ * 표시 실패는 조용히 넘긴다(라벨은 이미 나갔다). 반환: 띄운 장수.
+ */
+async function printLabelsNow(rolls, products, { company, toast, reloadRolls }) {
+  const list = (rolls || []).filter(r => r?.rollCode);
+  if (!list.length) { toast("라벨을 뽑을 롤이 없습니다", "error"); return 0; }
+  try {
+    const n = await printRollLabels(list, products, { company: company || "" });
+    toast(`🏷️ 롤 라벨 ${n}장 인쇄창을 띄웠습니다`);
+    markRollLabelsPrinted(list.map(r => r.id)).then(() => reloadRolls?.()).catch(e => console.warn("[saas] 라벨 출력 표시 실패", e));
+    return n;
+  } catch (e) {
+    console.error("[saas] 라벨 인쇄 실패", e);
+    toast("라벨 인쇄 실패: " + (e?.message || e), "error");
+    return 0;
+  }
+}
 
 // 시안의 원단 텍스처 — 사진이 없는 품번은 색상 이름으로 비슷한 색을 고른다. 사진이 있으면 사진.
 const SWATCHES = [
@@ -92,6 +113,8 @@ function ReceiveModal({ onClose, initialProduct }) {
   const [supplier, setSupplier] = useState("");
   const [location, setLocation] = useState("");
   const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(null);   // 입고 성공 직후 { rolls, product } — 라벨을 바로 뽑을지 묻는다
+  const [printing, setPrinting] = useState(false);
   const suggestions = useMemo(() => !q.trim() || picked ? [] : products.filter(p => matchProduct(p, q)).slice(0, 8), [products, q, picked]);
   const ownerPrefix = prefixForManager(managers, activeManager, config.productPrefix);
   const parsed = lengths.slice(0, count).map(v => parseMeasured(v));
@@ -123,12 +146,30 @@ function ReceiveModal({ onClose, initialProduct }) {
       else if (!labelRequested) toast(`📥 입고 ${made.length}롤 (${range}) — 라벨 요청에 실패했습니다. 잠시 뒤 다시 시도해 주세요`, "error");
       else toast(`📥 입고 ${made.length}롤 (${range}) · 판매 가능 · 라벨 출력 요청됨`);
       await reloadRolls();
-      onClose();
+      // 바로 닫지 않는다 — 방금 입고한 롤의 라벨을 이 자리에서 뽑을 수 있게(라벨 PC 없이).
+      if (made.length) setDone({ rolls: made, product, range });
+      else onClose();
     } catch (e) {
       console.error("[saas] 입고 실패", e);
       toast("입고 등록 실패: " + rollErrorText(e), "error");
     } finally { setBusy(false); }
   };
+
+  if (done) {
+    const p = done.product;
+    return (
+      <Modal title="입고 완료" onClose={onClose}>
+        <div className="notice-box" style={{ marginTop: 16 }}>
+          <b className="mono">{p?.code}</b> {p?.name}{p?.color ? ` ${p.color}` : ""} — 방금 입고한 롤 <b>{done.rolls.length}개</b> ({done.range})
+        </div>
+        <p className="helptext">롤 QR 라벨을 지금 이 기기에서 바로 뽑을 수 있습니다. 인쇄창이 뜨면 라벨 프린터를 고르세요. 나중에 뽑으려면 원단 상세의 '라벨' 버튼을 쓰면 됩니다.</p>
+        <div className="btnrow">
+          <Button kind="white" onClick={onClose}>닫기</Button>
+          <Button icon="file" loading={printing} onClick={async () => { setPrinting(true); try { await printLabelsNow(done.rolls, products, { company: config.companyName, toast, reloadRolls }); } finally { setPrinting(false); } }}>방금 입고한 롤 라벨 {done.rolls.length}장 출력</Button>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal title="입고 등록" onClose={onClose} width="wide">
@@ -186,11 +227,18 @@ function ReceiveModal({ onClose, initialProduct }) {
 
 /** 원단 상세 — 롤 목록(잔량·위치), 조정·폐기, 이력. */
 function StockDetail({ group, onClose, onReceive }) {
-  const { activeManager, reloadRolls, reloadProducts, config } = useSaas();
+  const { activeManager, reloadRolls, reloadProducts, config, products } = useSaas();
   const LOW_STOCK_M = config.lowStockM;
   const toast = useToast();
   const [mode, setMode] = useState(null);   // {kind:"adjust"|"scrap"|"history", roll}
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [printing, setPrinting] = useState(false);
+  // 롤 QR 라벨 — 브라우저 인쇄창으로 바로(라벨 PC 없이). 한 롤이든 남은 롤 전부든 같은 길.
+  const printLabels = async (list) => {
+    setPrinting(true);
+    try { await printLabelsNow(list, products, { company: config.companyName, toast, reloadRolls }); }
+    finally { setPrinting(false); }
+  };
   const changePhoto = async (file) => {
     if (!file) return;
     setPhotoBusy(true);
@@ -253,12 +301,16 @@ function StockDetail({ group, onClose, onReceive }) {
       </div>
       {!mode && (
         <>
-          <div className="section-label">롤 목록 {closed > 0 ? `(끝난 롤 ${closed}개는 숨김)` : ""}</div>
+          <div className="section-label" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <span>롤 목록 {closed > 0 ? `(끝난 롤 ${closed}개는 숨김)` : ""}</span>
+            {open.length > 0 && <Button kind="white" size="sm" icon="file" loading={printing} onClick={() => printLabels(open)} title="남은 롤 전부의 QR 라벨을 이 기기에서 인쇄">라벨 전체 출력 ({open.length}장)</Button>}
+          </div>
           {open.length === 0 ? <Empty small>남은 롤이 없습니다.</Empty> : open.map(r => (
             <div key={r.id} className="roll-row">
-              <span className="code mono">{r.rollCode}{r.origin ? <small style={{ color: "#8a69da", marginLeft: 6 }}>{PIECE_ORIGIN[r.origin] || "조각"}</small> : null}</span>
+              <span className="code mono">{r.rollCode}{r.origin ? <small style={{ color: "#8a69da", marginLeft: 6 }}>{PIECE_ORIGIN[r.origin] || "조각"}</small> : null}{r.labelPrintedAt ? <small style={{ color: "#8d9bab", marginLeft: 6 }} title={`라벨 출력 ${new Date(r.labelPrintedAt).toLocaleString("ko-KR")}`}>🏷️</small> : null}</span>
               <span className="loc">{ROLL_STATUS[r.status]?.label || r.status}{r.location ? ` · ${r.location}` : ""}</span>
               <span className="len">{fmtLen(r.lengthRemaining)}{p.unit || "마"}</span>
+              <Button kind="white" size="sm" disabled={printing} onClick={() => printLabels([r])} title="이 롤의 QR 라벨 1장 인쇄">라벨</Button>
               <Button kind="white" size="sm" onClick={() => setMode({ kind: "history", roll: r })} title="이력">이력</Button>
               {r.status === "available" && <Button kind="white" size="sm" onClick={() => setMode({ kind: "adjust", roll: r })}>조정</Button>}
               {r.status === "available" && <Button kind="danger" size="sm" onClick={() => setMode({ kind: "scrap", roll: r })}>폐기</Button>}

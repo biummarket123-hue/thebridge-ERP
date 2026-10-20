@@ -1,0 +1,44 @@
+/* 주문 상세 전용 조각(.saas .od-…) — OrderDetail.jsx 가 import. 공통 모양은 saas.css 에 있고 여기엔 상세에서만 쓰는 것만. */
+
+/* 합배송 묶기 — 시작 주문 상자 */
+.saas .od-source { background: #eaf2ff; border: 1px solid #cdddff; border-radius: 14px; padding: 12px 14px; display: grid; gap: 4px; }
+.saas .od-source .badges { align-items: center; }
+.saas .od-source strong { font-size: 15px; }
+.saas .od-source small { color: #5e6c7d; font-size: 13px; }
+.saas .od-hint { color: #7a5fb5; font-weight: 700; }
+.saas .od-nick { font-weight: 600; color: #8d9bab; font-size: 13px; }
+.saas .od-id { font-size: 12px; color: #2e6ee8; }
+.saas .od-date { font-size: 12px; color: #94a3b4; font-weight: 600; }
+
+/* 후보·부담 주문 목록 */
+.saas .od-candidates { border: 1px solid #edf1f6; border-radius: 14px; margin-top: 10px; max-height: 46vh; overflow: auto; }
+.saas .od-candidates .row-check.on { background: #f5f8ff; }
+.saas .od-candidates .row-check.od-related { border-left: 3px solid #cdbdf0; }
+.saas .od-candidates .row-check input[type=radio] { width: 20px; height: 20px; accent-color: var(--saas-blue); flex: none; }
+.saas .od-candidates .row-check small { white-space: normal; }
+.saas .od-reasons { margin: 4px 0 2px; }
+.saas .od-reasons .badge { font-size: 11px; padding: 2px 7px; }
+.saas .od-fee-next { font-weight: 850; white-space: nowrap; color: #2e6ee8; }
+
+/* 묶음 멤버 목록(주문 상세 합배송 섹션) */
+.saas .od-members { display: grid; gap: 6px; margin: 6px 0 10px; }
+.saas .od-member { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #f8fafd; border-radius: 12px; font-size: 14px; }
+.saas .od-member.me { background: #eaf2ff; }
+.saas .od-member .who { font-weight: 800; white-space: nowrap; }
+.saas .od-member .what { flex: 1; min-width: 0; color: #8d9bab; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.saas .od-member .badges { flex: none; }
+.saas .od-member .badge { font-size: 11px; padding: 2px 7px; }
+
+/* 사진 */
+.saas .od-photos { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 4px; }
+.saas .od-photo { position: relative; width: 88px; height: 88px; border-radius: 12px; overflow: hidden; border: 1px solid #e2eaf6; background: #f4f6fa; }
+.saas .od-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.saas .od-photo a { display: block; width: 100%; height: 100%; }
+.saas .od-photo .x { position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; border-radius: 50%; border: 0; background: rgba(20, 28, 40, .72); color: #fff; font-size: 16px; line-height: 26px; text-align: center; cursor: pointer; padding: 0; }
+.saas .od-photo .x:disabled { opacity: .4; cursor: not-allowed; }
+.saas .od-photo-add { width: 88px; height: 88px; border-radius: 12px; border: 1px dashed #cfd8e4; background: #fff; color: #44566b; font-weight: 800; font-size: 13px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; }
+.saas .od-photo-add svg { width: 20px; height: 20px; }
+.saas .od-photo-add:disabled { opacity: .45; cursor: not-allowed; }
+
+/* 하단 링크 줄 */
+.saas .od-foot { display: flex; justify-content: center; margin-top: 10px; }

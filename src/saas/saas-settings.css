@@ -58,7 +58,7 @@
 .saas .ob-foot .skip { border: 0; background: transparent; color: #8d9aab; font-weight: 800; font-size: 14px; padding: 10px 12px; border-radius: 10px; cursor: pointer; font-family: inherit; }
 .saas .ob-foot .skip:hover { background: #f3f6fa; color: #5e6c7d; }
 
-@media (max-width: 720px) {
+@container (max-width: 720px) {
   .saas .plan-cards { grid-template-columns: 1fr; }
   .saas .ob-sheet { max-width: none; }
 }

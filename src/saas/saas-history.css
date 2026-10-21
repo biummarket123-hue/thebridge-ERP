@@ -25,7 +25,7 @@
 .saas .hist-order-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
 .saas .hist-order-head strong { font-size: 17px; }
 
-@media (max-width: 720px) {
+@container (max-width: 720px) {
   .saas .hist-tools { display: block; }
   .saas .hist-tools .search { width: 100%; margin-bottom: 10px; }
   .saas .hist-tools .seg { width: 100%; }

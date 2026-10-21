@@ -20,7 +20,7 @@
 .saas .pk-banner small { display: block; font-weight: 700; font-size: 14px; opacity: .92; margin-top: 4px; }
 .saas .pk-banner .x { margin-left: auto; border: 0; background: #ffffff2a; color: inherit; border-radius: 9px; width: 32px; height: 32px; font-size: 18px; flex: none; }
 @keyframes pk-drop { from { opacity: 0; transform: translate(-50%, -12px); } to { opacity: 1; transform: translate(-50%, 0); } }
-@media (max-width: 720px) { .saas .pk-banner { top: 80px; } }
+@container (max-width: 720px) { .saas .pk-banner { top: 80px; } }
 
 /* 칸 탭 */
 .saas .pk-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
@@ -33,7 +33,7 @@
 /* 2열 — 박스 목록 | 선택 박스 상세 */
 .saas .pk-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .95fr); gap: 20px; align-items: start; }
 .saas .pk-detail { position: sticky; top: 16px; }
-@media (max-width: 1100px) { .saas .pk-layout { grid-template-columns: 1fr; } .saas .pk-detail { position: static; } }
+@container (max-width: 1100px) { .saas .pk-layout { grid-template-columns: 1fr; } .saas .pk-detail { position: static; } }
 
 /* 박스 카드 */
 .saas .pk-list { display: grid; gap: 10px; }
@@ -94,7 +94,7 @@
 .saas .pk-unpack-choice { display: grid; gap: 10px; margin-top: 12px; }
 .saas .pk-unpack-choice .btn { width: 100%; justify-content: flex-start; text-align: left; white-space: normal; line-height: 1.35; }
 
-@media (max-width: 720px) {
+@container (max-width: 720px) {
   .saas .pk-scan { padding: 8px 10px 8px 12px; }
   .saas .pk-scan input { font-size: 16px; }
   .saas .pk-box { padding: 12px 13px; }

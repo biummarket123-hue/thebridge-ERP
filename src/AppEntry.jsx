@@ -8,7 +8,7 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import ErpApp from "./ErpApp.jsx";
 import CompanyLogin from "./CompanyLogin.jsx";
-import { CuteFullLoader } from "./components/UI.jsx";
+import { SaasLoader } from "./saas/components/Loading.jsx";
 import { GATE_TOKEN_KEY, GATE_UNTIL_KEY } from "./lib/db.js";
 import { supabase } from "./lib/supabase.js";
 import { BRAND } from "./saas/config.js";
@@ -19,7 +19,8 @@ const BRAND_LABEL = MODE === "company" ? "로하이마켓 ERP" : `${BRAND.name} 
 const SaasAuth = lazy(() => import("./saas/auth/SaasAuth.jsx"));
 const Landing = lazy(() => import("./saas/Landing.jsx"));
 
-const LoadingScreen = () => <CuteFullLoader brand={BRAND_LABEL} />;
+// SaaS 화면의 로딩은 새 UI 로더. 옛 🧶 로더(CuteFullLoader)는 company 모드의 옛 ErpApp 안에서만 남는다.
+const LoadingScreen = () => <SaasLoader />;
 
 // 새 UI — 회사 세션을 스스로 확인한다(옛 게이트 토큰 기기도 통과).
 function SaasRootGate() {
@@ -82,6 +83,11 @@ function LegacyCompanyRoot() {
     const onLost = () => setAuthenticated(false);
     window.addEventListener("company-gate-lost", onLost);
     return () => window.removeEventListener("company-gate-lost", onLost);
+  }, []);
+  // 옛 화면은 index.css 의 어두운 body 를 쓴다 — index.html 이 미리 칠해 둔 밝은 바탕(표시·인라인 색)을 걷어낸다.
+  useEffect(() => {
+    document.body.removeAttribute("data-saas");
+    document.body.style.background = ""; document.body.style.color = "";
   }, []);
 
   if (!authenticated) return <CompanyLogin onSuccess={() => setAuthenticated(true)} />;

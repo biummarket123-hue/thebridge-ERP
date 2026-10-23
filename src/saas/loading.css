@@ -1,0 +1,31 @@
+/* 새 UI 공용 로딩 화면(components/Loading.jsx). saas.css 보다 먼저 — 첫 청크를 받는 동안(main.jsx 폴백)에도 떠야 하므로
+   saas.css 에 끼우지 않고 따로 둔다. 토큰은 tokens.css. */
+.saas-loading {
+  position: fixed; inset: 0; z-index: 999;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: var(--saas-bg); color: var(--saas-ink); font-family: var(--saas-font);
+  animation: saas-loading-in .25s ease;
+}
+.saas-loading .logo {
+  width: 66px; height: 66px; border-radius: 21px;
+  background: linear-gradient(145deg, #5d9dff, #3072ed);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 14px 34px #3678f63d;
+  animation: saas-loading-float 1.9s ease-in-out infinite;
+}
+.saas-loading .logo svg { width: 38px; height: 38px; }
+.saas-loading .name { margin-top: 20px; font-size: 25px; font-weight: 900; letter-spacing: -1.2px; line-height: 1; }
+.saas-loading .name span { color: var(--saas-blue); }
+.saas-loading .caption { margin-top: 9px; font-size: 13px; font-weight: 700; color: #97a4b5; }
+.saas-loading .bar { margin-top: 26px; width: 150px; height: 4px; border-radius: 99px; background: #e1e8f2; overflow: hidden; }
+.saas-loading .bar i { display: block; height: 100%; width: 42%; border-radius: 99px; background: var(--saas-blue); animation: saas-loading-slide 1.15s cubic-bezier(.4, 0, .2, 1) infinite; }
+.saas-loading .text { margin-top: 14px; font-size: 14px; font-weight: 700; color: var(--saas-muted); }
+
+@keyframes saas-loading-in { from { opacity: 0; } }
+@keyframes saas-loading-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes saas-loading-slide { from { transform: translateX(-110%); } to { transform: translateX(250%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .saas-loading, .saas-loading .logo { animation: none; }
+  .saas-loading .bar i { animation: none; width: 100%; opacity: .45; }
+}

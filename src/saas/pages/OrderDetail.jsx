@@ -13,7 +13,8 @@ import { Icon } from "../icons.jsx";
 import { isHold, isParked, getPayStatus, maskPhone } from "../../constants.js";
 import { orderTotal, orderUnpaid, orderPaid, relativeWhen } from "../lib/metrics.js";
 import { shipBucket, BUCKETS } from "../../lib/shipDate.js";
-import { COURIER_SHORT, COURIERS, CJ, KD } from "../../lib/courier.js";
+import { COURIER_SHORT, COURIERS } from "../../lib/courier.js";
+import { trackingUrl, cleanTrackingNo } from "../lib/tracking.js";
 import { patchOrdersWithGroupResult } from "../../lib/freight.js";
 import { orderBadges } from "./HomePage.jsx";
 import * as act from "../actions/orders.js";
@@ -191,8 +192,37 @@ function MergeSection({ o, ctx, lock, busy, run, onPatched, toast, setOrders, cu
   );
 }
 
-/** 택배사 — 자동(메모의 롤로 판정)/CJ/경동. 같은 박스(묶음)에 함께 적용된다. */
+/** 송장번호 — 보기·조회 링크·고치기. 출고 안내 문자의 {송장번호}에도 들어간다. */
+function TrackingCell({ o, info, run, setOrders, busy }) {
+  const [edit, setEdit] = useState(false);
+  const [v, setV] = useState(o.trackingNo || "");
+  const url = trackingUrl(info?.courier || o.courier, o.trackingNo);
+  const save = () => run("track", async () => {
+    const no = cleanTrackingNo(v);
+    await db.updateOrder(o.id, { trackingNo: no }, { route: "송장번호 입력 · 새 UI" });
+    setOrders(p => p.map(x => x.id === o.id ? { ...x, trackingNo: no } : x));
+    setEdit(false);
+    return { msg: no ? `송장번호 ${no}` : "송장번호 지움" };
+  }, { reload: false });
+  if (edit) return (
+    <span className="inline-field" style={{ maxWidth: 360 }}>
+      <input className="forminput" value={v} onChange={e => setV(e.target.value)} inputMode="numeric" placeholder="송장번호" autoFocus />
+      <Button size="sm" onClick={save} loading={busy === "track"}>저장</Button>
+      <Button size="sm" kind="white" onClick={() => { setEdit(false); setV(o.trackingNo || ""); }}>취소</Button>
+    </span>
+  );
+  return (
+    <>
+      {o.trackingNo ? <span className="mono">{o.trackingNo}</span> : <span style={{ color: "#94a3b4" }}>없음</span>}
+      {url && <a href={url} target="_blank" rel="noreferrer" style={{ marginLeft: 8, fontWeight: 800 }}>배송 조회 ↗</a>}
+      <button type="button" className="text-link" style={{ marginLeft: 8, padding: 0 }} onClick={() => setEdit(true)}>{o.trackingNo ? "고치기" : "입력"}</button>
+    </>
+  );
+}
+
+/** 택배사 미리 지정(선택) — 비워 두면 송장 뽑을 때 고른다. 같은 박스(묶음)에 함께 적용된다. */
 function CourierChips({ o, ctx, info, lock, busy, run, setOrders }) {
+  const { config } = useSaas();
   const manual = info?.why === "manual" ? info.courier : null;
   const pick = (c) => run("courier", async () => {
     const r = await act.setCourier(o, c, ctx);
@@ -201,11 +231,10 @@ function CourierChips({ o, ctx, info, lock, busy, run, setOrders }) {
   }, { reload: false });
   return (
     <>
-      <div className="section-label">택배사</div>
+      <div className="section-label">택배사 미리 지정 <small style={{ color: "#94a3b4", fontWeight: 700 }}>선택 · 비워 두면 송장 뽑을 때 고릅니다</small></div>
       <div className="chiprow">
-        <Chip on={!manual} disabled={!!busy || !!lock} onClick={() => manual && pick(null)}>자동{!manual && info ? ` · ${info.pickup ? "방문·픽업" : COURIER_SHORT[info.courier]}${info.why === "roll" ? " (메모에 롤)" : ""}` : ""}</Chip>
-        <Chip on={manual === CJ} disabled={!!busy || !!lock} onClick={() => manual !== CJ && pick(CJ)}>CJ대한통운</Chip>
-        <Chip on={manual === KD} disabled={!!busy || !!lock} onClick={() => manual !== KD && pick(KD)}>경동화물</Chip>
+        <Chip on={!manual} disabled={!!busy || !!lock} onClick={() => manual && pick(null)}>{info?.pickup ? "방문·픽업" : "송장 뽑을 때 고름"}</Chip>
+        {config.couriers.map(c => <Chip key={c.name} on={manual === c.name} disabled={!!busy || !!lock} onClick={() => manual !== c.name && pick(c.name)}>{c.name}</Chip>)}
       </div>
     </>
   );
@@ -319,7 +348,7 @@ export default function OrderDetail({ order, onClose, go }) {
             <div className="badges" style={{ marginBottom: 6 }}>
               {orderBadges(o).map(([t, l]) => <StatusBadge key={l} tone={t}>{l}</StatusBadge>)}
               {o.isUrgent ? <StatusBadge tone="late">긴급</StatusBadge> : o.shipDate ? <StatusBadge tone="gray">{bucket.emoji} {bucket.label} {o.shipDate}</StatusBadge> : null}
-              {info ? <StatusBadge tone="gray">{info.pickup ? "방문·픽업" : COURIER_SHORT[info.courier]}{info.why === "manual" ? " (직접 지정)" : ""}</StatusBadge> : null}
+              {info && (info.pickup || info.courier) ? <StatusBadge tone="gray">{info.pickup ? "방문·픽업" : (COURIER_SHORT[info.courier] || info.courier)}</StatusBadge> : null}
               {o.invoicePrintedAt ? <StatusBadge tone="done">송장 출력됨</StatusBadge> : null}
               {o.shipRequestedAt ? <StatusBadge tone="purple">출고요청</StatusBadge> : null}
               {o.splitShipping ? <StatusBadge tone="late">분리 배송</StatusBadge> : null}
@@ -330,6 +359,7 @@ export default function OrderDetail({ order, onClose, go }) {
               <div className="invrow"><span>배송지</span><strong style={{ fontWeight: 600 }}>{o.address ? `${o.address}${o.addressDetail ? ` ${o.addressDetail}` : ""}` : "—"}{o.deliveryMessage ? <small style={{ display: "block", color: "#8d9bab" }}>📝 {o.deliveryMessage}</small> : null}</strong></div>
               <div className="invrow"><span>주문 금액</span><strong>{won(total)}<small style={{ display: "block", fontWeight: 600, color: "#8d9bab" }}>배송비 {won(o.shippingFee)}{o.feeHeld ? ` (묶여서 ${won(o.feeHeld)} 내려놓음)` : ""}{o.otherCost ? ` · 기타 ${won(o.otherCost)}` : ""}</small></strong></div>
               <div className="invrow"><span>결제</span><strong>{pay}<small style={{ display: "block", fontWeight: 600, color: unpaid > 0 ? "#d76964" : "#8d9bab" }}>입금 {won(paid)} · 미수금 {won(unpaid)}{o._computed?.creditUsed ? ` · 적립금 ${won(o._computed.creditUsed)}` : ""}</small></strong></div>
+              {(shipped || o.trackingNo) && <div className="invrow"><span>송장번호</span><strong style={{ fontWeight: 600 }}><TrackingCell o={o} info={info} run={run} setOrders={setOrders} busy={busy} /></strong></div>}
               {group.length > 0 && <div className="invrow"><span>합배송</span><strong style={{ fontWeight: 600 }}>{group.map(g => g.customer).join(", ")} 외 함께 {group.length}건</strong></div>}
               {parked && <div className="invrow"><span>보류 사유</span><strong style={{ fontWeight: 600 }}>{o.parkReason || "사유 없음"}</strong></div>}
             </div>
@@ -365,6 +395,11 @@ export default function OrderDetail({ order, onClose, go }) {
                     <div className="btnrow" style={{ marginTop: 10 }}><Button kind="white" onClick={() => setMode(null)}>취소</Button><Button onClick={() => run("park", () => act.park(o, parkReason, ctx)).then(r => r && setMode(null))} loading={busy === "park"}>보류함에 넣기{group.length ? ` (묶음 ${group.length + 1}건)` : ""}</Button></div>
                   </div>
                 )}
+              </>
+            )}
+
+            {/* 결제(입금·적립금·환불)는 출고 뒤에도 — 외상 거래처의 입금 확인, 출고된 주문의 환불 신청(2026-10-23 점검) */}
+            <>
                 <div className="section-label">결제</div>
                 {pay === "환불신청" ? (
                   <div className="chiprow">
@@ -376,8 +411,9 @@ export default function OrderDetail({ order, onClose, go }) {
                   <div className="chiprow">
                     {unpaid > 0 && !isPacker && <Chip on={mode === "deposit"} onClick={() => { setMode(mode === "deposit" ? null : "deposit"); setAmount(String(unpaid)); }}>💰 입금 확인</Chip>}
                     {unpaid > 0 && creditBal > 0 && !isPacker && <Chip on={mode === "credit"} onClick={() => { setMode(mode === "credit" ? null : "credit"); setAmount(String(Math.min(creditBal, unpaid))); }}>🪙 적립금 사용 (잔액 {won(creditBal)})</Chip>}
-                    {paid > 0 && !isPacker && (pay === "입금완료" || pay === "부분입금") && <Chip danger onClick={() => setMode("refund")}>환불 신청</Chip>}
-                    {isAdmin && !canCancelDeposit(o, pay, ctx) && <Chip danger disabled={!!busy} title="입금 기록을 지우고 미입금으로" onClick={doCancelDeposit}>입금 취소</Chip>}
+                    {paid > 0 && !isPacker && (pay === "입금완료" || pay === "부분입금") && <Chip danger onClick={() => setMode("refund")}>환불 신청{shipped ? " (반품·차액)" : ""}</Chip>}
+                    {isAdmin && !shipped && !canCancelDeposit(o, pay, ctx) && <Chip danger disabled={!!busy} title="입금 기록을 지우고 미입금으로" onClick={doCancelDeposit}>입금 취소</Chip>}
+                    {shipped && unpaid > 0 && <StatusBadge tone="wait">외상 미수금 {won(unpaid)}</StatusBadge>}
                     {unpaid === 0 && pay !== "환불신청" && <StatusBadge tone="done">완납</StatusBadge>}
                   </div>
                 )}

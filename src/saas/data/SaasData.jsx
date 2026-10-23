@@ -6,13 +6,14 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import * as db from "../../lib/db.js";
 import { useUserId, useRealtimeOrdersAndPayments, useRealtimeCustomers, useRealtimeCredits, useRealtimeProducts, useRealtimeStockRolls } from "../../lib/realtime.js";
 import { preloadHolidays } from "../../lib/shipDate.js";
-import { courierMap, setPickupCutoffs } from "../../lib/courier.js";
+import { courierMap, setCouriers, setPickupCutoff } from "../../lib/courier.js";
+import { setCreditCustomers, canShipByPayment } from "../actions/ship.js";
 import { groupRollsByProduct } from "../../lib/rollStock.js";
 import { isHold, isParked, getPayStatus } from "../../constants.js";
 import { buildOverview } from "../../lib/overview.js";
 import { monthRange } from "../lib/metrics.js";
 import { resolveConfig } from "../config.js";
-import { subscriptionState, pinNeeded, aiAccess } from "../lib/subscription.js";
+import { subscriptionState, pinNeeded, aiAccess, smsAccess } from "../lib/subscription.js";
 import { setButtonGuard } from "../components/ui.jsx";
 import { useToast } from "../components/Toast.jsx";
 
@@ -98,6 +99,8 @@ export function SaasDataProvider({ children }) {
   const reloadReturns = useCallback(async () => { try { setReturns(await db.fetchReturns()); } catch (e) { console.warn("[saas] 반품", e); setReturns([]); } }, []);
   const reloadManagers = useCallback(async () => { try { setManagers(await db.fetchManagers()); } catch (e) { console.warn("[saas] 담당자", e); } }, []);
   const reloadAccount = useCallback(async () => { try { setAccount(await db.fetchCompanyAccount()); } catch (e) { console.warn("[saas] 회사 계정", e); } }, []);
+  const [usage, setUsage] = useState({ ai: 0, sms: 0 });   // 이번 달 AI 호출·문자 건수 — 요금제 월 한도 안내(2026-10-23)
+  const reloadUsage = useCallback(async () => { try { setUsage(await db.fetchMonthlyUsage()); } catch (e) { console.warn("[saas] 사용량", e); } }, []);
   const reloadPinStatus = useCallback(async () => { try { setPinStatus(await db.fetchManagerPinStatus()); } catch (e) { console.warn("[saas] PIN 상태", e); } }, []);
   const reloadSettings = useCallback(async () => { try { setSettings(await db.fetchSettings()); } catch (e) { console.warn("[saas] 설정", e); } }, []);
   const reloadMoney = useCallback(async () => {
@@ -126,7 +129,7 @@ export function SaasDataProvider({ children }) {
         setCustomers(c); setManagers(m); setSettings(s); setAccount(a); setPinStatus(p);
       } finally { setLoaded(true); }
       // 나머지는 뒤에 — 첫 화면이 주문·담당자만 있으면 뜬다
-      await Promise.all([reloadProducts(), reloadRolls(), reloadCredits(), reloadFreeShipping(), reloadReturns(), reloadMoney()]);
+      await Promise.all([reloadProducts(), reloadRolls(), reloadCredits(), reloadFreeShipping(), reloadReturns(), reloadMoney(), reloadUsage()]);
     })();
   }, [reloadProducts, reloadRolls, reloadCredits, reloadFreeShipping, reloadReturns, reloadMoney]);
 
@@ -153,8 +156,16 @@ export function SaasDataProvider({ children }) {
     return () => { document.removeEventListener("visibilitychange", wake); window.removeEventListener("focus", wake); window.removeEventListener("online", wake); };
   }, [reloadOrders, reloadRolls, reloadCustomers]);
 
+  // 회사별 설정 — 택배사 판정이 이 값을 쓰므로 파생값보다 먼저
+  const config = useMemo(() => resolveConfig(settings, account), [settings, account]);
+  // 택배사 목록·수거 마감을 lib/courier.js 에 넣는다 — 송장 양식(courierFormat)·전체현황의 수거 놓침(missedPickups)이 거기서 읽는다
+  useEffect(() => { setCouriers(config.couriers); setPickupCutoff(config.pickupCutoff); }, [config.couriers, config.pickupCutoff]);
+
+  // 외상 거래처 이름을 출고 규칙에 넣는다 — 포장대·출고 처리·주문 상세가 canShipByPayment 로 판정한다
+  useEffect(() => { setCreditCustomers(customers.filter(c => c.allowCredit).map(c => c.name)); }, [customers]);
+
   // ── 파생값 ────────────────────────────────────────────────
-  const courierById = useMemo(() => courierMap(orders), [orders]);
+  const courierById = useMemo(() => courierMap(orders, config.couriers), [orders, config.couriers]);
   const groups = useMemo(() => groupRollsByProduct(products, rolls), [products, rolls]);
   const productById = useMemo(() => new Map(products.map(p => [p.id, p])), [products]);
 
@@ -180,19 +191,18 @@ export function SaasDataProvider({ children }) {
   const overviewOrders = useMemo(() => mineOn ? orders.filter(o => o.manager === activeManager) : orders, [orders, mineOn, activeManager]);
   const overview = useMemo(() => buildOverview(overviewOrders, overviewMates, {
     isHold, isParked, getPayStatus,
-    courierOf: (o) => courierById.get(o.id)?.courier, isPickup: (o) => !!courierById.get(o.id)?.pickup,
-  }, new Date(nowTs)), [overviewOrders, overviewMates, courierById, nowTs]);
+    courierOf: (o) => courierById.get(o.id)?.courier, isPickup: (o) => !!courierById.get(o.id)?.pickup, canShip: canShipByPayment,
+  }, new Date(nowTs)), [overviewOrders, overviewMates, courierById, nowTs, customers]);   // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 회사별 설정·구독 상태·PIN 게이트
-  const config = useMemo(() => resolveConfig(settings, account), [settings, account]);
-  useEffect(() => { setPickupCutoffs(config.pickupCutoff); }, [config.pickupCutoff]);   // 출고예정일·전체현황이 이 마감을 쓴다
+  // 구독 상태·PIN 게이트
   const subscription = useMemo(() => subscriptionState(account, new Date(nowTs)), [account, nowTs]);
   const readOnly = subscription.readOnly;   // 만료 — DB 가 쓰기를 막는다(saas_readonly_when_expired.sql). 화면은 버튼을 숨기고 안내한다
   // 읽기 전용이면 저장류 버튼(primary·danger·green)이 눌리는 대신 안내만 — 화면마다 readOnly 를 일일이 보지 않아도 된다
   useEffect(() => { setButtonGuard(readOnly ? () => toast("구독이 끝나 읽기 전용입니다 — 결제하면 바로 다시 쓸 수 있습니다 (회사 설정 › 구독)", "error") : null); return () => setButtonGuard(null); }, [readOnly, toast]);
   const isDemo = !!account?.is_demo;
   // AI 분석(토큰 비용) — 유료 구독 회사만. 체험·데모는 서버(api/analyze.js)가 SAAS_TRIAL_AI_CALLS 만큼만 허용한다(기본 0)
-  const ai = useMemo(() => aiAccess(account, subscription), [account, subscription]);
+  const ai = useMemo(() => aiAccess(account, subscription, usage.ai), [account, subscription, usage.ai]);
+  const sms = useMemo(() => smsAccess(account, subscription, usage.sms), [account, subscription, usage.sms]);
   const pinOf = useCallback((m) => pinStatus.find(p => p.manager_id === m?.id) || null, [pinStatus]);
   const managerHasPin = !!pinOf(manager)?.has_pin;
   const pinRequired = !!manager && !manager.isPublic && pinNeeded({ hasPin: managerHasPin, verifiedAt: pinVerifiedAt, pinned, now: nowTs });
@@ -200,7 +210,7 @@ export function SaasDataProvider({ children }) {
   const value = {
     userId, loaded, syncLost, error,
     account, subscription, readOnly, isDemo, config, reloadAccount, reloadSettings, reloadManagers,
-    aiAllowed: ai.allowed, aiReason: ai.reason, uiZoom, setUiZoom,
+    aiAllowed: ai.allowed, aiReason: ai.reason, ai, sms, usage, reloadUsage, uiZoom, setUiZoom,
     pinStatus, pinOf, managerHasPin, pinRequired, pinVerifiedAt, markPinVerified, pinned, setPinned, reloadPinStatus,
     orders, setOrders, customers, setCustomers, managers, settings, products, rolls, groups, productById,
     credits, setCredits, freeShipping, returns, setReturns, paymentLogs, shipped, overviewMates,

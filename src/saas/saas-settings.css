@@ -11,6 +11,35 @@
 .saas .plan-card .plan-price { font-size: 22px; font-weight: 900; color: #1a2b44; letter-spacing: -.01em; }
 .saas .plan-card .plan-price small { font-size: 13px; color: #8d9aab; font-weight: 700; margin-left: 3px; }
 .saas .plan-card .plan-desc { font-size: 13px; color: #6b7a8c; line-height: 1.5; }
+.saas .plan-card .plan-more { font-size: 12px; font-weight: 800; color: #2e6ee8; margin-top: 2px; }
+
+/* ── 요금제 자세히 보기 창 ── */
+.saas .plan-detail .pd-price { font-size: 26px; font-weight: 900; color: #1a2b44; letter-spacing: -.01em; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.saas .plan-detail .pd-price small { font-size: 13px; color: #8d9aab; font-weight: 700; }
+.saas .plan-detail .pd-price .badge { align-self: center; font-size: 11px; }
+.saas .plan-detail .pd-fit { margin: 8px 0 12px; font-size: 14px; line-height: 1.55; color: #3b4a5e; }
+.saas .plan-detail .pd-kv { margin: 0; }
+.saas .plan-detail .pd-kv dd small { display: block; color: #94a3b4; font-size: 12px; font-weight: 600; margin-top: 1px; }
+.saas .plan-detail .pd-notes { margin: 10px 0 0; padding: 10px 12px 10px 28px; background: #f7f9fc; border-radius: 12px; font-size: 13px; line-height: 1.55; color: #4a5a6e; }
+.saas .plan-detail .pd-notes li + li { margin-top: 4px; }
+.saas .plan-detail .pd-diff { margin: 12px 0 0; padding: 10px 12px; border: 1px solid #cfe0ff; background: #f5f8ff; border-radius: 12px; font-size: 13px; }
+.saas .plan-detail .pd-diff b { display: block; color: #2e6ee8; margin-bottom: 4px; }
+.saas .plan-detail .pd-diff ul { margin: 0; padding-left: 18px; line-height: 1.55; }
+.saas .plan-detail .pd-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.saas .plan-detail .pd-list li { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.5; color: #3b4a5e; }
+.saas .plan-detail .pd-list svg { width: 16px; height: 16px; flex: none; color: #1f9d55; margin-top: 2px; }
+
+/* ── 택배사 목록 ── */
+.saas .courier-row { display: grid; grid-template-columns: 1.2fr .75fr 1.2fr auto; gap: 8px 10px; align-items: end; padding: 12px 0; border-bottom: 1px solid #f0f3f7; }
+.saas .courier-row:last-child { border-bottom: 0; }
+.saas .courier-row .courier-kd { grid-column: 1 / -1; }
+.saas .courier-row .courier-kd .seg { margin-top: 4px; }
+.saas .courier-acts { padding-bottom: 2px; }
+.saas .courier-acts .btn { width: auto; }
+@container (max-width: 760px) {
+  .saas .courier-row { grid-template-columns: 1fr 1fr; }
+  .saas .courier-row .courier-acts { justify-self: end; }
+}
 
 /* ── 카드·자동 결제 줄 ── */
 .saas .card-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 14px; border: 1px solid #edf1f6; border-radius: 14px; margin-top: 12px; background: #fff; }

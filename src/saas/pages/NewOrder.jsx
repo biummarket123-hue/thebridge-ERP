@@ -10,7 +10,6 @@ import { Icon } from "../icons.jsx";
 import { matchCustomer, addressMatches } from "../lib/customerMatch.js";
 import { analyzeText, analyzeImage, registerOrder } from "../actions/register.js";
 import { defaultShipDate, todayYmd, holidayName } from "../../lib/shipDate.js";
-import { autoCourier, COURIER_SHORT, CJ, KD } from "../../lib/courier.js";
 import { matchProduct } from "../../lib/rollStock.js";
 
 const UNIT_OPTS = ["마", "세트", "필", "롤", "kg"];
@@ -73,7 +72,7 @@ function MatchPopup({ match, parsed, onConfirm, onNew, onCancel }) {
 }
 
 export default function NewOrder({ onClose, onRegistered }) {
-  const { products, customers, orders, activeManager, setOrders, setCustomers, reloadOrders, reloadCredits, isPacker, groups, config, aiAllowed, aiReason } = useSaas();
+  const { products, customers, orders, activeManager, setOrders, setCustomers, reloadOrders, reloadCredits, isPacker, groups, config, aiAllowed, aiReason, reloadUsage } = useSaas();
   const SHIPPING_FEE = config.shippingFee;
   const toast = useToast();
   const { confirm, host } = useAsk();
@@ -107,7 +106,7 @@ export default function NewOrder({ onClose, onRegistered }) {
     setParsing(true); setErr(""); setResolved(null); setMatch(null);
     try {
       const { parsed, mismatches: mm } = await analyzeText(text, products);
-      fillFrom(parsed); setMismatches(mm); setStep("form");
+      fillFrom(parsed); setMismatches(mm); setStep("form"); reloadUsage?.();   // 이번 달 AI 호출 수(요금제 한도 안내) 갱신
       const m = matchCustomer(parsed, customers);
       if (m.type === "confirmed") { setResolved(m.match); toast(`기존 고객 확인: ${m.match.name}`); }
       else setMatch({ ...m, parsed });
@@ -120,7 +119,7 @@ export default function NewOrder({ onClose, onRegistered }) {
     try {
       const b64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1]); r.onerror = rej; r.readAsDataURL(file); });
       const { parsed } = await analyzeImage(b64, file.type || "image/jpeg", products);
-      fillFrom(parsed); setMismatches([]); setStep("form");
+      fillFrom(parsed); setMismatches([]); setStep("form"); reloadUsage?.();
       const m = matchCustomer(parsed, customers);
       if (m.type === "confirmed") { setResolved(m.match); toast(`기존 고객 확인: ${m.match.name}`); } else setMatch({ ...m, parsed });
     } catch (e) { setErr(e.message || "이미지 분석 실패"); }
@@ -149,7 +148,6 @@ export default function NewOrder({ onClose, onRegistered }) {
   const pickProduct = (i, p) => setItem(i, "_pick", null) || setF(prev => ({ ...prev, items: prev.items.map((it, j) => j === i ? { ...it, itemNo: p.code, productId: p.id, fabric: it.fabric || p.name, color: it.color || p.color || "", unitPrice: it.unitPrice || p.unitPrice || "", amount: it.amount || ((parseFloat(it.qty) || 0) * (p.unitPrice || 0) || ""), _pick: null } : it) }));
   const itemsSum = (f?.items || []).reduce((s, i) => s + (parseInt(i.amount) || 0), 0);
   const calcTotal = itemsSum + (parseInt(f?.shippingFee) || 0) + (parseInt(f?.otherCost) || 0);
-  const auto = f ? autoCourier(`${f.note || ""}\n${f.memo || ""}`) : null;
   const nextBiz = defaultShipDate();
 
   const submit = async () => {
@@ -266,7 +264,6 @@ export default function NewOrder({ onClose, onRegistered }) {
               <Chip on={f.isUrgent} danger onClick={() => setF({ ...f, isUrgent: true, shipDate: todayYmd() })}>긴급</Chip>
               <input className="forminput" type="date" style={{ width: 170, height: 44 }} value={f.shipDate} onChange={e => setF({ ...f, isUrgent: false, shipDate: e.target.value })} />
             </div>{holidayName(f.shipDate) ? <p className="helptext err" style={{ margin: "6px 0 0" }}>{f.shipDate} 는 {holidayName(f.shipDate)} 입니다</p> : null}</Field>
-            <Field label="택배사"><div className="chiprow"><Chip on={!f.courier} onClick={() => setF({ ...f, courier: "" })}>자동 ({auto ? COURIER_SHORT[auto.courier] : "CJ"})</Chip><Chip on={f.courier === CJ} onClick={() => setF({ ...f, courier: CJ })}>CJ</Chip><Chip on={f.courier === KD} onClick={() => setF({ ...f, courier: KD })}>경동</Chip></div></Field>
             <Field label="영수증"><div className="chiprow">{RECEIPTS.map(([v, l]) => <Chip key={String(v)} on={f.receiptType === v} onClick={() => setF({ ...f, receiptType: v })}>{l}</Chip>)}</div></Field>
             <Field label="표시"><div className="chiprow"><Chip on={f.combinedPayment} onClick={() => setF({ ...f, combinedPayment: !f.combinedPayment })}>합입금</Chip><Chip on={f.combinedShipping} onClick={() => setF({ ...f, combinedShipping: !f.combinedShipping })}>합배송</Chip></div></Field>
           </div>

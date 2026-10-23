@@ -116,7 +116,7 @@ export function removeImageAt(images, idx) {
   return list.filter((_, i) => i !== idx);
 }
 
-/** 택배사 칩 — 자동(null)/CJ/경동. courier 가 목록에 없으면 null */
+/** 택배사 미리 지정 — null 이면 지정 없음. courier 가 회사 목록에 없으면 null */
 export function normalizeCourier(courier, couriers) {
   return (couriers || []).includes(courier) ? courier : null;
 }

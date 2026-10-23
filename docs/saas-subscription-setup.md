@@ -36,9 +36,9 @@ git 원격·Supabase 프로젝트·Vercel 프로젝트를 전부 따로 쓴다. 
 - **PIN 분실**: PIN 화면의 "PIN 을 잊었어요" → 회사 아이디·비밀번호 → 새 PIN. 관리자는 설정 화면에서 다른 담당자 PIN 을 자기 PIN 으로 바꿔 준다.
 - **구독 연장(결제 연동 전, 수동)**: SQL Editor 에서
   ```sql
-  update company_accounts set plan='basic', status='active', current_period_end = now() + interval '30 days' where login_id='<아이디>';
+  update company_accounts set plan='standard', status='active', current_period_end = now() + interval '30 days' where login_id='<아이디>';
   insert into subscription_events (owner_id, kind, amount, plan, period_end, memo)
-    select owner_id, 'payment', 99000, 'basic', current_period_end, '10월 입금' from company_accounts where login_id='<아이디>';
+    select owner_id, 'payment', 39000, 'standard', current_period_end, '10월 입금' from company_accounts where login_id='<아이디>';
   ```
   또는 터미널에서 `node ops-subscription.mjs list | extend <아이디> <일수> [요금제] | plan | cancel | resume` (service role, 이력 자동 기록).
   브라우저(auth.uid 있음)는 요금제·기간을 못 바꾼다 — 트리거가 막는다.
@@ -64,7 +64,7 @@ git 원격·Supabase 프로젝트·Vercel 프로젝트를 전부 따로 쓴다. 
 |---|---|---|
 | `TOSS_SECRET_KEY` | 서버 | 토스 API 비밀키(`test_sk_…` / `live_sk_…`). 빌링키 발급·결제 호출의 `Authorization: Basic base64(키 + ":")` |
 | `VITE_TOSS_CLIENT_KEY` | 브라우저 | 토스 클라이언트키 — 카드 등록 창(`requestBillingAuth`)을 띄울 때 |
-| `SAAS_PRICE_BASIC` / `SAAS_PRICE_PRO` | 서버 | 월 요금(원). 비우면 99,000 / 199,000 |
+| `SAAS_PRICE_STARTER` / `SAAS_PRICE_STANDARD` / `SAAS_PRICE_PRO` / `SAAS_PRICE_PROMAX` | 서버 | 월 요금(원). 비우면 9,900 / 39,000 / 89,000 / 149,000 (api/_plans.js) |
 | `CRON_SECRET` | 서버 | 있으면 크론 요청의 `Authorization: Bearer` 가 맞아야 한다(Vercel 이 자동으로 붙인다). `demo-cleanup` 과 같은 값 |
 | `VITE_SUPPORT_EMAIL` | 브라우저 | 회사 설정 › 데이터 이관의 "이관 요청" 메일 받을 주소(선택) |
 
@@ -76,7 +76,7 @@ git 원격·Supabase 프로젝트·Vercel 프로젝트를 전부 따로 쓴다. 
 1. **카드 등록** — 설정 › 구독 › "카드 등록" → 브라우저가 토스 SDK(`https://js.tosspayments.com/v1/payment`)를 끼우고 `TossPayments(clientKey).requestBillingAuth("카드", { customerKey, successUrl: /app/settings?billing=ok, failUrl: /app/settings?billing=fail })`.
    customerKey 는 서버가 `status` 때 만들어 `saas_billing` 에 넣는다(`co_<owner_id 앞 12자>_<랜덤>`).
    돌아오면 쿼리의 `authKey·customerKey` 로 `issue` → 서버가 `POST /v1/billing/authorizations/issue` → `billing_key`·`card_label`("신한 ****1234") 저장, 이력 note "카드 등록". 쿼리는 `history.replaceState` 로 지운다.
-2. **지금 결제** — 요금제 카드(베이직/프로)를 고르고 "지금 결제하고 시작(연장)" → confirm → `charge { plan }` → 서버가 `POST /v1/billing/{billingKey}` (`orderId sub_<owner 앞8>_<yyyymmddHHMM KST>`, `orderName "루프 ERP 베이직 1개월"`).
+2. **지금 결제** — 요금제 카드(스타터·스탠다드·프로, 프로 구독 중인 회사에만 프로 MAX 카드가 더 보인다 — 서버 `canPickPlan` 도 같은 규칙으로 거부)를 고르고 "지금 결제하고 시작(연장)" → confirm → `charge { plan }` → 서버가 `POST /v1/billing/{billingKey}` (`orderId sub_<owner 앞8>_<yyyymmddHHMM KST>`, `orderName "THE BRIDGE ERP 스탠다드 1개월"`).
    성공: `company_accounts.plan·status=active·max_managers`, `current_period_end = (남은 기간이 있으면 그 끝 — 체험이면 trial_end, 아니면 지금) + 30일`, `saas_billing.plan = plan`(자동 갱신 대상)·`last_paid_at`, 이력 kind `billing`(amount·plan·period_start/end).
    실패: `saas_billing.last_error` 에 남기고 400 — 화면에 "마지막 결제 오류" 로 보인다.
 3. **자동 결제(크론)** — 매일 KST 01:00. `saas_billing.plan` 이 있고 빌링키가 있는 회사 중 `current_period_end` 가 **하루 안이거나, 지났지만 유예 3일 안**인 회사를 돌며 2 와 같은 처리. 실패하면 `last_error` 만 남기고 다음 회사로(다음 날 다시 시도 — 유예 3일 동안). 체험 회사(current_period_end 없음)는 대상이 아니다 — 첫 결제는 화면에서.
@@ -96,3 +96,11 @@ git 원격·Supabase 프로젝트·Vercel 프로젝트를 전부 따로 쓴다. 
 ## 5. 테스트
 
 `npm test` — `tests/saas/test-subscription.mjs`(규칙 22건), `tests/saas/test-billing-logic.mjs`(결제 계산 31건 · `npm test -- billing`), `tests/saas/test-company-sql.mjs`(PGlite 에 구독 마이그레이션·RPC·RLS 40건), `tests/saas/test-fresh-db.mjs`(빈 DB 에 46개 파일 순서 실행·재실행·db.js 칸 커버리지 9건). 운영 DB 를 쓰지 않는다.
+
+
+## 2026-10-23 추가 — 문의 창구 · 휴대폰 인증 · 안내 문자 · 외상 · 송장번호
+
+- 환경변수: `VITE_SUPPORT_PHONE` / `VITE_SUPPORT_KAKAO` / `VITE_SUPPORT_EMAIL` / `VITE_SUPPORT_HOURS` — 랜딩·로그인·가입·설정·도움말 창의 문의 조각. 하나도 없으면 조각이 비워진다(연락처 없는 상태로 운영하지 말 것).
+- 가입은 휴대폰 문자 인증이 필수(`/api/sms-verify`, `phone_verifications`). `COOLSMS_*` 가 없으면 인증번호가 화면에 그대로 보이는 개발 모드. 비밀번호 재설정·아이디 찾기·비밀번호 변경은 `/api/saas-account` 의 `reset-password-send` / `reset-password` / `find-id-send` / `find-id` / `change-password`.
+- `/api/billing-cron`(매일): 자동결제 실패 → 회사 휴대폰 문자(하루 1회), 체험 종료 3일 전·당일 문자 1회씩. 보낸 기록은 `subscription_events` kind=note, memo "[문자] …".
+- DB: `migrations/saas_credit_tracking.sql` (customers.allow_credit 외상 거래처, orders.tracking_no 송장번호) — 운영 Supabase 에 수동 적용.

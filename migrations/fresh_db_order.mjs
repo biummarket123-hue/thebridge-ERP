@@ -52,4 +52,6 @@ export const FRESH_DB_ORDER = [
   "migrations/saas_order_lock.sql",
   "migrations/saas_demo.sql",
   "migrations/saas_features.sql",
+  "migrations/saas_plans_v2.sql",
+  "migrations/saas_credit_tracking.sql",
 ];

@@ -11,9 +11,10 @@ import { useSaas } from "../data/SaasData.jsx";
 import { Modal } from "../components/Modal.jsx";
 import { Button, nim } from "../components/ui.jsx";
 import { BrandMark, Icon } from "../icons.jsx";
+import { CompanyBrand } from "../components/CompanyBrand.jsx";
 import { BRAND } from "../config.js";
 import { isValidPin } from "../lib/subscription.js";
-import { postAccount } from "./SaasAuth.jsx";
+import { postAccount } from "../lib/accountApi.js";
 
 const fmtUntil = (iso) => { const d = new Date(iso); return `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`; };
 
@@ -187,7 +188,7 @@ export function PinGate() {
     return (
       <div className="gate">
         <div className="sheet" role="dialog" aria-modal="true" aria-label="PIN 만들기">
-          <div className="brand" style={{ margin: "0 0 18px" }}><div className="logo"><BrandMark /></div><div><div className="brand-name">{BRAND.name}<span>{BRAND.suffix}</span></div><div className="brand-caption">{config.companyName}</div></div></div>
+          <CompanyBrand style={{ margin: "0 0 18px" }} />
           <div className="sheethead"><h2>{nim(manager.name)}, PIN 을 만들어 주세요</h2></div>
           <p className="helptext">담당자 이름만으로는 누구나 그 이름으로 작업할 수 있습니다. 4자리 PIN 을 만들면 다음부터는 PIN 만 누르고 들어오고, 내 주문을 내가 고칠 수 있습니다.</p>
           <Button icon="pin" onClick={() => setSetup(true)}>PIN 만들기</Button>
@@ -207,7 +208,7 @@ export function PinGate() {
   return (
     <div className="gate">
       <div className="sheet" role="dialog" aria-modal="true" aria-label="PIN 확인">
-        <div className="brand" style={{ margin: "0 0 18px" }}><div className="logo"><BrandMark /></div><div><div className="brand-name">{BRAND.name}<span>{BRAND.suffix}</span></div><div className="brand-caption">{config.companyName}</div></div></div>
+        <CompanyBrand style={{ margin: "0 0 18px" }} />
         <div className="sheethead"><h2>PIN 을 눌러 주세요</h2></div>
         <PinVerifyModal inline manager={manager} title={locked ? `${fmtUntil(locked)} 까지 잠겨 있습니다` : "PIN 4자리"} onOk={(r) => markPinVerified(r?.token)} onForgot={() => setForgot(true)} />
         <label className="row-check" style={{ marginTop: 14, borderBottom: 0 }}>

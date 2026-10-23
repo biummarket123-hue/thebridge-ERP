@@ -11,9 +11,13 @@ import { Modal, ConfirmModal } from "../components/Modal.jsx";
 import { useAsk } from "../components/useAsk.jsx";
 import { PageHead, Panel, Button, StatusBadge, Chip, Segment, Empty, nim } from "../components/ui.jsx";
 import { Icon } from "../icons.jsx";
-import { CJ, KD, COURIER_SHORT } from "../../lib/courier.js";
-import { PLANS, managerSeatsLeft, subscriptionNotice } from "../lib/subscription.js";
-import { KD_PAY_TYPES, DEFAULT_CONFIG } from "../config.js";
+import { CompanyLogo } from "../components/CompanyBrand.jsx";
+import { SupportLinks } from "../components/SupportLinks.jsx";
+import { postAccount, formatPhone, isMobilePhone } from "../lib/accountApi.js";
+import { COURIERS } from "../../lib/courier.js";
+import { SMS_MAX_BYTES, SAMPLE_CUSTOMER, SAMPLE_TRACKING, smsBytes, fillTemplate, templateMaxBytes } from "../lib/smsText.js";
+import { PLANS, PAID_PLAN_KEYS, PLAN_COMMON, pickablePlanKeys, planDiff, normalizePlan, managerSeatsLeft, subscriptionNotice, validatePassword } from "../lib/subscription.js";
+import { BRAND, KD_PAY_TYPES, DEFAULT_CONFIG, COURIER_FORMAT_LABELS, validateCouriers } from "../config.js";
 import { PinSetupModal, PinVerifyModal } from "../auth/PinGate.jsx";
 
 const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" }) : "—";
@@ -22,7 +26,7 @@ const DAY = 86400000;
 const PERIOD_DAYS = 30;   // api/_billing_logic.js PERIOD_DAYS 와 같은 값 — 화면 미리보기용
 const TOSS_CLIENT_KEY = import.meta.env.VITE_TOSS_CLIENT_KEY || "";
 const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || "";
-const NOT_READY_TEXT = "결제 연동은 준비 중입니다. 구독 시작·연장은 운영자에게 연락해 주세요. 입금이 확인되면 기간이 늘어나고, 끝나도 데이터는 지워지지 않습니다(읽기 전용).";
+const NOT_READY_TEXT = "카드 결제 연동은 준비 중입니다. 구독 시작·연장은 아래 문의로 연락 주시면 계좌이체로 처리해 드립니다(세금계산서 발행). 입금이 확인되면 기간이 늘어나고, 끝나도 데이터는 지워지지 않습니다(읽기 전용).";
 export const ZOOM_LABELS = ["작게", "보통", "크게", "더 크게", "최대"];
 
 export function Field({ label, children, htmlFor, hint }) {
@@ -68,7 +72,7 @@ export function previewPeriod(account, now = new Date()) {
 }
 
 // ── 운영 값: 설정 화면과 온보딩이 같은 입력·검증을 쓴다 ─────────────────────
-export const opsFromConfig = (config) => ({ cut: String(config.shippingFee.cut), roll: String(config.shippingFee.roll), low: String(config.lowStockM), prefix: config.productPrefix, cjCut: config.pickupCutoff[CJ], kdCut: config.pickupCutoff[KD] });
+export const opsFromConfig = (config) => ({ cut: String(config.shippingFee.cut), roll: String(config.shippingFee.roll), low: String(config.lowStockM), prefix: config.productPrefix, cutoff: config.pickupCutoff });
 const numOf = (v) => { const n = Number(String(v).replace(/[^\d.]/g, "")); return Number.isFinite(n) && n >= 0 ? n : null; };
 /** 검증. 틀리면 { error }, 맞으면 { patch }(saveSaasSettings 에 넣을 값) */
 export function validateOps(f) {
@@ -76,8 +80,8 @@ export function validateOps(f) {
   if (c === null || r === null || l === null) return { error: "숫자만 넣어 주세요" };
   const px = String(f.prefix || "").trim().toUpperCase();
   if (!/^[A-Z][A-Z0-9]{0,5}$/.test(px)) return { error: "품번 접두어는 영문 대문자로 시작하는 영문·숫자 1~6자" };
-  if (!/^\d{1,2}:\d{2}$/.test(f.cjCut) || !/^\d{1,2}:\d{2}$/.test(f.kdCut)) return { error: "수거 마감은 15:30 처럼 시:분으로" };
-  return { patch: { shippingFee: { cut: c, roll: r }, lowStockM: l, productPrefix: px, pickupCutoff: { [CJ]: f.cjCut, [KD]: f.kdCut } } };
+  if (!/^\d{1,2}:\d{2}$/.test(String(f.cutoff || "").trim())) return { error: "택배 수거 마감은 15:30 처럼 시:분으로" };
+  return { patch: { shippingFee: { cut: c, roll: r }, lowStockM: l, productPrefix: px, pickupCutoff: String(f.cutoff).trim() } };
 }
 export function OpsFields({ f, setF, disabled, idPrefix = "st" }) {
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
@@ -92,8 +96,7 @@ export function OpsFields({ f, setF, disabled, idPrefix = "st" }) {
         <Field label="품번 접두어" htmlFor={`${idPrefix}-prefix`} hint="영문 1~6자 · 예: TE-2610-0001"><input id={`${idPrefix}-prefix`} className="forminput" value={f.prefix} maxLength={6} onChange={e => setF({ ...f, prefix: e.target.value.toUpperCase() })} disabled={disabled} /></Field>
       </div>
       <div className="formrow">
-        <Field label={`${COURIER_SHORT[CJ]} 수거 마감`} htmlFor={`${idPrefix}-cj`} hint="이 시각 전 포장완료면 당일 출고"><input id={`${idPrefix}-cj`} className="forminput" value={f.cjCut} onChange={set("cjCut")} placeholder="15:30" disabled={disabled} /></Field>
-        <Field label={`${COURIER_SHORT[KD]} 수거 마감`} htmlFor={`${idPrefix}-kd`}><input id={`${idPrefix}-kd`} className="forminput" value={f.kdCut} onChange={set("kdCut")} placeholder="17:30" disabled={disabled} /></Field>
+        <Field label="택배 수거 마감" htmlFor={`${idPrefix}-cutoff`} hint="기사가 오는 시각 · 이 뒤에 포장한 건은 다음 영업일 출고"><input id={`${idPrefix}-cutoff`} className="forminput" value={f.cutoff} onChange={set("cutoff")} placeholder="15:30" disabled={disabled} /></Field>
       </div>
     </>
   );
@@ -120,56 +123,173 @@ export function SenderFields({ f, setF, disabled, idPrefix = "sd" }) {
 export const senderPatch = (f) => ({ sender: { name: f.name.trim(), phone: f.phone.trim(), address: f.address.trim(), zip: f.zip.trim() } });
 
 // ── 회사 정보 ─────────────────────────────────────────────────
+// 로고 그림 → 192px 정사각형 안에 맞춰 작은 데이터 URL 로. settings.data.saas.logo 에 그대로 들어가므로 크기를 꼭 줄인다.
+const LOGO_PX = 192, LOGO_MAX_CHARS = 120000;
+async function fileToLogo(file) {
+  if (!file || !/^image\//.test(file.type)) throw new Error("그림 파일(PNG·JPG·SVG 등)만 올릴 수 있습니다");
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error("그림을 읽지 못했습니다")); i.src = url; });
+    const draw = (white) => {
+      const c = document.createElement("canvas"); c.width = LOGO_PX; c.height = LOGO_PX;
+      const ctx = c.getContext("2d");
+      if (white) { ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, LOGO_PX, LOGO_PX); }
+      const r = Math.min(LOGO_PX / img.width, LOGO_PX / img.height, 1) || 1;
+      const w = img.width * r, h = img.height * r;
+      ctx.drawImage(img, (LOGO_PX - w) / 2, (LOGO_PX - h) / 2, w, h);
+      return c;
+    };
+    const png = draw(false).toDataURL("image/png");
+    if (png.length <= LOGO_MAX_CHARS) return png;
+    const jpg = draw(true).toDataURL("image/jpeg", 0.85);   // 사진처럼 큰 그림은 흰 바탕 JPG 로
+    if (jpg.length <= LOGO_MAX_CHARS) return jpg;
+    throw new Error("그림이 너무 큽니다. 단순한 로고 그림으로 다시 올려 주세요");
+  } finally { URL.revokeObjectURL(url); }
+}
+
 function CompanyPanel() {
   const { account, config, isAdmin, readOnly, reloadAccount, reloadSettings } = useSaas();
   const toast = useToast();
   const [name, setName] = useState(config.companyName);
   const [contact, setContact] = useState(account?.contact || "");
-  useEffect(() => { setName(config.companyName); setContact(account?.contact || ""); }, [config.companyName, account?.contact]);
+  const [logo, setLogo] = useState(config.logo || "");
+  const fileRef = useRef(null);
+  useEffect(() => { setName(config.companyName); setContact(account?.contact || ""); setLogo(config.logo || ""); }, [config.companyName, account?.contact, config.logo]);
+  const canEdit = isAdmin && !readOnly;
+  const pickLogo = async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    try { setLogo(await fileToLogo(f)); } catch (e2) { toast(e2.message || "그림을 읽지 못했습니다", "error"); }
+  };
   const save = async () => {
     if (!name.trim()) return toast("회사명을 입력해 주세요", "error");
+    if (account && contact.trim() && !isMobilePhone(contact)) return toast("대표 휴대폰은 010-0000-0000 꼴로 넣어 주세요", "error");
     try {
-      if (account) await db.updateCompanyAccount({ name, contact });
-      await db.saveSaasSettings({ companyName: name.trim() });
+      if (account) await db.updateCompanyAccount({ name, contact: contact.trim() ? formatPhone(contact) : "" });
+      await db.saveSaasSettings({ companyName: name.trim(), logo });
       await Promise.all([reloadAccount(), reloadSettings()]);
       toast("회사 정보를 저장했습니다", "ok");
     } catch (e) { toast(e.message || "저장하지 못했습니다", "error"); }
   };
   return (
     <Panel title="회사 정보" small>
-      <Field label="회사명" htmlFor="st-name"><input id="st-name" className="forminput" value={name} onChange={e => setName(e.target.value)} disabled={!isAdmin || readOnly} /></Field>
-      {account && <Field label="담당 연락처" htmlFor="st-contact" hint="선택"><input id="st-contact" className="forminput" value={contact} onChange={e => setContact(e.target.value)} inputMode="tel" disabled={!isAdmin || readOnly} /></Field>}
+      <Field label="회사명" htmlFor="st-name" hint="화면 왼쪽 위와 송장·명세서에 들어갑니다"><input id="st-name" className="forminput" value={name} onChange={e => setName(e.target.value)} disabled={!canEdit} /></Field>
+      <Field label="로고" hint="선택 · 정사각형 그림이 보기 좋습니다">
+        <div className="logo-pick">
+          <CompanyLogo logo={logo} />
+          <div className="btnrow">
+            <Button kind="white" size="sm" icon="camera" onClick={() => fileRef.current?.click()} disabled={!canEdit}>그림 올리기</Button>
+            {logo && <Button kind="white" size="sm" icon="refresh" onClick={() => setLogo("")} disabled={!canEdit}>기본 마크로</Button>}
+          </div>
+          <input ref={fileRef} type="file" accept="image/*" onChange={pickLogo} aria-label="로고 그림 고르기" />
+        </div>
+        <p className="helptext" style={{ margin: "8px 0 0" }}>로고가 없으면 서비스 마크를 씁니다. 저장을 눌러야 적용됩니다.</p>
+      </Field>
+      {account && <Field label="대표 휴대폰" htmlFor="st-contact" hint="비밀번호 재설정 · 결제·체험 안내 문자를 받는 번호"><input id="st-contact" className="forminput" value={contact} onChange={e => setContact(e.target.value)} inputMode="tel" placeholder="010-0000-0000" disabled={!isAdmin || readOnly} /></Field>}
       <dl className="kv">
         <dt>로그인 아이디</dt><dd>{account?.login_id || <span style={{ color: "#94a3b4" }}>사내 계정(아이디 없음)</span>}</dd>
         {account && <><dt>가입일</dt><dd>{fmtDate(account.created_at)}</dd></>}
       </dl>
       {isAdmin ? <div style={{ marginTop: 18 }}><Button icon="check" onClick={save} disabled={readOnly}>저장</Button></div>
         : <p className="helptext" style={{ marginBottom: 0 }}>회사 정보는 관리자 담당자만 바꿀 수 있습니다.</p>}
+      {account && !account.is_demo && isAdmin && <PasswordChange loginId={account.login_id} />}
     </Panel>
+  );
+}
+
+/** 비밀번호 변경 — 지금 비밀번호로 본인 확인 뒤 새 비밀번호(api/saas-account change-password). 관리자 담당자만. */
+function PasswordChange({ loginId }) {
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [cur, setCur] = useState(""); const [pw, setPw] = useState(""); const [pw2, setPw2] = useState("");
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    const why = validatePassword(pw); if (why) return toast(why, "error");
+    if (pw !== pw2) return toast("새 비밀번호 확인이 다릅니다", "error");
+    if (!cur) return toast("지금 비밀번호를 입력해 주세요", "error");
+    setBusy(true);
+    try { await postAccount("change-password", { loginId, currentPassword: cur, newPassword: pw }); toast("비밀번호를 바꿨습니다", "ok"); setOpen(false); setCur(""); setPw(""); setPw2(""); }
+    catch (e) { toast(e.message || "비밀번호를 바꾸지 못했습니다", "error"); }
+    finally { setBusy(false); }
+  };
+  if (!open) return <div style={{ marginTop: 12 }}><Button kind="white" size="sm" icon="edit" onClick={() => setOpen(true)}>비밀번호 변경</Button></div>;
+  return (
+    <div className="pw-change" style={{ marginTop: 14 }}>
+      <div className="section-label">비밀번호 변경</div>
+      <Field label="지금 비밀번호" htmlFor="pw-cur"><input id="pw-cur" className="forminput" type="password" autoComplete="current-password" value={cur} onChange={e => setCur(e.target.value)} /></Field>
+      <div className="formrow">
+        <Field label="새 비밀번호" htmlFor="pw-new" hint="8자 이상, 영문+숫자"><input id="pw-new" className="forminput" type="password" autoComplete="new-password" value={pw} onChange={e => setPw(e.target.value)} /></Field>
+        <Field label="새 비밀번호 확인" htmlFor="pw-new2"><input id="pw-new2" className="forminput" type="password" autoComplete="new-password" value={pw2} onChange={e => setPw2(e.target.value)} /></Field>
+      </div>
+      <p className="helptext" style={{ margin: "6px 0 0" }}>바꾸면 다른 기기에서도 새 비밀번호로 로그인해야 합니다. 잊었을 때는 로그인 화면의 "비밀번호를 잊었어요"에서 대표 휴대폰으로 다시 정합니다.</p>
+      <div className="btnrow" style={{ marginTop: 14 }}><Button kind="white" onClick={() => setOpen(false)} disabled={busy}>취소</Button><Button icon="check" onClick={submit} loading={busy}>바꾸기</Button></div>
+    </div>
   );
 }
 
 // ── 구독 · 결제 ─────────────────────────────────────────────────
 const EVENT_LABEL = { trial_start: "체험 시작", payment: "결제", extend: "기간 연장", cancel: "해지", plan_change: "요금제 변경", note: "메모", billing: "카드 결제" };
 
-function PlanCard({ plan, price, current, on, onClick, disabled }) {
+// 요금제 카드 — 누르면 자세히 보기 창이 뜬다(선택은 창 안에서). on = 결제에 고른 요금제.
+function PlanCard({ plan, price, current, on, onClick }) {
   const p = PLANS[plan];
   return (
-    <button type="button" className={`plan-card${on ? " on" : ""}`} onClick={onClick} disabled={disabled} aria-pressed={on}>
-      <span className="plan-name">{p.label}{current && <StatusBadge tone="green">현재</StatusBadge>}</span>
+    <button type="button" className={`plan-card${on ? " on" : ""}`} onClick={onClick} aria-pressed={on} aria-haspopup="dialog">
+      <span className="plan-name">{p.label}{current && <StatusBadge tone="green">현재</StatusBadge>}{on && !current && <StatusBadge tone="progress">결제할 요금제</StatusBadge>}</span>
       <span className="plan-price">{fmtWon(price)}<small>/ 월</small></span>
       <span className="plan-desc">{p.desc}</span>
+      <span className="plan-more">자세히 보기 ›</span>
     </button>
   );
 }
 
+/** 요금제 자세히 보기 — 가격·누구에게 맞는지·담당자/AI/문자 한도·현재 요금제와의 차이·공통 기능. canSelect 면 "이 요금제 선택" 단추. */
+function PlanDetailModal({ plan, price, account, canSelect, onSelect, onClose }) {
+  const p = PLANS[plan];
+  const curKey = normalizePlan(account?.plan);
+  const cur = PAID_PLAN_KEYS.includes(curKey) ? PLANS[curKey] : null;
+  const isCurrent = curKey === plan;
+  const diff = cur && !isCurrent ? planDiff(cur, p) : [];
+  return (
+    <Modal title={`${p.label} 요금제`} onClose={onClose}>
+      <div className="plan-detail">
+        <div className="pd-price">{fmtWon(price)}<small>/ 월 · 부가세 별도</small>{isCurrent && <StatusBadge tone="green">현재 요금제</StatusBadge>}</div>
+        <p className="pd-fit">{p.fit}</p>
+        <dl className="kv pd-kv">
+          <dt>담당자</dt><dd>{p.maxManagers >= 99 ? "무제한" : `${p.maxManagers}명`} <small>공용 담당자 제외</small></dd>
+          <dt>AI 분석</dt><dd>{p.ai > 0 ? `월 ${p.ai.toLocaleString()}회` : "없음"} <small>주문 글·사진을 읽어 자동 입력</small></dd>
+          <dt>출고 안내 문자</dt><dd>{p.sms > 0 ? `월 ${p.sms.toLocaleString()}건` : "없음"} <small>출고 처리하면 고객에게 발송</small></dd>
+        </dl>
+        {p.notes?.length > 0 && <ul className="pd-notes">{p.notes.map(n => <li key={n}>{n}</li>)}</ul>}
+        {diff.length > 0 && (
+          <div className="pd-diff">
+            <b>{cur.label} → {p.label} 로 바꾸면</b>
+            <ul>{diff.map(d => <li key={d}>{d}</li>)}</ul>
+          </div>
+        )}
+        <div className="section-label">모든 요금제 공통</div>
+        <ul className="pd-list">{PLAN_COMMON.map(f => <li key={f}><Icon name="check" />{f}</li>)}</ul>
+        <p className="helptext" style={{ margin: "10px 0 0" }}>AI 분석·문자 한도는 매달 1일에 새로 열립니다. 다 쓰면 그 달은 막히고, 상위 요금제로 바꾸면 바로 늘어납니다. 요금제는 결제할 때 고른 것으로 바뀝니다.</p>
+      </div>
+      <div className="btnrow">
+        <button className="btn btn-white" onClick={onClose}>닫기</button>
+        {canSelect && <button className="btn btn-primary" data-autofocus onClick={() => { onSelect(plan); onClose(); }}>{isCurrent ? "이 요금제로 연장" : "이 요금제 선택"}</button>}
+      </div>
+    </Modal>
+  );
+}
+
 function SubscriptionPanel() {
-  const { account, subscription, managers, isAdmin, isDemo, reloadAccount } = useSaas();
+  const { account, subscription, managers, isAdmin, isDemo, reloadAccount, usage, reloadUsage } = useSaas();
   const toast = useToast();
   const { confirm, host } = useAsk();
   const [events, setEvents] = useState([]);
   const [billing, setBilling] = useState(null);   // null = 확인 중 · { enabled:false } = 연동 없음
-  const [plan, setPlan] = useState(() => account?.plan === "pro" ? "pro" : "basic");
+  // 결제할 요금제 — 미리 고르지 않는다(사용자 결정 2026-10-23: 미리 골라 두면 구독 중인 것처럼 보여 헷갈린다). 자세히 보기 창에서 "이 요금제 선택"을 눌러야 채워진다.
+  const [plan, setPlan] = useState("");
+  const [detail, setDetail] = useState("");   // 자세히 보기 창에 띄운 요금제 키("" = 닫힘)
+  useEffect(() => { reloadUsage(); }, [reloadUsage]);
   const [removing, setRemoving] = useState(false);
   const handledReturn = useRef(false);
   const loginId = account?.login_id;
@@ -182,7 +302,6 @@ function SubscriptionPanel() {
   }, [loginId, isDemo]);
   useEffect(() => { reloadEvents(); }, [reloadEvents]);
   useEffect(() => { loadBilling(); }, [loadBilling]);
-  useEffect(() => { if (account?.plan === "pro") setPlan("pro"); }, [account?.plan]);
 
   // 토스 카드 등록 창에서 돌아온 경우(?billing=ok&authKey=…&customerKey=… / ?billing=fail&message=…)
   useEffect(() => {
@@ -234,6 +353,7 @@ function SubscriptionPanel() {
   };
   const charge = async () => {
     if (!billing?.hasCard) return toast("카드를 먼저 등록해 주세요", "error");
+    if (!PLANS[plan]) return toast("요금제 카드를 눌러 결제할 요금제를 먼저 골라 주세요", "error");
     const price = billing.prices?.[plan] ?? PLANS[plan].price;
     const pv = previewPeriod(account);
     const ok = await confirm(
@@ -252,7 +372,9 @@ function SubscriptionPanel() {
   const label = subscription.phase === "none" ? "사내 계정" : subscription.phase === "trial" ? "무료 체험 중" : subscription.phase === "paid" ? "구독 중" : subscription.phase === "grace" ? "결제 대기(유예)" : subscription.phase === "canceled" ? "해지됨" : "만료";
   const seats = managerSeatsLeft(account, managers);
   const notice = subscriptionNotice(subscription);
-  const prices = billing?.prices || { basic: PLANS.basic.price, pro: PLANS.pro.price };
+  const prices = { ...Object.fromEntries(PAID_PLAN_KEYS.map(k => [k, PLANS[k].price])), ...(billing?.prices || {}) };
+  const cur = PLANS[normalizePlan(account?.plan)];
+  const fmtCap = (n) => Number.isFinite(n) ? n.toLocaleString() : "무제한";
   const pv = account ? previewPeriod(account) : null;
   const isPaidPhase = subscription.phase === "paid" || subscription.phase === "grace";
   const periodHint = !account ? "" : subscription.phase === "trial"
@@ -268,28 +390,32 @@ function SubscriptionPanel() {
       ) : (
         <>
           <dl className="kv">
-            <dt>요금제</dt><dd>{PLANS[account.plan]?.label || account.plan}</dd>
+            <dt>요금제</dt><dd>{cur?.label || account.plan}</dd>
             {account.plan === "trial"
               ? <><dt>체험 종료</dt><dd>{fmtDate(account.trial_end)}{subscription.daysLeft != null ? <small style={{ color: "#8d9aab", fontWeight: 700 }}> · {subscription.daysLeft}일 남음</small> : null}</dd></>
               : <><dt>이용 기간</dt><dd>{account.current_period_end ? `${fmtDate(account.current_period_end)} 까지` : "기간 제한 없음"}</dd></>}
             <dt>담당자 자리</dt><dd>{managers.filter(m => !m.isPublic).length} / {account.max_managers}명 <small style={{ color: "#8d9aab", fontWeight: 700 }}>(공용 담당자 제외 · {seats}자리 남음)</small></dd>
+            {account.plan !== "trial" && cur && <>
+              <dt>이번 달 AI 분석</dt><dd>{usage.ai.toLocaleString()} / {fmtCap(cur.ai)}회{cur.ai > 0 && usage.ai >= cur.ai ? <small style={{ color: "#c85a52", fontWeight: 700 }}> · 다 썼습니다</small> : null}</dd>
+              <dt>이번 달 문자</dt><dd>{cur.sms === 0 ? <span style={{ color: "#94a3b4" }}>이 요금제에는 없음</span> : <>{usage.sms.toLocaleString()} / {fmtCap(cur.sms)}건{usage.sms >= cur.sms ? <small style={{ color: "#c85a52", fontWeight: 700 }}> · 다 썼습니다</small> : null}</>}</dd>
+            </>}
           </dl>
           {notice && <p className={`helptext ${subscription.readOnly ? "err" : "warn"}`} style={{ marginBottom: 0 }}>{notice}</p>}
 
           <div className="section-label">요금제</div>
           <div className="plan-cards">
-            {["basic", "pro"].map(k => (
-              <PlanCard key={k} plan={k} price={prices[k]} current={account.plan === k} on={plan === k} onClick={() => setPlan(k)} disabled={!billing?.enabled || !isAdmin} />
+            {pickablePlanKeys(account).map(k => (
+              <PlanCard key={k} plan={k} price={prices[k]} current={normalizePlan(account.plan) === k} on={plan === k} onClick={() => setDetail(k)} />
             ))}
           </div>
-          <p className="helptext" style={{ margin: "6px 0 0" }}>모든 요금제: 주문·재고·거래처·정산·포장대·변경 기록. 유료 요금제만 AI 분석(글·사진 읽기)과 출고 안내 문자를 쓸 수 있습니다. 부가세 별도.</p>
+          <p className="helptext" style={{ margin: "6px 0 0" }}>카드를 누르면 자세한 내용이 뜹니다. 모든 요금제: 주문·재고·거래처·정산·포장대·변경 기록. AI 분석(글·사진 읽기)과 출고 안내 문자는 요금제별 월 한도 안에서 쓰고, 다 쓰면 다음 달 1일에 다시 열립니다. 부가세 별도.{normalizePlan(account.plan) === "pro" ? " 문자·AI 가 더 필요하면 프로 MAX(프로 구독 회사 전용)로 올릴 수 있습니다." : ""}</p>
 
           {billing === null ? (
             <p className="helptext" style={{ margin: "14px 0 0" }}>결제 정보를 확인하는 중…</p>
           ) : !billing.enabled ? (
-            <div className="notice-box" style={{ marginTop: 14 }}>{isDemo ? "체험 환경에서는 결제할 수 없습니다. 회사 가입 뒤 구독할 수 있습니다." : NOT_READY_TEXT}</div>
+            <div className="notice-box" style={{ marginTop: 14 }}>{isDemo ? "체험 환경에서는 결제할 수 없습니다. 회사 가입 뒤 구독할 수 있습니다." : <>{NOT_READY_TEXT}<SupportLinks compact title="" /></>}</div>
           ) : !isAdmin ? (
-            <div className="notice-box" style={{ marginTop: 14 }}>결제·카드 관리는 관리자 담당자만 할 수 있습니다.</div>
+            <div className="notice-box" style={{ marginTop: 14 }}>결제·카드 관리는 관리자 담당자({managers.filter(m => m.isAdmin).map(m => m.name).join(", ") || "없음"})만 할 수 있습니다.</div>
           ) : (
             <>
               <div className="section-label">결제 수단</div>
@@ -307,9 +433,10 @@ function SubscriptionPanel() {
 
               <div className="section-label">결제</div>
               <p className="helptext" style={{ margin: "0 0 10px" }}>{periodHint}</p>
-              <Button icon="check" onClick={charge} disabled={!billing.hasCard} data-ro-ok="1">
-                {isPaidPhase ? "지금 결제하고 연장" : "지금 결제하고 시작"} · {PLANS[plan].label} {fmtWon(prices[plan])}
+              <Button icon="check" onClick={charge} disabled={!billing.hasCard || !PLANS[plan]} data-ro-ok="1">
+                {!PLANS[plan] ? "요금제를 먼저 골라 주세요" : <>{isPaidPhase ? "지금 결제하고 연장" : "지금 결제하고 시작"} · {PLANS[plan].label} {fmtWon(prices[plan])}</>}
               </Button>
+              {!PLANS[plan] && <p className="helptext" style={{ margin: "8px 0 0" }}>위 요금제 카드를 눌러 내용을 보고 "이 요금제 선택"을 누르면 여기서 결제할 수 있습니다.</p>}
 
               <div className="card-row">
                 <span className="card-ic"><Icon name="refresh" /></span>
@@ -339,7 +466,56 @@ function SubscriptionPanel() {
         </>
       )}
       {host}
+      {detail && <PlanDetailModal plan={detail} price={prices[detail]} account={account} canSelect={!!billing?.enabled && isAdmin} onSelect={setPlan} onClose={() => setDetail("")} />}
       {removing && <ConfirmModal title="카드 삭제" message="등록된 카드를 삭제합니다. 자동 결제도 꺼지고, 남은 기간은 그대로 쓸 수 있습니다." confirmLabel="삭제" danger onConfirm={removeCard} onClose={() => setRemoving(false)} />}
+    </Panel>
+  );
+}
+
+// ── 택배사 ──────────────────────────────────────────────────
+// 송장 엑셀을 뽑을 때 고를 택배사(사용자 결정 2026-10-23: 자동 배정 없음, 이름·줄임·송장 양식만). 하나뿐이면 고를 일도 없다.
+const EMPTY_COURIER = { name: "", short: "", format: "generic" };
+function CourierPanel() {
+  const { config, isAdmin, readOnly, reloadSettings } = useSaas();
+  const toast = useToast();
+  const [list, setList] = useState(() => config.couriers.map(c => ({ ...c })));
+  useEffect(() => { setList(config.couriers.map(c => ({ ...c }))); }, [config.couriers]);
+  const dis = !isAdmin || readOnly;
+  const upd = (i, patch) => setList(p => p.map((c, j) => (j === i ? { ...c, ...patch } : c)));
+  const remove = (i) => setList(p => p.filter((_, j) => j !== i));
+  const add = () => setList(p => [...p, { ...EMPTY_COURIER }]);
+  const save = async () => {
+    const v = validateCouriers(list);
+    if (v.error) return toast(v.error, "error");
+    try { await db.saveSaasSettings({ couriers: v.couriers }); await reloadSettings(); toast("택배사를 저장했습니다", "ok"); }
+    catch (e) { toast(e.message || "저장하지 못했습니다", "error"); }
+  };
+  return (
+    <Panel title="택배사" small>
+      <p className="helptext" style={{ margin: "6px 0 0" }}>송장 엑셀을 뽑을 때 고를 택배사입니다. 하나뿐이면 고를 일 없이 바로 그 양식으로 나갑니다.</p>
+      <div className="courier-list">
+        {list.map((c, i) => (
+          <div className="courier-row" key={i}>
+            <Field label="택배사" htmlFor={`cr-name-${i}`}><input id={`cr-name-${i}`} className="forminput" value={c.name} maxLength={20} placeholder="예: 롯데택배" onChange={e => upd(i, { name: e.target.value })} disabled={dis} /></Field>
+            <Field label="줄임" htmlFor={`cr-short-${i}`}><input id={`cr-short-${i}`} className="forminput" value={c.short} maxLength={6} placeholder={c.name.slice(0, 2) || "롯데"} onChange={e => upd(i, { short: e.target.value })} disabled={dis} /></Field>
+            <Field label="송장 엑셀 양식" htmlFor={`cr-fmt-${i}`}>
+              <select id={`cr-fmt-${i}`} className="forminput" value={c.format} onChange={e => upd(i, { format: e.target.value })} disabled={dis}>
+                {Object.entries(COURIER_FORMAT_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+              </select>
+            </Field>
+            <div className="courier-acts">{!dis && <Button size="sm" kind="danger" icon="trash" onClick={() => remove(i)} aria-label="택배사 빼기" disabled={list.length <= 1} />}</div>
+            {c.format === "kd" && (
+              <div className="courier-kd">
+                <span className="formlabel">운임 <span className="opt">경동 송장의 선불후불 칸 · 품목명·개별단가·기타운임은 원단·100·100 으로 고정</span></span>
+                <Segment options={KD_PAY_TYPES.map(k => [k, k])} value={KD_PAY_TYPES.includes(c.payType) ? c.payType : KD_PAY_TYPES[0]} onChange={v => !dis && upd(i, { payType: v })} />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      {!dis && <div style={{ marginTop: 10 }}><Button size="sm" kind="white" icon="plus" onClick={add}>택배사 추가</Button></div>}
+      <p className="helptext" style={{ margin: "10px 0 0" }}>CJ대한통운(LOIS)·경동화물은 그 회사 업로드 양식 그대로, 그 밖의 택배사는 받는분·전화·주소·품목이 든 범용 양식으로 나옵니다. 택배사를 빼면 그 택배사로 미리 지정해 둔 주문은 지정이 풀립니다.</p>
+      {isAdmin && <div style={{ marginTop: 18 }}><Button icon="check" onClick={save} disabled={readOnly}>저장</Button></div>}
     </Panel>
   );
 }
@@ -358,7 +534,7 @@ function OpsPanel() {
   };
   return (
     <Panel title="운영 값" small>
-      <p className="helptext" style={{ margin: "6px 0 0" }}>주문 등록 폼의 택배비 버튼, 재고 "부족" 판정, 품번 발급, 출고예정일 계산이 이 값을 씁니다.</p>
+      <p className="helptext" style={{ margin: "6px 0 0" }}>주문 등록 폼의 택배비 버튼, 재고 "부족" 판정, 품번 발급, 출고예정일과 "수거 놓침" 판정이 이 값을 씁니다.</p>
       <OpsFields f={f} setF={setF} disabled={!isAdmin || readOnly} />
       {isAdmin && <div style={{ marginTop: 18 }}><Button icon="check" onClick={save} disabled={readOnly}>저장</Button></div>}
     </Panel>
@@ -379,36 +555,6 @@ function SenderPanel() {
     <Panel title="발송인 정보" small>
       <p className="helptext" style={{ margin: "6px 0 0" }}>송장과 거래명세서의 "보내는 분" 칸에 들어갑니다. 비워 두면 회사명과 담당 연락처를 씁니다.</p>
       <SenderFields f={f} setF={setF} disabled={!isAdmin || readOnly} />
-      {isAdmin && <div style={{ marginTop: 18 }}><Button icon="check" onClick={save} disabled={readOnly}>저장</Button></div>}
-    </Panel>
-  );
-}
-
-// ── 경동화물 송장 기본값 ──────────────────────────────────────
-function KdPanel() {
-  const { config, isAdmin, readOnly, reloadSettings } = useSaas();
-  const toast = useToast();
-  const from = (c) => ({ payType: c.kd.payType, itemName: c.kd.itemName, unitPrice: String(c.kd.unitPrice), extraFee: String(c.kd.extraFee) });
-  const [f, setF] = useState(() => from(config));
-  useEffect(() => { setF(from(config)); }, [config]);
-  const dis = !isAdmin || readOnly;
-  const save = async () => {
-    const u = numOf(f.unitPrice), x = numOf(f.extraFee);
-    if (u === null || x === null) return toast("단가·운임은 숫자만", "error");
-    const itemName = f.itemName.trim() || DEFAULT_CONFIG.kd.itemName;
-    try { await db.saveSaasSettings({ kd: { payType: f.payType, itemName, unitPrice: u, extraFee: x } }); await reloadSettings(); toast("경동 송장 기본값을 저장했습니다", "ok"); }
-    catch (e) { toast(e.message || "저장하지 못했습니다", "error"); }
-  };
-  return (
-    <Panel title={`${COURIER_SHORT[KD]} 송장 기본값`} small>
-      <p className="helptext" style={{ margin: "6px 0 0" }}>경동화물 송장 엑셀의 "선불후불·품목명·개별단가·기타운임" 칸에 자동으로 들어가는 값입니다.</p>
-      <div className="formlabel">선불 / 후불</div>
-      <Segment options={KD_PAY_TYPES.map(k => [k, k])} value={f.payType} onChange={v => !dis && setF({ ...f, payType: v })} />
-      <Field label="품목명" htmlFor="kd-item"><input id="kd-item" className="forminput" value={f.itemName} onChange={e => setF({ ...f, itemName: e.target.value })} disabled={dis} /></Field>
-      <div className="formrow">
-        <Field label="개별단가" htmlFor="kd-unit"><input id="kd-unit" className="forminput" inputMode="numeric" value={f.unitPrice} onChange={e => setF({ ...f, unitPrice: e.target.value })} disabled={dis} /></Field>
-        <Field label="기타운임" htmlFor="kd-extra"><input id="kd-extra" className="forminput" inputMode="numeric" value={f.extraFee} onChange={e => setF({ ...f, extraFee: e.target.value })} disabled={dis} /></Field>
-      </div>
       {isAdmin && <div style={{ marginTop: 18 }}><Button icon="check" onClick={save} disabled={readOnly}>저장</Button></div>}
     </Panel>
   );
@@ -447,31 +593,41 @@ function AiPanel() {
 
 // ── 알림(문자) ───────────────────────────────────────────────
 function SmsPanel() {
-  const { config, isAdmin, readOnly, reloadSettings, aiAllowed, account } = useSaas();
+  const { config, isAdmin, readOnly, reloadSettings, sms, account } = useSaas();
   const toast = useToast();
   const [on, setOn] = useState(config.notifySms);
   const [tpl, setTpl] = useState(config.notifySmsTemplate);
   useEffect(() => { setOn(config.notifySms); setTpl(config.notifySmsTemplate); }, [config.notifySms, config.notifySmsTemplate]);
-  const paidOnly = !!account && !aiAllowed;   // 유료 전용 — AI 분석과 같은 기준(사내 계정은 허용)
+  // 유료 요금제의 월 건수 안에서만(스타터는 없음) — smsAccess 가 판정, 서버(api/notify.js)가 강제. 사내 계정은 허용.
+  const paidOnly = !!account && !sms.allowed;
   const dis = !isAdmin || readOnly || paidOnly;
+  // 자동 문자는 LMS 로 넘어가지 않게 90바이트 안에서만(사용자 결정 2026-10-23). 가장 긴 값(회사명·3글자 이름·가장 긴 택배사)으로 채워 잰다. 서버(api/notify.js)는 넘치면 기본·짧은 문구로 바꿔 보낸다.
+  const maxBytes = templateMaxBytes(tpl.trim() || DEFAULT_CONFIG.notifySmsTemplate, { companyName: config.companyName, couriers: COURIERS });
+  const tooLong = maxBytes > SMS_MAX_BYTES;
   const save = async () => {
     const t = tpl.trim() || DEFAULT_CONFIG.notifySmsTemplate;
     if (t.length > 300) return toast("문자 문구는 300자 안으로", "error");
+    if (tooLong) return toast(`문구가 ${SMS_MAX_BYTES}바이트를 넘어 문자(SMS)로 보낼 수 없습니다. ${maxBytes - SMS_MAX_BYTES}바이트(한글 ${Math.ceil((maxBytes - SMS_MAX_BYTES) / 2)}자) 줄여 주세요.`, "error");
     try { await db.saveSaasSettings({ notifySms: on && !paidOnly, notifySmsTemplate: t }); await reloadSettings(); toast("알림 설정을 저장했습니다", "ok"); }
     catch (e) { toast(e.message || "저장하지 못했습니다", "error"); }
   };
-  const preview = tpl.replace("{회사명}", config.companyName).replace("{고객명}", "홍길동").replace("{택배사}", COURIER_SHORT[CJ]);
+  const preview = fillTemplate(tpl, { 회사명: config.companyName, 고객명: SAMPLE_CUSTOMER, 택배사: config.couriers[0]?.name || "택배", 송장번호: SAMPLE_TRACKING });
   return (
     <Panel title="알림(문자)" small right={<StatusBadge tone={config.notifySms && !paidOnly ? "green" : "gray"}>{config.notifySms && !paidOnly ? "켜짐" : "꺼짐"}</StatusBadge>}>
       <button type="button" className="switch" role="switch" aria-checked={on && !paidOnly} onClick={() => !dis && setOn(v => !v)} disabled={dis}>
         <span className="knob" aria-hidden="true" /><span>출고 안내 문자 보내기</span>
       </button>
-      <p className="helptext" style={{ margin: "4px 0 0" }}>출고완료로 바꾸면 고객 전화번호로 안내 문자를 보냅니다. 문자 건당 요금은 통신사 기준으로 따로 정산됩니다.</p>
-      {paidOnly && <p className="helptext warn" style={{ margin: "12px 0 0" }}>출고 안내 문자는 유료 구독 회사 전용입니다. 구독하면 바로 켤 수 있습니다.</p>}
-      <Field label="문자 문구" htmlFor="sms-tpl" hint="{회사명} {고객명} {택배사} 를 바꿔 넣습니다">
-        <textarea id="sms-tpl" className="forminput" style={{ minHeight: 96 }} value={tpl} onChange={e => setTpl(e.target.value)} disabled={dis} maxLength={300} />
+      <p className="helptext" style={{ margin: "4px 0 0" }}>출고완료로 바꾸면 고객 전화번호로 안내 문자를 보냅니다. 요금제마다 월 건수가 정해져 있고, 다 쓰면 다음 달 1일에 다시 열립니다.</p>
+      {account && Number.isFinite(sms.cap) && sms.cap > 0 && <p className="helptext" style={{ margin: "8px 0 0" }}>이번 달 {sms.used.toLocaleString()} / {sms.cap.toLocaleString()}건 보냈습니다.</p>}
+      {paidOnly && <p className="helptext warn" style={{ margin: "12px 0 0" }}>{sms.reason}</p>}
+      <Field label="문자 문구" htmlFor="sms-tpl" hint="{회사명} {고객명} {택배사} {송장번호} 를 바꿔 넣습니다">
+        <textarea id="sms-tpl" className="forminput" style={{ minHeight: 96 }} value={tpl} onChange={e => setTpl(e.target.value)} disabled={dis} maxLength={300} aria-invalid={tooLong || undefined} />
       </Field>
-      <div className="notice-box">미리보기 · {preview}</div>
+      <p className={`helptext${tooLong ? " err" : ""}`} style={{ margin: "6px 0 0" }}>
+        가장 길 때 <b>{maxBytes}</b> / {SMS_MAX_BYTES}바이트 <small>(한글 2바이트 · 회사명과 가장 긴 택배사 이름 기준)</small>
+        {tooLong ? ` — ${SMS_MAX_BYTES}바이트를 넘으면 긴 문자(LMS)가 되어 보내지 않습니다. ${maxBytes - SMS_MAX_BYTES}바이트 줄여 주세요.` : " — 짧은 문자(SMS) 한 통에 들어갑니다."}
+      </p>
+      <div className="notice-box">미리보기 · {preview} <small style={{ color: "#8d9aab" }}>({smsBytes(preview)}바이트)</small></div>
       {isAdmin && <div style={{ marginTop: 18 }}><Button icon="check" onClick={save} disabled={readOnly || paidOnly}>저장</Button></div>}
     </Panel>
   );
@@ -480,7 +636,7 @@ function SmsPanel() {
 // ── 데이터 이관 ──────────────────────────────────────────────
 function DataImportPanel() {
   const { account, config } = useSaas();
-  const subject = encodeURIComponent(`[루프 ERP] 데이터 이관 요청 · ${account?.login_id || config.companyName}`);
+  const subject = encodeURIComponent(`[${BRAND.name} ${BRAND.suffix}] 데이터 이관 요청 · ${account?.login_id || config.companyName}`);
   const body = encodeURIComponent(`회사명: ${config.companyName}\n회사 아이디: ${account?.login_id || "(사내 계정)"}\n연락처: ${account?.contact || ""}\n\n넣어 주실 자료(고객 / 품번·재고 / 주문)를 첨부해 주세요.`);
   const mailto = SUPPORT_EMAIL ? `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}` : "";
   return (
@@ -491,10 +647,11 @@ function DataImportPanel() {
         <div><b>② 품번·재고</b> — 품번(또는 이름)·사진·단가·롤별 길이(마). 롤이 여러 개면 한 줄에 하나씩.</div>
         <div><b>③ 주문</b> — 진행 중인 주문만: 고객·품목·수량·택배사·결제 여부·주문일.</div>
       </div>
-      <p className="helptext" style={{ margin: "0 0 12px" }}>양식과 자세한 방법은 저장소의 <code>docs/saas-data-import.md</code> 에 있습니다. 보내신 자료는 이관이 끝나면 지웁니다.</p>
+      <p className="helptext" style={{ margin: "0 0 12px" }}>엑셀(xlsx)이나 CSV 면 됩니다. 첫 줄에 칸 이름(고객명·연락처·주소 / 품번·원단명·색상·단가 / 주문일·고객명·품목·수량·금액)을 적어 주시면 쓰던 양식 그대로 보내셔도 됩니다. 처음 구독한 회사는 무료(1회)이고, 보통 영업일 1~2일 안에 끝납니다. 보내신 자료는 이관이 끝나면 지웁니다.</p>
       {mailto
         ? <a className="btn btn-primary" href={mailto} style={{ textDecoration: "none" }}><Icon name="file" />이관 요청 메일 보내기</a>
-        : <div className="notice-box">이관 요청은 가입할 때 안내받은 운영자 연락처로 보내 주세요. 제목에 회사 아이디(<b>{account?.login_id || config.companyName}</b>)를 적어 주시면 빠릅니다.</div>}
+        : <div className="notice-box">이관 요청은 아래 문의로 보내 주세요. 회사 아이디(<b>{account?.login_id || config.companyName}</b>)를 함께 적어 주시면 빠릅니다.</div>}
+      <SupportLinks compact title="문의" note="문의 연락처가 아직 설정되지 않았습니다(운영자: VITE_SUPPORT_PHONE / VITE_SUPPORT_KAKAO / VITE_SUPPORT_EMAIL)." />
     </Panel>
   );
 }
@@ -604,16 +761,21 @@ export default function SettingsPage() {
     <>
       <PageHead eyebrow="SETTINGS" title="회사 설정" subtitle="회사 정보·구독·운영 값·발송인·알림·담당자 PIN 을 한 곳에서 관리합니다." />
       {notice && <div className={`sub-banner${subscription.readOnly ? " ro" : ""}`}><span>{notice}</span></div>}
+      {/* 두 기둥을 따로 쌓는다 — 한 격자에 넣으면 줄마다 가장 긴 카드에 맞춰 빈 공간이 생긴다. 왼쪽은 회사·운영, 오른쪽은 구독·기능. */}
       <div className="settings-grid">
-        <CompanyPanel />
-        <SubscriptionPanel />
-        <OpsPanel />
-        <SenderPanel />
-        <KdPanel />
-        <DisplayPanel />
-        <AiPanel />
-        <SmsPanel />
-        <DataImportPanel />
+        <div className="settings-col">
+          <CompanyPanel />
+          <OpsPanel />
+          <CourierPanel />
+          <SenderPanel />
+        </div>
+        <div className="settings-col">
+          <SubscriptionPanel />
+          <AiPanel />
+          <SmsPanel />
+          <DataImportPanel />
+          <DisplayPanel />
+        </div>
       </div>
       <div style={{ height: 18 }} />
       <ManagersPanel />

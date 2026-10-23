@@ -15,7 +15,7 @@
 // action:
 //   status                         → { enabled, customerKey, hasCard, cardLabel, plan, nextChargeAt, lastPaidAt, lastError, prices, labels, seats }
 //   issue  { authKey, customerKey } → 토스 빌링키 발급 → 저장. { ok, cardLabel }
-//   charge { plan: basic|pro }     → 빌링키로 결제 → 기간 +30일(남은 기간 끝에서). { ok, periodEnd, amount }
+//   charge { plan: starter|standard|pro|promax } → 빌링키로 결제 → 기간 +30일(남은 기간 끝에서). { ok, periodEnd, amount }
 //   cancel-auto                    → saas_billing.plan=null (다음 달 자동 결제 안 함, 기간은 그대로)
 //   remove-card                    → billing_key=null (자동 결제도 꺼진다)
 // 키가 없을 때: status 는 enabled=false 로 200, 나머지 action 은 400 "결제 연동 준비 중" — 화면이 깨지지 않는다.
@@ -23,7 +23,7 @@
 import { createClient } from "@supabase/supabase-js";
 import {
   isBillingEnabled, pricesFromEnv, makeCustomerKey, applyCharge, makeOrderId, makeOrderName,
-  cardLabelFrom, tossErrorMessage, isPaidPlan, publicBillingStatus, PLAN_LABELS,
+  cardLabelFrom, tossErrorMessage, isPaidPlan, canPickPlan, MSG_PROMAX_ONLY, publicBillingStatus, PLAN_LABELS,
 } from "./_billing_logic.js";
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -99,7 +99,7 @@ async function addEvent(sb, ownerId, kind, extra = {}) {
  * 성공 → { ok: true, amount, periodEnd }. 실패 → 예외(last_error 는 여기서 저장).
  */
 export async function chargeWithBillingKey(sb, { account, billing, plan, now = new Date(), prices, memo }) {
-  if (!isPaidPlan(plan)) throw new Error("요금제를 골라 주세요 (베이직 또는 프로)");
+  if (!isPaidPlan(plan)) throw new Error("요금제를 골라 주세요");
   if (!billing?.billing_key) throw new Error("등록된 카드가 없습니다. 카드를 먼저 등록해 주세요.");
   const amount = (prices || pricesFromEnv(process.env))[plan];
   const orderId = makeOrderId(account.owner_id, now);
@@ -189,7 +189,8 @@ export default async function handler(req, res) {
     // ── 지금 결제(시작·연장) ──
     if (action === "charge") {
       const plan = String(req.body?.plan || "");
-      if (!isPaidPlan(plan)) return res.status(400).json({ error: "요금제를 골라 주세요 (베이직 또는 프로)" });
+      if (!isPaidPlan(plan)) return res.status(400).json({ error: "요금제를 골라 주세요" });
+      if (!canPickPlan(plan, account?.plan)) return res.status(400).json({ error: MSG_PROMAX_ONLY });   // 프로 MAX 는 프로 구독 회사만(화면도 숨긴다)
       const billing = await ensureBilling(sb, ownerId);
       if (!billing.billing_key) return res.status(400).json({ error: "등록된 카드가 없습니다. 카드를 먼저 등록해 주세요." });
       try {

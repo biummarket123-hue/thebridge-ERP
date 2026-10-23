@@ -3,14 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
-    <title>루프 ERP</title>
-    <meta name="description" content="동대문 원단시장 전용 AI 업무관리 플랫폼" />
+    <title>THE BRIDGE ERP</title>
+    <meta name="description" content="어디서 팔았든 주문 하나로 — 원단 도매 전용 구독형 ERP. 주문·출고·재고·정산을 한 곳에서." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="manifest" href="/manifest.json" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="루프 ERP" />
-    <meta name="theme-color" content="#1e2a3d" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="THE BRIDGE ERP" />
+    <meta name="theme-color" content="#f5f7fb" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="apple-touch-icon" sizes="120x120" href="/icon-120.png" />
     <link rel="apple-touch-icon" sizes="152x152" href="/icon-152.png" />
@@ -18,11 +18,22 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@700;900&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet" />
-    <!-- Pretendard — 새 SaaS UI(/app) 글꼴. 옛 화면은 위 Noto 를 그대로 쓴다. -->
+    <!-- Pretendard — SaaS UI 글꼴. Noto 는 공개 페이지(/o, /r)와 company 모드의 옛 화면이 쓴다. -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@700;900&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet" />
   </head>
   <body>
+    <script>
+      // SaaS 화면(홈·/app)은 스크립트를 받기 전 첫 프레임부터 밝은 바탕이어야 한다. src/index.css 의 어두운 body 는
+      // 공개 페이지(/o, /r)·company 모드의 옛 화면 몫이라 그대로 두고, 여기서 바탕만 먼저 칠한다(값은 src/saas/tokens.css 와 같다).
+      // 인라인 <style> 은 Vite 4 가 Windows 에서 빌드하지 못해(html-proxy 경로 버그) 스크립트로 한다.
+      // 규칙은 src/main.jsx 와 같다. company 모드의 옛 화면은 AppEntry 가 다시 뗀다.
+      if (!/^\/(o|r)(\/|$)/.test(location.pathname)) {
+        document.body.setAttribute("data-saas", "1");
+        document.body.style.background = "#f5f7fb";
+        document.body.style.color = "#202c3d";
+      }
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

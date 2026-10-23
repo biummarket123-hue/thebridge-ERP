@@ -178,8 +178,9 @@ function CreditModal({ onClose }) {
 }
 
 export default function SettlementPage({ route }) {
-  const { orders, paymentLogs, customers, loaded, shipped, config } = useSaas();
+  const { orders, paymentLogs, customers, loaded, shipped, config, managers, activeManager, isAdmin, isPacker, reloadOrders } = useSaas();
   const toast = useToast();
+  const { confirm, host: askHost } = useAsk();
   const [tab, setTab] = useState("unpaid");
   const [reportMonth, setReportMonth] = useState("this");   // this | last
   const [q, setQ] = useState("");
@@ -194,7 +195,34 @@ export default function SettlementPage({ route }) {
   const lastMonth = useMemo(() => { const r = monthRange(now, -1); return depositSum(paymentLogs, r.start, r.end).sum; }, [paymentLogs]);   // eslint-disable-line react-hooks/exhaustive-deps
   const months = useMemo(() => monthlyDeposits(paymentLogs, now, 6), [paymentLogs]);   // eslint-disable-line react-hooks/exhaustive-deps
   const monthDelta = lastMonth > 0 ? Math.round((month.sum - lastMonth) / lastMonth * 1000) / 10 : null;
-  const base = useMemo(() => orders.filter(o => o.payment === "환불신청" || (isActiveOrder(o))), [orders]);
+  // 미입금·환불 목록의 모집단: 진행 중 주문 + 출고완료 뒤에도 돈이 남은 주문(외상 거래처) + 출고 뒤 환불 신청(2026-10-23)
+  const base = useMemo(() => {
+    const seen = new Set(); const out = [];
+    for (const o of [...orders, ...(shipped || [])]) {
+      if (seen.has(o.id)) continue; seen.add(o.id);
+      const p = getPayStatus(o);
+      if (p === "환불신청" || isActiveOrder(o) || (o.status === "출고완료" && (p === "미입금" || p === "부분입금"))) out.push(o);
+    }
+    return out;
+  }, [orders, shipped]);
+  const [paySel, setPaySel] = useState(() => new Set());   // 미입금 탭에서 고른 주문 — 여러 건 한 번에 입금 확인
+  const [groupByCustomer, setGroupByCustomer] = useState(false);
+  const depositSelected = async () => {
+    const targets = lists.unpaid.filter(o => paySel.has(o.id));
+    if (!targets.length) return;
+    const sum = targets.reduce((s, o) => s + orderUnpaid(o), 0);
+    const names = [...new Set(targets.map(o => o.customer))];
+    if (!await confirm(`${targets.length}건의 미수금 ${won(sum)}을 전액 입금 처리합니다.\n거래처: ${names.slice(0, 5).join(", ")}${names.length > 5 ? ` 외 ${names.length - 5}곳` : ""}\n\n실제 입금 기록(payment_logs)이 건마다 남습니다.`, { title: "여러 건 입금 확인", confirmLabel: "입금 처리" })) return;
+    setBusy(true);
+    let ok = 0; const fails = [];
+    for (const o of targets) {
+      try { await act.addDeposit(o, null, { orders, managers, activeManager, isAdmin, isPacker, confirm }); ok += 1; }
+      catch (e) { fails.push(`${o.customer}(${e.message})`); }
+    }
+    await reloadOrders(); setPaySel(new Set()); setBusy(false);
+    if (ok) toast(`${ok}건 입금 처리 — ${won(sum)}`);
+    if (fails.length) toast(`${fails.length}건 실패: ${fails.slice(0, 3).join(", ")}`, "error");
+  };
   const lists = useMemo(() => {
     const ql = q.trim().toLowerCase(); const digits = ql.replace(/\D/g, "");
     const hit = (o) => !ql || String(o.customer || "").toLowerCase().includes(ql) || (digits.length >= 3 && String(o.phone || "").replace(/\D/g, "").includes(digits)) || String(o.id).toLowerCase().startsWith(ql);
@@ -236,9 +264,17 @@ export default function SettlementPage({ route }) {
   const Row = ({ o, right }) => (
     <TaskRow icon="finance" tone={getPayStatus(o) === "환불신청" ? "alert" : "mint"} title={`${o.customer} · ${shortId(o.id)}`} hint={`${relativeWhen(o.createdAt) || o.date} · ${itemsSummary(o, 2)}${o.manager ? ` · ${o.manager}` : ""}`} count={right} onClick={() => setSel(o.id)} />
   );
+  // 미입금 줄 — 체크(여러 건 입금) + 누르면 처리 창. 출고완료 뒤 남은 돈(외상)은 배지로 표시.
+  const UnpaidRow = ({ o }) => (
+    <div className="unpaid-row">
+      <input type="checkbox" checked={paySel.has(o.id)} onChange={() => setPaySel(p => { const n = new Set(p); n.has(o.id) ? n.delete(o.id) : n.add(o.id); return n; })} aria-label={`${o.customer} 선택`} />
+      <div style={{ flex: 1, minWidth: 0 }}><Row o={o} right={`미수금 ${won(orderUnpaid(o))}${o.status === "출고완료" ? " · 출고됨(외상)" : ""}`} /></div>
+    </div>
+  );
 
   return (
     <>
+      {askHost}
       <PageHead eyebrow="SETTLEMENT" title="정산" subtitle="매출과 입금 내역을 쉽게 확인하세요." right={<Button kind="white" icon="download" onClick={downloadLedger}>내역 내려받기</Button>} />
       <div className="stats">
         <StatCard title="이번 달 매출" value={manwon(month.sum)} unit="만원" icon="trend" note={monthDelta === null ? `입금 ${month.count}건 기준` : `지난달 대비 ${monthDelta >= 0 ? "+" : ""}${monthDelta}%`} noteTone={monthDelta === null || monthDelta < 0 ? "muted" : ""} />
@@ -279,7 +315,27 @@ export default function SettlementPage({ route }) {
       <Panel full title="입금 · 환불 처리" right={<Segment options={[["unpaid", `미입금 ${lists.unpaid.length}`], ["refund", `환불 신청 ${lists.refund.length}`], ["paid", `명세서 ${lists.paid.length}`]]} value={tab} onChange={setTab} />}>
         <div style={{ marginBottom: 12 }}><SearchInput value={q} onChange={setQ} placeholder="고객명 · 연락처 · 주문번호" /></div>
         {!loaded ? <div className="loading-line">불러오는 중…</div> : tab === "unpaid" ? (
-          <div className="tasklist">{lists.unpaid.length === 0 ? <Empty>미입금 주문이 없어요.</Empty> : lists.unpaid.map(o => <Row key={o.id} o={o} right={`미수금 ${won(orderUnpaid(o))}`} />)}</div>
+          <>
+            {lists.unpaid.length > 0 && (
+              <div className="inline-actions" style={{ marginTop: 0, marginBottom: 10 }}>
+                <Button kind="white" size="sm" onClick={() => setPaySel(new Set(lists.unpaid.map(o => o.id)))}>전체 선택</Button>
+                <Button kind="white" size="sm" onClick={() => setPaySel(new Set())} disabled={!paySel.size}>선택 해제</Button>
+                <Chip on={groupByCustomer} onClick={() => setGroupByCustomer(v => !v)}>거래처별 모아 보기</Chip>
+                <Button kind="green" size="sm" icon="check" loading={busy} disabled={isPacker || ![...paySel].some(id => lists.unpaid.some(o => o.id === id))} onClick={depositSelected}>선택 {[...paySel].filter(id => lists.unpaid.some(o => o.id === id)).length}건 전액 입금 확인</Button>
+              </div>
+            )}
+            {lists.unpaid.length === 0 ? <Empty>미입금 주문이 없어요.</Empty> : (groupByCustomer
+              ? Object.entries(lists.unpaid.reduce((m, o) => { (m[o.customer] ||= []).push(o); return m; }, {})).sort((a, b) => a[0].localeCompare(b[0], "ko-KR")).map(([name, os]) => (
+                <div key={name} className="unpaid-group">
+                  <div className="unpaid-group-head">
+                    <label className="row-check" style={{ padding: 0, border: 0 }}><input type="checkbox" checked={os.every(o => paySel.has(o.id))} onChange={e => setPaySel(p => { const n = new Set(p); os.forEach(o => e.target.checked ? n.add(o.id) : n.delete(o.id)); return n; })} /><strong>{name}</strong></label>
+                    <span>{os.length}건 · 미수금 <b>{won(os.reduce((s, o) => s + orderUnpaid(o), 0))}</b></span>
+                  </div>
+                  {os.map(o => <UnpaidRow key={o.id} o={o} />)}
+                </div>
+              ))
+              : lists.unpaid.map(o => <UnpaidRow key={o.id} o={o} />))}
+          </>
         ) : tab === "refund" ? (
           <div className="tasklist">{lists.refund.length === 0 ? <Empty>환불 신청이 없어요.</Empty> : lists.refund.map(o => <Row key={o.id} o={o} right={o.refundRequest ? `${o.refundRequest.method === "credit" ? "적립금" : "현금"} ${won(o.refundRequest.amount)}` : "환불 신청"} />)}</div>
         ) : (

@@ -2,7 +2,7 @@
   "name": "thebridge-erp",
   "version": "2.1.0",
   "private": true,
-  "description": "로하이마켓 ERP - 동대문 원단시장 전용 AI 업무관리 플랫폼",
+  "description": "THE BRIDGE ERP - 원단 도매 전용 구독형 ERP",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

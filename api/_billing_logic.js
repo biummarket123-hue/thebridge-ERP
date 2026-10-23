@@ -12,18 +12,15 @@ export const PERIOD_DAYS = 30;          // 한 번 결제 = 30일
 export const GRACE_DAYS = 3;            // 기간이 지난 뒤 유예(subscription.js GRACE_DAYS 와 같은 값)
 export const AUTO_CHARGE_BEFORE_DAYS = 1; // 기간 끝 하루 전부터 자동 결제 대상
 
-export const DEFAULT_PRICES = { basic: 99000, pro: 199000 };   // 원 · 환경변수 SAAS_PRICE_BASIC / SAAS_PRICE_PRO 가 덮는다
-export const PLAN_LABELS = { basic: "베이직", pro: "프로" };
-export const PLAN_SEATS = { basic: 3, pro: 99 };               // max_managers — src/saas/lib/subscription.js PLANS 와 같은 값
-export const PAID_PLANS = ["basic", "pro"];
-export const SERVICE_NAME = "루프 ERP";
-
-export const isPaidPlan = (p) => PAID_PLANS.includes(String(p || ""));
+// 요금제(이름·가격·담당자 수·AI·문자 한도)는 api/_plans.js 가 단일 출처(2026-10-23). 여기서 다시 내보낸다.
+import { PAID_PLANS, PLAN_LABELS, PLAN_SEATS, PLAN_AI_CALLS, PLAN_SMS, DEFAULT_PRICES, PRICE_ENV, isPaidPlan, normalizePlan, canPickPlan, pickablePlans, MSG_PROMAX_ONLY } from "./_plans.js";
+export { PAID_PLANS, PLAN_LABELS, PLAN_SEATS, PLAN_AI_CALLS, PLAN_SMS, DEFAULT_PRICES, isPaidPlan, normalizePlan, canPickPlan, pickablePlans, MSG_PROMAX_ONLY };
+export const SERVICE_NAME = "THE BRIDGE ERP";
 
 /** 환경변수 → 가격표. 숫자가 아니거나 0 이하이면 기본값. */
 export function pricesFromEnv(env = {}) {
   const pick = (v, d) => { const n = parseInt(String(v ?? ""), 10); return Number.isFinite(n) && n > 0 ? n : d; };
-  return { basic: pick(env.SAAS_PRICE_BASIC, DEFAULT_PRICES.basic), pro: pick(env.SAAS_PRICE_PRO, DEFAULT_PRICES.pro) };
+  return Object.fromEntries(PAID_PLANS.map(k => [k, pick(env[PRICE_ENV[k]], DEFAULT_PRICES[k])]));
 }
 
 /** 결제 연동이 켜져 있나 — 서버 비밀키와 브라우저 클라이언트키가 둘 다 있어야 한다. */
@@ -58,7 +55,8 @@ export function remainingEnd(account) {
 }
 
 /** 결제 성공 뒤 company_accounts 에 넣을 값 + 이력에 쓸 기간. */
-export function applyCharge(account, plan, now = new Date(), days = PERIOD_DAYS) {
+export function applyCharge(account, planIn, now = new Date(), days = PERIOD_DAYS) {
+  const plan = normalizePlan(planIn);
   if (!isPaidPlan(plan)) throw new Error("요금제가 올바르지 않습니다");
   const { start, end } = nextPeriodEnd(remainingEnd(account), now, days);
   return {
@@ -82,9 +80,9 @@ export function makeOrderId(ownerId, now = new Date()) {
   return `sub_${head}_${kstStamp(now)}`;
 }
 
-/** 토스 orderName — "루프 ERP 베이직 1개월" */
+/** 토스 orderName — "THE BRIDGE ERP 스탠다드 1개월" */
 export function makeOrderName(plan) {
-  return `${SERVICE_NAME} ${PLAN_LABELS[plan] || plan} 1개월`;
+  return `${SERVICE_NAME} ${PLAN_LABELS[normalizePlan(plan)] || plan} 1개월`;
 }
 
 /**
@@ -112,7 +110,7 @@ export function tossErrorMessage(body, status) {
 
 /**
  * 자동 결제 대상인가 — 크론이 매일 한 번 묻는다.
- *  · billing.plan 이 basic|pro 이고 billing_key 가 있어야 한다(해지하면 plan=null → 대상 아님)
+ *  · billing.plan 이 유료 요금제(api/_plans.js PAID_PLANS)이고 billing_key 가 있어야 한다(해지하면 plan=null → 대상 아님)
  *  · account 가 있고 status 가 canceled 가 아니어야 한다
  *  · current_period_end 가 있고, 지금이 [끝 - 1일, 끝 + 유예 3일) 안이어야 한다
  *    (체험 회사는 current_period_end 가 없어 대상이 아니다 — 첫 결제는 화면에서 직접)
@@ -128,18 +126,51 @@ export function shouldAutoCharge(account, billing, now = new Date()) {
 }
 
 /** 화면 status 응답에 넣을 값(빌링 행·계정 → 공개해도 되는 것만. billing_key 는 절대 내보내지 않는다) */
+// ── 안내 문자(순수) — api/billing-cron.js 가 쓴다. 90바이트(SMS) 안에 맞춘 짧은 글. 머리 "[THE BRIDGE ERP] " 는 17바이트. ──
+export const TRIAL_SMS_D3 = "[문자] 체험 종료 3일 전 안내";
+export const TRIAL_SMS_END = "[문자] 체험 종료 안내";
+export const CHARGE_FAIL_SMS = "[문자] 결제 실패 안내";
+const SMS_HEAD = "[THE BRIDGE ERP]";
+const mdOf = (iso) => { const d = new Date(iso); return Number.isFinite(d.getTime()) ? `${d.getMonth() + 1}/${d.getDate()}` : ""; };
+/**
+ * 체험 회사에 지금 보낼 안내가 있나 → TRIAL_SMS_D3 | TRIAL_SMS_END | null
+ *   sentMemos: 이미 보낸 안내의 memo 목록(subscription_events kind=note). 같은 안내는 한 번만.
+ *   D-3: 끝나기 3일 안(아직 안 끝남). END: 끝난 뒤 2일 안.
+ */
+export function trialReminderDue(account, now = new Date(), sentMemos = []) {
+  if (!account || account.is_demo || account.plan !== "trial" || account.status === "canceled") return null;
+  const end = ms(account.trial_end);
+  if (!Number.isFinite(end)) return null;
+  const left = end - now.getTime();
+  const sent = new Set(sentMemos);
+  if (left <= 0 && left > -2 * DAY) return sent.has(TRIAL_SMS_END) ? null : TRIAL_SMS_END;
+  if (left > 0 && left <= 3 * DAY) return sent.has(TRIAL_SMS_D3) ? null : TRIAL_SMS_D3;
+  return null;
+}
+export const smsTrialD3 = (trialEnd) => `${SMS_HEAD} 무료체험 ${mdOf(trialEnd)} 종료. 회사설정>구독에서 이어쓰기`;
+export const smsTrialEnded = () => `${SMS_HEAD} 무료체험 종료, 읽기전용. 회사설정>구독 결제시 바로 복구`;
+/** 결제 실패 — 사유는 16바이트 안으로 자른다(한글 8자) */
+export function smsChargeFailed(reason = "") {
+  let r = String(reason || "").replace(/\s+/g, " ").trim();
+  let bytes = 0, cut = "";
+  for (const ch of r) { const b = ch.charCodeAt(0) > 127 ? 2 : 1; if (bytes + b > 16) break; bytes += b; cut += ch; }
+  return `${SMS_HEAD} 자동결제 실패${cut ? `(${cut})` : ""}. 3일내 회사설정>구독에서 카드확인`;
+}
+
 export function publicBillingStatus({ enabled, billing, account, prices }) {
   return {
     enabled: !!enabled,
     customerKey: billing?.customer_key || null,
     hasCard: !!billing?.billing_key,
     cardLabel: billing?.billing_key ? billing.card_label || "등록된 카드" : "",
-    plan: isPaidPlan(billing?.plan) ? billing.plan : null,     // 자동 결제할 요금제(null = 자동 결제 꺼짐)
+    plan: isPaidPlan(billing?.plan) ? normalizePlan(billing.plan) : null,     // 자동 결제할 요금제(null = 자동 결제 꺼짐)
     nextChargeAt: account?.current_period_end || null,
     lastPaidAt: billing?.last_paid_at || null,
     lastError: billing?.last_error || "",
     prices: prices || DEFAULT_PRICES,
     labels: PLAN_LABELS,
     seats: PLAN_SEATS,
+    aiCalls: PLAN_AI_CALLS,
+    sms: PLAN_SMS,
   };
 }

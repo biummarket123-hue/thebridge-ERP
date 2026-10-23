@@ -66,7 +66,7 @@ check("1. 빈 DB 에 순서대로 전부 실행", !firstFail, firstFail);
   let allErr = null;
   try { await db2.exec(buildFreshDbSql(ROOT)); } catch (e) { allErr = e.message; }
   const n = allErr ? 0 : (await db2.query(`select count(*)::int n from pg_tables where schemaname='public'`)).rows[0].n;
-  check("1b. _saas_fresh_db_all.sql 한 덩어리 실행 → 표 30개", !allErr && n === 30, allErr || `tables=${n}`);
+  check("1b. _saas_fresh_db_all.sql 한 덩어리 실행 → 표 31개", !allErr && n === 31, allErr || `tables=${n}`);
 }
 
 // 2회차(재실행 안전)

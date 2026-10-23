@@ -31,7 +31,7 @@ import OverviewTab, { SCOPE_KEY as OVERVIEW_SCOPE_KEY, readScope as readOverview
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import { InvoicePanel, ShippingModal } from "./components/InvoicePanel.jsx";
 import { buildOverview } from "./lib/overview.js";
-import { CJ, COURIERS, COURIER_SHORT, courierMap } from "./lib/courier.js";
+import { CJ, COURIERS, COURIER_SHORT, legacyCourierMap as courierMap } from "./lib/courier.js";
 import { CourierTag, PickupTag } from "./components/Courier.jsx";
 import { printFabricLabels, printThanksLabels } from "./lib/labelPrint.js";
 import { printRollLabels } from "./lib/rollLabelPrint.js";

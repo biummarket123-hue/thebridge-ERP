@@ -13,9 +13,13 @@
 //   SAAS_SIGNUP_OPEN  — "1" 이면 초대 코드 없이 누구나 가입(체험 14일).
 //   SAAS_TRIAL_DAYS   — 체험 기간(기본 14).
 //
-// 요청: POST { action: "login" | "signup" | "reset-admin-pin", ... }  응답은 아래 각 action 참고.
+// 요청: POST { action: "login" | "signup" | "reset-admin-pin" | "reset-password-send" | "reset-password" | "find-id-send" | "find-id" | "change-password", ... }
+//   2026-10-23: 가입 때 휴대폰을 문자로 인증한다(api/sms-verify.js 로 먼저 인증 → 서버가 phone_verifications 에서 30분 안 인증을 확인).
+//   그 번호가 비밀번호 재설정·아이디 찾기의 본인 확인이고, 결제 실패·체험 종료 안내 문자가 가는 곳이다.
 
 import { createClient } from "@supabase/supabase-js";
+import { issueCode, checkCode, recentlyVerified } from "./_phone_verify.js";
+import { cleanPhone } from "./_sms.js";
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
@@ -122,10 +126,13 @@ export default async function handler(req, res) {
     const adminName = String(body.adminName || "").trim() || "관리자";
     const adminPin = String(body.adminPin || "");
     if (!PIN_RE.test(adminPin)) return res.status(400).json({ error: "관리자 PIN 은 숫자 4자리여야 합니다." });
-    const contact = String(body.contact || "").trim();
+    const phone = cleanPhone(body.contact);
+    if (!/^01[016789]\d{7,8}$/.test(phone)) return res.status(400).json({ error: "휴대폰 번호를 입력해 주세요." });
+    const contact = phone.length === 11 ? `${phone.slice(0, 3)}-${phone.slice(3, 7)}-${phone.slice(7)}` : `${phone.slice(0, 3)}-${phone.slice(3, 6)}-${phone.slice(6)}`;
     const trialDays = Math.max(1, parseInt(process.env.SAAS_TRIAL_DAYS || "14", 10) || 14);
 
     const sb = admin();
+    if (!(await recentlyVerified(sb, phone))) return res.status(400).json({ error: "휴대폰 인증을 먼저 해 주세요(인증번호 받기 → 확인)." });
     const { data: dup } = await sb.from("company_accounts").select("owner_id").eq("login_id", loginId).maybeSingle();
     if (dup) return res.status(409).json({ error: "이미 쓰는 아이디입니다." });
 
@@ -174,11 +181,13 @@ export default async function handler(req, res) {
     return res.status(200).json({ session: session ? pickSession(session) : null, account });
   }
 
-  // ── 체험: {} → { session, manager:{id,name,pin}, expiresAt } ──
+  // ── 체험: { companyName? } → { session, manager:{id,name,pin}, expiresAt } ──
   // 방문자마다 임시 회사(auth 유저)를 만들고 demo_seed 로 샘플 데이터를 채운다. 1시간 뒤 읽기 전용, 크론이 삭제(api/demo-cleanup.js).
+  // companyName(2026-10-23): 홈에서 입력한 체험 회사명. demo_seed 가 넣는 '체험 원단'을 이 이름으로 바꾼다(회사 계정·설정·발송인).
   if (action === "demo") {
     if (tooManyFails(ip)) return res.status(429).json({ error: "시도가 너무 많습니다. 10분 뒤 다시 해주세요." });
     noteFail(ip);   // 체험 생성도 IP 당 10분에 10번까지 — 임시 회사 남발 방지
+    const companyName = String(body.companyName || "").replace(/\s+/g, " ").trim().slice(0, 30) || "체험 원단";
     const sb = admin();
     const rnd = Math.random().toString(36).slice(2, 10);
     const loginId = `demo-${rnd}`;
@@ -194,6 +203,14 @@ export default async function handler(req, res) {
     try {
       const { data: seed, error: sErr } = await sb.rpc("demo_seed", { p_owner_id: ownerId, p_login_id: loginId, p_admin_pin: pin });
       if (sErr || !seed?.ok) throw sErr || new Error(seed?.error || "seed 실패");
+      if (companyName !== "체험 원단") {
+        const { error: nErr } = await sb.from("company_accounts").update({ name: companyName }).eq("owner_id", ownerId);
+        if (nErr) throw nErr;
+        const { data: st } = await sb.from("settings").select("data").eq("user_id", ownerId).maybeSingle();
+        const d = st?.data || {};
+        const { error: stErr } = await sb.from("settings").upsert({ user_id: ownerId, data: { ...d, senderName: companyName, saas: { ...(d.saas || {}), companyName } }, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+        if (stErr) throw stErr;
+      }
       const session = await signIn(email, password);
       if (!session) throw new Error("세션 발급 실패");
       return res.status(200).json({ session: pickSession(session), manager: { id: seed.manager_id, name: seed.manager_name, pin }, expiresAt: seed.expires_at });
@@ -224,5 +241,83 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true });
   }
 
+  // ── 비밀번호 재설정 1단계: { loginId, phone } → 인증번호 문자. 아이디의 대표 휴대폰과 같아야 보낸다. ──
+  if (action === "reset-password-send") {
+    if (tooManyFails(ip)) return res.status(429).json({ error: "시도가 너무 많습니다. 10분 뒤 다시 해주세요." });
+    const acc = await accountByLogin(body.loginId);
+    const phone = cleanPhone(body.phone);
+    if (!acc || !phone || cleanPhone(acc.contact) !== phone) {
+      noteFail(ip); await delay(FAIL_DELAY_MS);
+      return res.status(400).json({ error: "아이디와 휴대폰 번호가 맞지 않습니다. 번호가 바뀌었으면 문의해 주세요." });
+    }
+    const r = await issueCode(admin(), phone, "비밀번호 재설정 인증번호");
+    if (r.error) return res.status(400).json({ error: r.error });
+    return res.status(200).json({ ok: true, ...(r.devCode ? { devCode: r.devCode } : {}) });
+  }
+
+  // ── 비밀번호 재설정 2단계: { loginId, phone, code, password } → 새 비밀번호 ──
+  if (action === "reset-password") {
+    if (tooManyFails(ip)) return res.status(429).json({ error: "시도가 너무 많습니다. 10분 뒤 다시 해주세요." });
+    const acc = await accountByLogin(body.loginId);
+    const phone = cleanPhone(body.phone);
+    if (!acc || !phone || cleanPhone(acc.contact) !== phone) { noteFail(ip); return res.status(400).json({ error: "아이디와 휴대폰 번호가 맞지 않습니다." }); }
+    const pwErr = passwordProblem(body.password);
+    if (pwErr) return res.status(400).json({ error: pwErr });
+    const sb = admin();
+    if (!(await checkCode(sb, phone, body.code))) { noteFail(ip); await delay(FAIL_DELAY_MS); return res.status(400).json({ error: "인증번호가 올바르지 않거나 만료되었습니다." }); }
+    const { error } = await sb.auth.admin.updateUserById(acc.owner_id, { password: body.password });
+    if (error) return res.status(502).json({ error: "비밀번호를 바꾸지 못했습니다. 잠시 후 다시 시도해 주세요." });
+    await sb.from("subscription_events").insert({ owner_id: acc.owner_id, kind: "note", memo: "비밀번호 재설정(휴대폰 문자 인증)" });
+    return res.status(200).json({ ok: true });
+  }
+
+  // ── 아이디 찾기 1단계: { phone } → 그 번호로 가입한 회사가 있으면 인증번호 문자 ──
+  if (action === "find-id-send") {
+    if (tooManyFails(ip)) return res.status(429).json({ error: "시도가 너무 많습니다. 10분 뒤 다시 해주세요." });
+    const phone = cleanPhone(body.phone);
+    const list = phone ? await accountsByPhone(phone) : [];
+    if (!list.length) { noteFail(ip); await delay(FAIL_DELAY_MS); return res.status(400).json({ error: "이 번호로 가입한 회사가 없습니다." }); }
+    const r = await issueCode(admin(), phone, "아이디 찾기 인증번호");
+    if (r.error) return res.status(400).json({ error: r.error });
+    return res.status(200).json({ ok: true, ...(r.devCode ? { devCode: r.devCode } : {}) });
+  }
+
+  // ── 아이디 찾기 2단계: { phone, code } → { accounts: [{ loginId, name }] } ──
+  if (action === "find-id") {
+    if (tooManyFails(ip)) return res.status(429).json({ error: "시도가 너무 많습니다. 10분 뒤 다시 해주세요." });
+    const phone = cleanPhone(body.phone);
+    if (!(await checkCode(admin(), phone, body.code))) { noteFail(ip); await delay(FAIL_DELAY_MS); return res.status(400).json({ error: "인증번호가 올바르지 않거나 만료되었습니다." }); }
+    const list = await accountsByPhone(phone);
+    return res.status(200).json({ accounts: list.map(a => ({ loginId: a.login_id, name: a.name })) });
+  }
+
+  // ── 비밀번호 변경(로그인 상태의 설정 화면): { loginId, currentPassword, newPassword } ──
+  if (action === "change-password") {
+    if (tooManyFails(ip)) return res.status(429).json({ error: "시도가 너무 많습니다. 10분 뒤 다시 해주세요." });
+    const email = await resolveEmail(body.loginId);
+    const session = email && typeof body.currentPassword === "string" ? await signIn(email, body.currentPassword) : null;
+    if (!session) { noteFail(ip); await delay(FAIL_DELAY_MS); return res.status(401).json({ error: "지금 비밀번호가 올바르지 않습니다." }); }
+    const pwErr = passwordProblem(body.newPassword);
+    if (pwErr) return res.status(400).json({ error: pwErr });
+    const sb = admin();
+    const { error } = await sb.auth.admin.updateUserById(session.user.id, { password: body.newPassword });
+    if (error) return res.status(502).json({ error: "비밀번호를 바꾸지 못했습니다. 잠시 후 다시 시도해 주세요." });
+    await sb.from("subscription_events").insert({ owner_id: session.user.id, kind: "note", memo: "비밀번호 변경(설정 화면)" });
+    return res.status(200).json({ ok: true });
+  }
+
   return res.status(400).json({ error: "Invalid action" });
+}
+
+/** 아이디 → company_accounts 행(owner_id, login_id, name, contact). 없으면 null. */
+async function accountByLogin(loginId) {
+  const id = normId(loginId);
+  if (!LOGIN_ID_RE.test(id)) return null;
+  const { data } = await admin().from("company_accounts").select("owner_id, login_id, name, contact, is_demo").eq("login_id", id).eq("is_demo", false).maybeSingle();
+  return data || null;
+}
+/** 휴대폰(숫자만) → 그 번호를 대표 휴대폰으로 둔 회사들. contact 는 "010-1234-5678" 꼴로 저장되므로 숫자만 비교한다. */
+async function accountsByPhone(phone) {
+  const { data } = await admin().from("company_accounts").select("owner_id, login_id, name, contact, is_demo").eq("is_demo", false).not("contact", "eq", "");
+  return (data || []).filter(a => cleanPhone(a.contact) === phone);
 }

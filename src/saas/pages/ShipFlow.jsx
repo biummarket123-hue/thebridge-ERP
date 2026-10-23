@@ -7,10 +7,12 @@ import { Modal } from "../components/Modal.jsx";
 import { useAsk } from "../components/useAsk.jsx";
 import { Button, Segment, StatusBadge, Empty, shortId, won } from "../components/ui.jsx";
 import { isHold, isParked, getPayStatus } from "../../constants.js";
-import { CJ, KD, COURIER_SHORT } from "../../lib/courier.js";
+import { COURIER_SHORT } from "../../lib/courier.js";
+import * as db from "../../lib/db.js";
 import { patchOrdersWithGroupResult } from "../../lib/freight.js";
 import { itemsSummary, orderTotal, isActiveOrder } from "../lib/metrics.js";
-import { shipOut, canShipByPayment, shipGroupOf } from "../actions/ship.js";
+import { shipOut, canShipByPayment, isCreditShip, shipGroupOf } from "../actions/ship.js";
+import { parseTrackingPaste, cleanTrackingNo } from "../lib/tracking.js";
 import { exportInvoices } from "../actions/invoice.js";
 import * as act from "../actions/orders.js";
 import { supabase } from "../../lib/supabase.js";
@@ -34,9 +36,13 @@ export default function ShipFlow({ onClose, go }) {
   const toast = useToast();
   const { confirm, host } = useAsk();
   const [step, setStep] = useState("pack");
-  const [courier, setCourier] = useState(CJ);
+  const [courierPick, setCourier] = useState("");   // 송장 단계에서 고른 택배사("" = 목록의 첫 번째)
+  const couriers = config.couriers;
+  const courier = couriers.some(c => c.name === courierPick) ? courierPick : (couriers[0]?.name || "");
   const [sel, setSel] = useState(new Set());
   const [busy, setBusy] = useState("");
+  const [trackNo, setTrackNo] = useState({});   // 출고완료 단계: 주문 id → 송장번호 입력값
+  const [paste, setPaste] = useState("");       // "고객명 송장번호" 줄 붙여넣기
   const ctx = { orders, managers, activeManager, isAdmin, isPacker };
 
   const moving = useMemo(() => orders.filter(o => isActiveOrder(o) && !isHold(o) && !isParked(o)), [orders]);
@@ -44,7 +50,9 @@ export default function ShipFlow({ onClose, go }) {
   const toInvoice = useMemo(() => moving.filter(o => canShipByPayment(o) && o.status === "포장완료" && !o.invoicePrintedAt && !courierById.get(o.id)?.pickup), [moving, courierById]);
   const toShip = useMemo(() => moving.filter(o => canShipByPayment(o) && o.status === "포장완료" && (o.invoicePrintedAt || courierById.get(o.id)?.pickup)), [moving, courierById]);
   const unpaid = useMemo(() => moving.filter(o => !canShipByPayment(o)).length, [moving]);
-  const invoiceList = toInvoice.filter(o => (courierById.get(o.id)?.courier || CJ) === courier);
+  const courierOfOrder = (o) => courierById.get(o.id)?.courier || null;   // 미리 지정한 택배사(없으면 null)
+  // 송장 단계 목록: 아직 지정 없는 주문 + 고른 택배사로 미리 지정된 주문. 다른 택배사로 지정된 건은 그 택배사 탭에서.
+  const invoiceList = toInvoice.filter(o => { const c = courierOfOrder(o); return !c || c === courier; });
   const boxes = (list) => {   // 묶음은 한 박스
     const seen = new Set(); const out = [];
     for (const o of list) { if (o.mergeGroupId && !o.splitShipping) { if (seen.has(o.mergeGroupId)) continue; seen.add(o.mergeGroupId); } out.push(o); }
@@ -68,9 +76,12 @@ export default function ShipFlow({ onClose, go }) {
     const ids = selIn(invoiceList); if (!ids.length) return;
     setBusy("inv");
     try {
+      // 고른 택배사를 주문(묶음 전체)에 기록한다 — 출고 안내 문자의 {택배사}, 변경 기록, 송장 탭 분류가 이 값을 쓴다
+      const stampIds = [...new Set(ids.flatMap(id => { const o = orders.find(x => x.id === id); return o ? shipGroupOf(o, orders).map(x => x.id) : []; }))].filter(id => orders.find(x => x.id === id)?.courier !== courier);
+      if (stampIds.length) { await db.setCourier(stampIds, courier, "송장 출력 때 택배사 지정 · 새 UI"); setOrders(p => p.map(o => stampIds.includes(o.id) ? { ...o, courier } : o)); }
       const r = await exportInvoices(ids, courier, { orders, customers, config });
       if (r.printedAt) setOrders(p => p.map(o => r.printedIds.includes(o.id) ? { ...o, invoicePrintedAt: r.printedAt } : o));
-      toast(`${COURIER_SHORT[courier]} 송장 ${r.count}장 출력`); setSel(new Set());
+      toast(`${COURIER_SHORT[courier] || courier} 송장 ${r.count}장 출력`); setSel(new Set());
     } catch (e) { toast(e.message, "error"); }
     finally { setBusy(""); }
   };
@@ -79,6 +90,15 @@ export default function ShipFlow({ onClose, go }) {
     setBusy("ship");
     let n = 0;
     const done = new Set();
+    // 송장번호를 먼저 저장한다(박스 단위 — 묶음 전체에 같은 번호). 실패해도 출고는 진행하고 알린다.
+    for (const id of ids) {
+      const no = cleanTrackingNo(trackNo[id] || "");
+      const o = orders.find(x => x.id === id);
+      if (!no || !o || o.trackingNo === no) continue;
+      const boxIds = shipGroupOf(o, orders).map(x => x.id);
+      try { await db.updateOrdersBulk(boxIds, { trackingNo: no }, { route: "송장번호 입력 · 새 UI" }); setOrders(p => p.map(x => boxIds.includes(x.id) ? { ...x, trackingNo: no } : x)); }
+      catch (e) { toast(`${o.customer} 송장번호 저장 실패: ${e.message}`, "error"); }
+    }
     for (const id of ids) {
       if (done.has(id)) continue;
       const o = orders.find(x => x.id === id); if (!o) continue;
@@ -113,9 +133,9 @@ export default function ShipFlow({ onClose, go }) {
         <span className="left">
           <strong>{o.customer}{grp.length > 1 ? <span style={{ color: "#8a69da", fontSize: 13 }}> · 합배송 {grp.length}건</span> : null}</strong>
           <small><span className="mono">{shortId(o.id)}</span> · {itemsSummary(o, 2)} · {won(orderTotal(o))}{o.manager ? ` · ${o.manager}` : ""}</small>
-          <small>{o.address || "배송지 없음"}{info ? ` · ${info.pickup ? "방문·픽업" : COURIER_SHORT[info.courier]}` : ""}{extra ? ` · ${extra}` : ""}</small>
+          <small>{o.address || "배송지 없음"}{info?.pickup ? " · 방문·픽업" : info?.courier ? ` · ${COURIER_SHORT[info.courier] || info.courier} 지정` : ""}{extra ? ` · ${extra}` : ""}</small>
         </span>
-        <StatusBadge tone={getPayStatus(o) === "입금완료" ? "done" : "gray"}>{getPayStatus(o)}</StatusBadge>
+        <StatusBadge tone={getPayStatus(o) === "입금완료" ? "done" : isCreditShip(o) ? "wait" : "gray"}>{isCreditShip(o) ? `외상 · ${getPayStatus(o)}` : getPayStatus(o)}</StatusBadge>
       </label>
     );
   };
@@ -139,20 +159,45 @@ export default function ShipFlow({ onClose, go }) {
         {step === "invoice" && (
           <>
             {!isAdmin ? <p className="helptext warn">송장 출력은 관리자만 할 수 있습니다.</p> : null}
-            <Segment options={[[CJ, `📦 CJ ${toInvoice.filter(o => (courierById.get(o.id)?.courier || CJ) === CJ).length}`], [KD, `🚛 경동 ${toInvoice.filter(o => courierById.get(o.id)?.courier === KD).length}`]]} value={courier} onChange={(c) => { setCourier(c); setSel(new Set()); }} />
+            {couriers.length > 1 && <Segment options={couriers.map(c => { const n = toInvoice.filter(o => courierOfOrder(o) === c.name).length; return [c.name, n ? `${c.short} · 지정 ${n}` : c.short]; })} value={courier} onChange={(c) => { setCourier(c); setSel(new Set()); }} />}
+            <p className="helptext" style={{ margin: "8px 0 0" }}>{couriers.length > 1 ? `고른 주문은 ${COURIER_SHORT[courier] || courier} 양식으로 나가고 그 택배사가 주문에 기록됩니다. 주문 상세에서 미리 지정한 주문은 그 택배사 탭에 있습니다.` : `송장은 ${courier} 양식으로 나갑니다. 택배사는 회사 설정에서 더할 수 있습니다.`}</p>
             <div style={{ marginTop: 10 }}>
-              {invoiceList.length === 0 ? <Empty small>{COURIER_SHORT[courier]}로 나갈 포장완료 주문이 없어요.</Empty> : invoiceList.map(o => <Row key={o.id} o={o} extra={!o.address ? "⚠ 배송지 없음" : ""} />)}
+              {invoiceList.length === 0 ? <Empty small>송장을 뽑을 포장완료 주문이 없어요.</Empty> : invoiceList.map(o => <Row key={o.id} o={o} extra={!o.address ? "⚠ 배송지 없음" : ""} />)}
             </div>
             <div className="inline-actions">
               <Button kind="white" className="narrow" onClick={() => setSel(new Set(invoiceList.filter(o => o.address).map(o => o.id)))}>배송지 있는 것 전체</Button>
-              <Button icon="download" onClick={exportSel} loading={busy === "inv"} disabled={!isAdmin || selIn(invoiceList).length === 0}>{COURIER_SHORT[courier]} 송장 {boxes(invoiceList.filter(o => sel.has(o.id))).length}장 엑셀</Button>
+              <Button icon="download" onClick={exportSel} loading={busy === "inv"} disabled={!isAdmin || selIn(invoiceList).length === 0}>{COURIER_SHORT[courier] || courier} 송장 {boxes(invoiceList.filter(o => sel.has(o.id))).length}장 엑셀</Button>
             </div>
           </>
         )}
         {step === "ship" && (
           <>
             {!isAdmin ? <p className="helptext warn">출고완료는 관리자만 할 수 있습니다.</p> : null}
-            {toShip.length === 0 ? <Empty small>송장이 나간 포장완료 박스가 없어요.</Empty> : toShip.map(o => <Row key={o.id} o={o} extra={o.invoicePrintedAt ? `송장 ${new Date(o.invoicePrintedAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}` : ""} />)}
+            {toShip.length === 0 ? <Empty small>송장이 나간 포장완료 박스가 없어요.</Empty> : boxes(toShip).map(o => (
+              <div key={o.id} className="ship-row">
+                <Row o={o} extra={o.invoicePrintedAt ? `송장 ${new Date(o.invoicePrintedAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}` : ""} />
+                <input className="forminput track-input" inputMode="numeric" placeholder="송장번호(선택)" value={trackNo[o.id] ?? o.trackingNo ?? ""} onChange={e => setTrackNo(p => ({ ...p, [o.id]: e.target.value }))} aria-label={`${o.customer} 송장번호`} />
+              </div>
+            ))}
+            {toShip.length > 0 && (
+              <details className="track-paste">
+                <summary>송장번호 한꺼번에 붙여넣기</summary>
+                <p className="helptext" style={{ margin: "6px 0" }}>택배사 프로그램에서 받은 목록을 "고객명 송장번호" 또는 "주문번호 송장번호" 꼴로 한 줄에 하나씩 붙여 넣으면 위 칸이 채워집니다.</p>
+                <textarea className="forminput" style={{ minHeight: 80 }} value={paste} onChange={e => setPaste(e.target.value)} placeholder={"홍길동 123456789012\n402AB619 123456789013"} />
+                <div className="inline-actions" style={{ marginTop: 8 }}>
+                  <Button kind="white" size="sm" onClick={() => {
+                    const rows = parseTrackingPaste(paste); let hit = 0;
+                    const next = { ...trackNo };
+                    for (const { key, no } of rows) {
+                      const k = key.trim().toLowerCase();
+                      const o = boxes(toShip).find(x => String(x.customer || "").trim().toLowerCase() === k || shortId(x.id).toLowerCase() === k || String(x.id).toLowerCase().startsWith(k));
+                      if (o) { next[o.id] = no; hit += 1; }
+                    }
+                    setTrackNo(next); toast(hit ? `${hit}건의 송장번호를 채웠습니다` : "맞는 주문을 찾지 못했습니다", hit ? "ok" : "error");
+                  }}>칸에 채우기</Button>
+                </div>
+              </details>
+            )}
             <div className="inline-actions">
               <Button kind="white" className="narrow" onClick={() => setSel(new Set(toShip.map(o => o.id)))}>전체 선택</Button>
               <Button kind="green" icon="truck" onClick={shipSelected} loading={busy === "ship"} disabled={!isAdmin || selIn(toShip).length === 0}>{boxes(toShip.filter(o => sel.has(o.id))).length}박스 출고완료</Button>

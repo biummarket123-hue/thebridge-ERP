@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 import { aiGate, loadGateInput, monthKey, readTrialCalls } from "./_ai_gate.js";
+import { withPromptCache, cacheSummary } from "./_ai_cache.js";
 
 // 로그인 세션 검증 — 이 프록시는 서버의 앤트로픽 키로 돈을 쓰는 자리라, 누구나 POST 할 수
 // 있으면 키 예산을 남이 태울 수 있다(2026-09-17 보안 진단 H4). 브라우저가 Supabase
@@ -98,9 +99,12 @@ export default async function handler(req, res) {
       // 4096 이었다. 실제 메모는 가장 긴 것이 703자라 잘릴 일이 거의 없지만,
       // 품목이 많은 주문에서 여유를 둔다. 쓴 만큼만 과금되므로 올려도 비용 차이는 없다.
       max_tokens: 8000,
-      system: system || "",
+      // 공통 지시문(첫 블록)을 프롬프트 캐시로 — 5분 안의 다음 호출(어느 회사든)은 그 부분을 1/10 요금으로 읽는다(api/_ai_cache.js).
+      system: withPromptCache(system),
       messages,
     });
+    // 운영 로그로 적중률을 본다 — "캐시 없음"이 계속 찍히면 지시문이 2,048토큰 아래로 줄었거나 블록 순서가 깨진 것.
+    console.log("[analyze]", cacheSummary(message.usage).text);
     // 클라이언트(parseAiJson)가 content[0].text 와 stop_reason 을 그대로 읽는다.
     return res.status(200).json(message);
   } catch (error) {

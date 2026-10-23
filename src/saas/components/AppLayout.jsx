@@ -1,11 +1,12 @@
 // 뼈대 — PC: 사이드바 + 상단 헤더 + 본문. 모바일(≤720px): 상단 브랜드 바 + 본문 + 하단 고정 메뉴.
 // 어느 쪽이 보일지는 CSS 가 정한다(둘 다 그려 두고 media query 로 숨긴다).
 import { useEffect } from "react";
-import { BRAND } from "../config.js";
 import { MENUS, EXTRA_ROUTES } from "../router.js";
-import { Icon, BrandMark } from "../icons.jsx";
+import { Icon } from "../icons.jsx";
+import { CompanyBrand } from "./CompanyBrand.jsx";
 import { nim } from "./ui.jsx";
 import { useSaas } from "../data/SaasData.jsx";
+import { HelpButton } from "./SupportLinks.jsx";
 
 const fmtDate = (d) => `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 ${["일", "월", "화", "수", "목", "금", "토"][d.getDay()]}요일`;
 
@@ -13,13 +14,7 @@ export function Sidebar({ active, counts = {}, go, manager, onProfile }) {
   const { config } = useSaas();
   return (
     <aside className="sidebar">
-      <div className="brand">
-        <div className="logo"><BrandMark /></div>
-        <div>
-          <div className="brand-name">{BRAND.name}<span>{BRAND.suffix}</span></div>
-          <div className="brand-caption">{BRAND.caption}</div>
-        </div>
-      </div>
+      <CompanyBrand />
       <div className="nav-section">메뉴</div>
       <nav aria-label="주 메뉴">
         {MENUS.map(m => (
@@ -38,6 +33,7 @@ export function Sidebar({ active, counts = {}, go, manager, onProfile }) {
         <button className={`nav settings${active === "settings" ? " active" : ""}`} onClick={() => go("/app/settings")} aria-current={active === "settings" ? "page" : undefined}>
           <Icon name="settings" /><span>회사 설정</span>
         </button>
+        <HelpButton />
         <button className="profile" onClick={onProfile} title="담당자 바꾸기 · 로그아웃">
           <div className="avatar">{(manager || "?").slice(0, 1)}</div>
           <div style={{ minWidth: 0 }}>
@@ -62,10 +58,7 @@ export function Header({ crumb, manager, onBell, onProfile, bellCount }) {
         </div>
       </header>
       <header className="mobtop">
-        <div className="brand">
-          <div className="logo"><BrandMark /></div>
-          <div className="brand-name">{BRAND.name}<span>{BRAND.suffix}</span></div>
-        </div>
+        <CompanyBrand compact />
         <div className="right">
           <button className="iconbtn" aria-label="처리할 일" onClick={onBell}><Icon name="bell" />{bellCount > 0 ? <span className="dot" /> : null}</button>
           <button className="avatar" onClick={onProfile} aria-label="담당자">{(manager || "?").slice(0, 1)}</button>

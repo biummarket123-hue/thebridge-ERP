@@ -102,8 +102,9 @@ export function Panel({ title, small, right, children, full, className = "", sty
 }
 
 /** 상태 배지 — tone: wait(주황) · done(초록) · progress(파랑) · late(빨강) · gray · purple */
+const TONE_ALIAS = { green: "done", blue: "progress", alert: "wait", red: "late" };   // 구독·설정 화면이 쓰는 이름 → 실제 CSS 이름
 export function StatusBadge({ tone = "gray", children }) {
-  return <span className={`badge ${tone}`}>{children}</span>;
+  return <span className={`badge ${TONE_ALIAS[tone] || tone}`}>{children}</span>;
 }
 
 export function SearchInput({ value, onChange, placeholder, autoFocus, id }) {

@@ -7,7 +7,15 @@ import { deleteOrderImages } from "../../lib/storage.js";
 
 export const SHIPPABLE = ["입금완료", "부분환불", "환불완료"];
 export const payStatusOf = (o) => o?._computed?.paymentStatus || o?.payment;
-export const canShipByPayment = (o) => SHIPPABLE.includes(payStatusOf(o));
+// 외상 거래처(customers.allow_credit, 2026-10-23) — 입금 전에도 출고한다. 미수금은 정산의 미입금 목록에 남아 나중에 받는다.
+// SaasData 가 거래처 목록에서 이름을 넣는다(setCreditCustomers). 이름 기준인 건 주문이 거래처를 이름으로 가리키기 때문.
+const creditCustomers = new Set();
+export function setCreditCustomers(names) { creditCustomers.clear(); for (const n of names || []) if (n) creditCustomers.add(String(n).trim()); }
+export const isCreditCustomer = (o) => creditCustomers.has(String(o?.customer || "").trim());
+/** 출고해도 되나 — 입금이 끝났거나 외상 거래처 */
+export const canShipByPayment = (o) => SHIPPABLE.includes(payStatusOf(o)) || isCreditCustomer(o);
+/** 외상으로 나가는 주문인가(입금 전인데 외상 거래처라 출고 가능) — 화면 배지용 */
+export const isCreditShip = (o) => !SHIPPABLE.includes(payStatusOf(o)) && isCreditCustomer(o);
 
 /** 같은 박스로 나가는 묶음(아직 안 나간 건만, 분리 건 제외, 자기 자신 포함) */
 export function shipGroupOf(order, orders) {

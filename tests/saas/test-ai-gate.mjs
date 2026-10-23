@@ -21,10 +21,18 @@ check("체험 활성, 한도 5, 사용 2 → 허용, 세기", (() => { const r =
 check("체험 활성, 한도 5, 사용 5 → 거부", (() => { const r = gate({ plan: "trial", status: "active", trial_end: days(10) }, { usage: 5, trialCalls: 5 }); return !r.allow && r.reason.includes("구독 회사 전용"); })());
 check("체험 끝남, 한도 5, 사용 0 → 거부", (() => { const r = gate({ plan: "trial", status: "active", trial_end: days(-1) }, { usage: 0, trialCalls: 5 }); return !r.allow; })());
 check("데모(is_demo), 한도 0 → 거부", (() => { const r = gate({ plan: "trial", status: "active", trial_end: days(0.04), is_demo: true }); return !r.allow && r.reason.includes("구독 회사 전용"); })());
-check("데모(is_demo), 한도 3, 사용 1 → 허용, 세기", (() => { const r = gate({ plan: "basic", status: "active", trial_end: days(0.04), is_demo: true }, { usage: 1, trialCalls: 3 }); return r.allow && r.countUsage; })());
+check("데모(is_demo), 한도 3, 사용 1 → 허용, 세기", (() => { const r = gate({ plan: "standard", status: "active", trial_end: days(0.04), is_demo: true }, { usage: 1, trialCalls: 3 }); return r.allow && r.countUsage; })());
 
 // ── 유료 ──
-check("유료 기간 안 → 허용, 세기", (() => { const r = gate({ plan: "basic", status: "active", trial_end: days(-100), current_period_end: days(20) }); return r.allow && r.countUsage; })());
+check("유료 기간 안 → 허용, 세기", (() => { const r = gate({ plan: "standard", status: "active", trial_end: days(-100), current_period_end: days(20) }); return r.allow && r.countUsage && r.cap === 300; })());
+// ── 요금제 월 할당량(2026-10-23) ──
+const paid = (plan) => ({ plan, status: "active", trial_end: days(-100), current_period_end: days(20) });
+check("스타터: 9회 썼으면 허용(한도 10)", gate(paid("starter"), { usage: 9 }).allow === true);
+check("스타터: 10회 썼으면 거부 '모두 썼습니다'", (() => { const r = gate(paid("starter"), { usage: 10 }); return !r.allow && r.reason.includes("모두 썼습니다") && r.reason.includes("스타터"); })());
+check("스탠다드: 300회 → 거부, 299회 → 허용", !gate(paid("standard"), { usage: 300 }).allow && gate(paid("standard"), { usage: 299 }).allow);
+check("프로 2,000 · 프로 MAX 3,000", !gate(paid("pro"), { usage: 2000 }).allow && gate(paid("promax"), { usage: 2000 }).allow && gate(paid("promax"), { usage: 2999 }).allow && !gate(paid("promax"), { usage: 3000 }).allow);
+check("옛 basic 은 standard 한도(300)", gate(paid("basic"), { usage: 299 }).allow && !gate(paid("basic"), { usage: 300 }).allow);
+check("모르는 요금제(사내 운영 값)는 무제한", gate(paid("enterprise"), { usage: 99999 }).allow === true);
 check("유료 기간 없음(수동 운영) → 허용", gate({ plan: "pro", status: "active", trial_end: days(-100), current_period_end: null }).allow === true);
 check("유료 끝난 뒤 2일(유예 3일) → 허용", gate({ plan: "pro", status: "active", trial_end: days(-100), current_period_end: days(-2) }).allow === true);
 check("유료 끝난 뒤 4일 → 거부 '구독이 끝나'", (() => { const r = gate({ plan: "pro", status: "past_due", trial_end: days(-100), current_period_end: days(-4) }); return !r.allow && r.reason.includes("구독이 끝나"); })());
@@ -32,15 +40,20 @@ check("해지(canceled) → 거부(기간 남아도)", (() => { const r = gate({
 check("해지된 체험 → 거부 '구독이 끝나'(체험 한도와 무관)", (() => { const r = gate({ plan: "trial", status: "canceled", trial_end: days(10) }, { usage: 0, trialCalls: 5 }); return !r.allow && r.reason.includes("구독이 끝나"); })());
 
 // ── 문자 게이트: 유료만, 체험 한도 무관 ──
-check("문자: 유료 활성 → 허용", g.smsGate({ account: { plan: "basic", status: "active", trial_end: days(-100), current_period_end: days(20) }, now }).allow === true);
+check("문자: 유료 활성(스탠다드) → 허용", g.smsGate({ account: paid("standard"), now }).allow === true);
+check("문자: 스타터는 없음", (() => { const r = g.smsGate({ account: paid("starter"), now }); return !r.allow && r.reason.includes("문자가 없습니다"); })());
+check("문자: 스탠다드 199건 + 1건 → 허용, 200건 → 거부", g.smsGate({ account: paid("standard"), usage: 199, count: 1, now }).allow && !g.smsGate({ account: paid("standard"), usage: 200, count: 1, now }).allow);
+check("문자: 남은 3건에 5건 보내기 → 거부 '3건만 남아'", (() => { const r = g.smsGate({ account: paid("standard"), usage: 197, count: 5, now }); return !r.allow && r.reason.includes("3건만 남아") && r.left === 3; })());
+check("문자: 프로 1,000건", g.smsGate({ account: paid("pro"), usage: 999, count: 1, now }).allow && !g.smsGate({ account: paid("pro"), usage: 1000, count: 1, now }).allow);
+check("문자: 프로 MAX 2,000건", g.smsGate({ account: paid("promax"), usage: 1999, count: 1, now }).allow && !g.smsGate({ account: paid("promax"), usage: 1999, count: 2, now }).allow);
 check("문자: 체험 → 거부(문자 문구)", (() => { const r = g.smsGate({ account: { plan: "trial", status: "active", trial_end: days(10) }, now }); return !r.allow && r.reason.includes("문자"); })());
-check("문자: 데모 → 거부", g.smsGate({ account: { plan: "basic", status: "active", trial_end: days(0.04), is_demo: true }, now }).allow === false);
+check("문자: 데모 → 거부", g.smsGate({ account: { plan: "standard", status: "active", trial_end: days(0.04), is_demo: true }, now }).allow === false);
 check("문자: 사내 계정 → 허용", g.smsGate({ account: null, now }).allow === true);
 
 // ── 보조 ──
 check("monthKey → 'YYYY-MM'", g.monthKey(now) === "2026-10" && g.monthKey(new Date(2026, 0, 5)) === "2026-01");
 check("SAAS_TRIAL_AI_CALLS 읽기: 없음 0 · '5' 5 · 'abc' 0 · '-3' 0", g.readTrialCalls({}) === 0 && g.readTrialCalls({ SAAS_TRIAL_AI_CALLS: "5" }) === 5 && g.readTrialCalls({ SAAS_TRIAL_AI_CALLS: "abc" }) === 0 && g.readTrialCalls({ SAAS_TRIAL_AI_CALLS: "-3" }) === 0);
-check("isPaidActive: trial 거짓 · basic 기간 안 참 · canceled 거짓", !g.isPaidActive({ plan: "trial", status: "active", trial_end: days(5) }, now) && g.isPaidActive({ plan: "basic", status: "active", current_period_end: days(5) }, now) && !g.isPaidActive({ plan: "basic", status: "canceled", current_period_end: days(5) }, now));
+check("isPaidActive: trial 거짓 · standard 기간 안 참 · canceled 거짓", !g.isPaidActive({ plan: "trial", status: "active", trial_end: days(5) }, now) && g.isPaidActive({ plan: "standard", status: "active", current_period_end: days(5) }, now) && !g.isPaidActive({ plan: "standard", status: "canceled", current_period_end: days(5) }, now));
 
 // ── loadGateInput: 가짜 클라이언트로 읽기 모양만 확인 ──
 const fakeSb = (rows) => ({

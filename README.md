@@ -1,4 +1,4 @@
-# 루프 ERP (더브릿지 ERP SaaS)
+# THE BRIDGE ERP (더브릿지 ERP SaaS)
 
 > 원단 도매 전용 ERP 를 구독형으로 파는 **SaaS 상품** 저장소.
 > 로하이마켓 사내 ERP(`thebridge-ERP-company`, company.thebridge.ai.kr, 운영 DB `ggvn…`)와는 **코드·DB·배포가 완전히 분리**돼 있다.

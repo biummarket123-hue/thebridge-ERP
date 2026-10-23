@@ -9,10 +9,15 @@
 import { StrictMode, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
+import { SaasLoader } from "./saas/components/Loading.jsx";   // 로고·CSS 만 — db·supabase 는 안 딸려 온다
 
 const isOrderLink = typeof location !== "undefined" && /^\/o(\/|$)/.test(location.pathname);
 const isRollInfo = typeof location !== "undefined" && /^\/r(\/|$)/.test(location.pathname);
 const MODE = import.meta.env.VITE_MODE || "saas";
+// SaaS 화면(홈·/app)은 첫 프레임부터 밝은 바탕이어야 한다 — index.css 의 어두운 body(옛 ERP·공개 페이지용)가
+// 청크를 받는 동안 비치지 않도록, 그리기 전에 body 에 표시를 붙인다(index.html 의 인라인 스크립트와 같은 규칙).
+const isSaasScreen = typeof location !== "undefined" && !isOrderLink && !isRollInfo && (MODE !== "company" || /^\/app(\/|$)/.test(location.pathname));
+if (isSaasScreen) document.body.setAttribute("data-saas", "1");
 if (typeof location !== "undefined" && MODE !== "company" && !/^\/(app|o|r)(\/|$)/.test(location.pathname) && !/^\/?$/.test(location.pathname)) {
   // 구독형 상품: / 는 홈(로그인·체험 갈림길), /app 은 ERP. 그 밖의 경로는 /app 으로.
   history.replaceState(null, "", "/app" + location.search + location.hash);
@@ -23,8 +28,8 @@ const OrderLink = lazy(() => import("./public/OrderLink.jsx"));
 const RollInfo = lazy(() => import("./public/RollInfo.jsx"));
 const AppEntry = lazy(() => import("./AppEntry.jsx"));
 
-// 두 화면의 테마가 달라(ERP 는 어두운 배경, 공개 페이지는 밝은 배경) 로더는 중립적인 글자 하나만 둔다.
-const Fallback = () => (
+// SaaS 화면은 새 UI 로더(로고·진행 막대). 공개 페이지(/o, /r)와 company 모드의 옛 화면은 테마가 제각각이라 중립적인 글자 하나만.
+const Fallback = () => isSaasScreen ? <SaasLoader /> : (
   <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#A89880", fontSize: 13, fontFamily: "'Noto Sans KR',sans-serif" }}>
     불러오는 중…
   </div>

@@ -243,13 +243,13 @@ export async function undoShipOut(order, ctx, { withGroup = false } = {}) {
 
 // ── 택배사 ─────────────────────────────────────────────────
 
-/** 택배사 직접 지정 — null 이면 자동(메모의 롤로 판정). 같은 박스(묶음, 분리 제외)에 함께 쓴다. */
+/** 택배사 미리 지정 — null 이면 지정 없음(송장 뽑을 때 고른다). 같은 박스(묶음, 분리 제외)에 함께 쓴다. */
 export async function setCourier(order, courier, ctx) {
   const lock = lockOf(order, ctx); if (lock) throw new Error(lock);
   const c = normalizeCourier(courier, COURIERS);
   const box = shipGroupOf(order, ctx.orders);
   await db.setCourier(box.map(o => o.id), c, "택배사 지정 · 새 UI");
-  return { courier: c, ids: box.map(o => o.id), msg: c ? `택배사 ${c} 로 지정${box.length > 1 ? ` (묶음 ${box.length}건)` : ""}` : "택배사 자동 판정으로 되돌림" };
+  return { courier: c, ids: box.map(o => o.id), msg: c ? `택배사 ${c} 로 지정${box.length > 1 ? ` (묶음 ${box.length}건)` : ""}` : "택배사 지정을 비움 — 송장 뽑을 때 고릅니다" };
 }
 
 // ── 사진 ───────────────────────────────────────────────────
@@ -309,7 +309,18 @@ export async function deleteOrder(order, ctx) {
   }
   const settled = await settlePackingBefore(order.id, { what, by: ctx.activeManager || "", confirm: answers ? () => answers.shift() : null });
   if (!settled) return { cancelled: true, msg: "삭제를 중단했습니다" };
+  // 출고 전 주문 삭제 = 거래 무효 — 이 주문에 쓴 적립금과 무료배송권을 돌려준다(옛 ErpApp.deleteItem 과 같다. 2026-10-23 점검에서 빠진 것 복구).
+  // 반드시 주문을 지우기 *전에*: free_shipping_logs.order_id 가 지워지면 null 이 되어 사용 기록을 못 찾는다.
+  let backMsg = "";
+  if (order.status !== "출고완료") {
+    try { const r = await db.cancelOrderCredit(order.customer, order.id, ctx.activeManager || ""); if (r.amount > 0) backMsg += ` · 적립금 ${r.amount.toLocaleString()}원 반환`; }
+    catch (e) { console.error("[saas] 삭제 전 적립금 반환 실패:", e); backMsg += " · 적립금 반환 실패(정산에서 직접 등록)"; }
+    if (order.freeShippingUsed) {
+      try { await db.cancelFreeShipping(order.customer, order.id); backMsg += " · 무료배송권 1장 반환"; }
+      catch (e) { console.error("[saas] 삭제 전 무료배송권 반환 실패:", e); backMsg += " · 무료배송권 반환 실패"; }
+    }
+  }
   await db.deleteOrder(order.id, { route: "주문 삭제 · 새 UI" });
   deleteOrderImages(order.id).catch(() => {});   // 사진 폴더도 정리(옛 ErpApp.deleteItem 과 같다). 실패해도 삭제는 끝났다.
-  return { msg: `주문 삭제 — ${order.customer}${settleMessage(settled)}` };
+  return { msg: `주문 삭제 — ${order.customer}${backMsg}${settleMessage(settled)}` };
 }

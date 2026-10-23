@@ -1,12 +1,12 @@
 {
-  "name": "로하이마켓 ERP",
-  "short_name": "더브릿지",
-  "description": "더브릿지 동대문 원단 ERP",
-  "start_url": "/",
+  "name": "THE BRIDGE ERP",
+  "short_name": "THE BRIDGE",
+  "description": "원단 도매 전용 구독형 ERP — 주문·출고·재고·정산을 한 곳에서",
+  "start_url": "/app",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#1e2a3d",
-  "theme_color": "#1e2a3d",
+  "background_color": "#f5f7fb",
+  "theme_color": "#f5f7fb",
   "icons": [
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }

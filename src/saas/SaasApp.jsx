@@ -10,6 +10,9 @@ import { ToastProvider } from "./components/Toast.jsx";
 import { AppLayout } from "./components/AppLayout.jsx";
 import { Modal } from "./components/Modal.jsx";
 import { Button } from "./components/ui.jsx";
+import { SaasLoader } from "./components/Loading.jsx";
+import { CompanyBrand } from "./components/CompanyBrand.jsx";
+import { HelpButton } from "./components/SupportLinks.jsx";
 import { useRoute, ALL_ROUTES, menuPath } from "./router.js";
 import { BRAND } from "./config.js";
 import { BrandMark, Icon } from "./icons.jsx";
@@ -86,6 +89,7 @@ function ManagerPicker({ onClose, required, go }) {
         <>
           <div className="btnrow" style={{ marginTop: 22 }}>
             <Button kind="white" icon="settings" onClick={() => { onClose?.(); go?.("/app/settings"); }}>회사 설정</Button>
+            <HelpButton className="btn btn-white">도움말 · 문의</HelpButton>
             <Button kind="white" icon="logout" onClick={logout}>로그아웃</Button>
           </div>
         </>
@@ -96,10 +100,7 @@ function ManagerPicker({ onClose, required, go }) {
     return (
       <div className="gate">
         <div className="sheet" role="dialog" aria-modal="true" aria-label="담당자 선택">
-          <div className="brand" style={{ margin: "0 0 18px" }}>
-            <div className="logo"><BrandMark /></div>
-            <div><div className="brand-name">{BRAND.name}<span>{BRAND.suffix}</span></div><div className="brand-caption">{config.companyName}</div></div>
-          </div>
+          <CompanyBrand style={{ margin: "0 0 18px" }} />
           <div className="sheethead"><h2>누가 작업하나요?</h2></div>
           {body}
           <div className="btnrow" style={{ marginTop: 18 }}>
@@ -125,7 +126,7 @@ function Shell() {
   // 변경 기록에 "어느 화면에서" — 옛 화면의 탭 이름과 구별되게 접두어를 붙인다
   db.setScreen(`새 UI · ${menu.label}`);
 
-  useEffect(() => { document.title = `${menu.label} · ${BRAND.name}${BRAND.suffix}`; }, [menu.label]);
+  useEffect(() => { document.title = `${menu.label} · ${BRAND.name} ${BRAND.suffix}`; }, [menu.label]);
 
   if (error) {
     return (
@@ -136,7 +137,7 @@ function Shell() {
       </div></div>
     );
   }
-  if (!loaded) return <div className="gate"><div className="loading-line">불러오는 중…</div></div>;
+  if (!loaded) return <SaasLoader text="회사 데이터를 불러오는 중…" />;
   // 담당자가 한 명도 없는 새 회사 → 설정 화면으로 보낸다(가입 직후 서버가 관리자를 만들어 주므로 드물다)
   const noManagers = managers.filter(m => !m.isPublic).length === 0;
   if (!activeManager && managers.length > 0 && !(noManagers && menu.key === "settings")) return <ManagerPicker required go={route.go} />;

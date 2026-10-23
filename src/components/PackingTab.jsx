@@ -6,7 +6,7 @@ import { shipBucket, todayYmd, parseYmd, ymd, addDays } from "../lib/shipDate.js
 import LinkPreview from "./LinkPreview.jsx";
 import HandoverPanel from "./HandoverPanel.jsx";
 import { CourierTag, PickupTag } from "./Courier.jsx";
-import { courierMap } from "../lib/courier.js";
+import { legacyCourierMap as courierMap } from "../lib/courier.js";
 import { parseScan, packingOf, scanStats, packGate, resolveScan, resolveItemScan, resolvePendingRoll, parseCutLength, autoCutPlan, allItemsPacked, productOfItem } from "../lib/packing.js";
 import { fmtLen, rollErrorText, isRollUnit } from "../lib/rollStock.js";
 import ScreenKeyboard from "./ScreenKeyboard.jsx";

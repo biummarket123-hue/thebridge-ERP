@@ -1,7 +1,7 @@
 // 출고 안내 문자(/api/notify) — 출고완료 뒤 고객에게 "발송되었습니다" 문자를 보낸다.
 //
 // 왜 서버에서 하나: Coolsms 키는 브라우저에 두지 않는다. 그리고 문자는 건당 돈이 들어서
-// 유료 구독 회사만(사용자 결정 2026-10-20) — api/_ai_gate.js 의 smsGate 로 판정한다(체험·데모 거부, SAAS_TRIAL_AI_CALLS 는 적용 안 함).
+// 유료 구독 회사만(사용자 결정 2026-10-20), 요금제 월 건수 안에서(2026-10-23, api/_plans.js PLAN_SMS) — api/_ai_gate.js 의 smsGate 로 판정한다(체험·데모 거부).
 //
 // 요청: POST { action: "ship", orderIds: [uuid…] }  Authorization: Bearer <Supabase access token>
 // 응답: { sent, failed: [{ id, reason }], dev }   dev=true 면 COOLSMS 키가 없어 로그만 남긴 것.
@@ -12,7 +12,9 @@
 //
 // 환경변수: VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY(필수), COOLSMS_API_KEY, COOLSMS_API_SECRET, COOLSMS_SENDER(발신번호)
 import { createClient } from "@supabase/supabase-js";
-import { smsGate } from "./_ai_gate.js";
+import { smsGate, loadSmsUsage, monthKey } from "./_ai_gate.js";
+import { composeSms, SMS_MAX_BYTES, DEFAULT_TEMPLATE } from "./_sms_text.js";
+import { sendSms } from "./_sms.js";
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -20,7 +22,6 @@ const VERIFY_KEY = SERVICE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
 const MAX_IDS = 200;
 const DEDUPE_MS = 10 * 60 * 1000;
-const DEFAULT_TEMPLATE = "[{회사명}] {고객명}님, 주문하신 상품이 {택배사}(으)로 발송되었습니다. 감사합니다.";
 
 const recent = new Map();   // orderId → 마지막 발송 시각(ms)
 function sentRecently(id, now) {
@@ -41,32 +42,8 @@ async function getSessionUser(req) {
   return { user: data.user, reason: null };
 }
 
-// Coolsms API (https://coolsms.co.kr) — api/sms-verify.js 와 같은 방식. 90바이트를 넘으면 LMS 로 보낸다.
-const byteLen = (s) => [...String(s)].reduce((n, ch) => n + (ch.charCodeAt(0) > 127 ? 2 : 1), 0);
-async function sendSms(to, text) {
-  const apiKey = process.env.COOLSMS_API_KEY;
-  const apiSecret = process.env.COOLSMS_API_SECRET;
-  const from = process.env.COOLSMS_SENDER || "";
-  if (!apiKey || !apiSecret || !from) {
-    console.log(`[DEV] SMS to ${to}: ${text}`);
-    return { success: true, dev: true };
-  }
-  const date = new Date().toISOString();
-  const crypto = await import("crypto");
-  const salt = crypto.randomBytes(16).toString("hex");
-  const hmac = crypto.createHmac("sha256", apiSecret).update(date + salt).digest("hex");
-  const auth = `HMAC-SHA256 apiKey=${apiKey}, date=${date}, salt=${salt}, signature=${hmac}`;
-  const res = await fetch("https://api.coolsms.co.kr/messages/v4/send", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: auth },
-    body: JSON.stringify({ message: { to, from, text, type: byteLen(text) > 90 ? "LMS" : "SMS" } }),
-  });
-  const data = await res.json().catch(() => ({}));
-  return { success: res.ok, data, error: res.ok ? "" : (data?.errorMessage || data?.message || `Coolsms ${res.status}`) };
-}
-
+// 문자 발송은 api/_sms.js(항상 SMS, 90바이트 넘으면 거부). 90바이트를 넘는 글은 composeSms 가 먼저 걸러서 거기 오지 않는다.
 const cleanPhone = (p) => String(p || "").replace(/[^0-9]/g, "");
-const fill = (tpl, vars) => String(tpl || "").replace(/\{(회사명|고객명|택배사)\}/g, (_, k) => vars[k] ?? "");
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: { message: "Method not allowed" } });
@@ -95,8 +72,10 @@ export default async function handler(req, res) {
   // ── 유료 회사만 ──
   const { data: account, error: aErr } = await sb.from("company_accounts").select("*").eq("owner_id", user.id).maybeSingle();
   if (aErr) console.warn("[notify] company_accounts 읽기 실패(사내 계정으로 간주):", aErr.message);
-  const gate = smsGate({ account: aErr ? null : account, now });
-  if (!gate.allow) return res.status(403).json({ error: { message: gate.reason, code: "AI_NOT_ALLOWED" } });
+  // 요금제 월 한도 — 이번 달 보낸 건수 + 지금 보낼 건수가 한도 안이어야 한다
+  const smsUsed = aErr || !account ? 0 : await loadSmsUsage(sb, user.id, now);
+  const gate = smsGate({ account: aErr ? null : account, usage: smsUsed, count: ids.length, now });
+  if (!gate.allow) return res.status(403).json({ error: { message: gate.reason, code: "AI_NOT_ALLOWED" }, quota: { used: smsUsed, cap: Number.isFinite(gate.cap) ? gate.cap : null } });
 
   // ── 회사 설정 ──
   const { data: st, error: sErr } = await sb.from("settings").select("data").eq("user_id", user.id).maybeSingle();
@@ -106,18 +85,18 @@ export default async function handler(req, res) {
   }
   const saas = st?.data?.saas || {};
   if (!saas.notifySms) return res.status(400).json({ error: { message: "출고 안내 문자가 꺼져 있습니다. 회사 설정에서 켜 주세요." } });
-  const template = String(saas.notifySmsTemplate || "").trim() || DEFAULT_TEMPLATE;
+  const template = String(saas.notifySmsTemplate || "").trim() || DEFAULT_TEMPLATE;   // 90바이트를 넘으면 composeSms 가 기본·짧은 문구로 바꾼다
   const companyName = String(account?.name || saas.companyName || st?.data?.senderName || "").trim();
 
   // ── 주문 ──
-  const { data: orders, error: oErr } = await sb.from("orders").select("id, customer, phone, courier, shipped_via").eq("user_id", user.id).in("id", ids);
+  const { data: orders, error: oErr } = await sb.from("orders").select("id, customer, phone, courier, shipped_via, tracking_no").eq("user_id", user.id).in("id", ids);
   if (oErr) {
     console.error("[notify] orders 읽기 실패:", oErr.message);
     return res.status(500).json({ error: { message: "주문을 읽지 못했습니다. 잠시 후 다시 시도해 주세요." } });
   }
   const byId = new Map((orders || []).map(o => [String(o.id), o]));
 
-  let sent = 0, dev = false;
+  let sent = 0, dev = false, shortened = 0;   // shortened = 회사 문구가 90바이트를 넘어 기본·짧은 문구로 보낸 건수
   const failed = [];
   for (const id of ids) {
     const o = byId.get(id);
@@ -125,9 +104,11 @@ export default async function handler(req, res) {
     const to = cleanPhone(o.phone);
     if (to.length < 10) { failed.push({ id, reason: "전화번호 없음" }); continue; }
     if (sentRecently(id, now.getTime())) { failed.push({ id, reason: "10분 안에 이미 보냈습니다" }); continue; }
-    const text = fill(template, { 회사명: companyName, 고객명: String(o.customer || "고객").trim(), 택배사: o.courier || o.shipped_via || "택배" });
+    const msg = composeSms(template, { 회사명: companyName, 고객명: String(o.customer || "고객").trim(), 택배사: o.courier || o.shipped_via || "택배", 송장번호: o.tracking_no || "" });
+    if (!msg) { failed.push({ id, reason: `문자가 ${SMS_MAX_BYTES}바이트 안에 안 들어갑니다(이름이 너무 깁니다)` }); continue; }
+    if (msg.fallback) shortened += 1;
     try {
-      const r = await sendSms(to, text);
+      const r = await sendSms(to, msg.text);
       if (r.success) { sent += 1; recent.set(id, now.getTime()); if (r.dev) dev = true; }
       else { console.warn(`[notify] ${id} 발송 실패:`, r.error); failed.push({ id, reason: r.error || "발송 실패" }); }
     } catch (e) {
@@ -135,5 +116,10 @@ export default async function handler(req, res) {
       failed.push({ id, reason: e?.message || "발송 오류" });
     }
   }
-  return res.status(200).json({ sent, failed, dev });
+  // 보낸 만큼 이번 달 건수에 더한다(서버 전용 함수). 기록이 실패해도 발송 결과는 그대로 돌려준다.
+  if (sent > 0 && gate.countUsage) {
+    const { error: bErr } = await sb.rpc("service_bump_sms_usage", { p_owner: user.id, p_month: monthKey(now), p_n: sent });
+    if (bErr) console.warn("[notify] 문자 사용량 기록 실패:", bErr.message);
+  }
+  return res.status(200).json({ sent, failed, dev, shortened, quota: { used: smsUsed + sent, cap: Number.isFinite(gate.cap) ? gate.cap : null } });
 }

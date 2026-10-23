@@ -1,6 +1,6 @@
 -- ============================================================
 -- ERP SaaS — 빈 Supabase 프로젝트 전체 스키마 (자동 생성: node scripts-build-fresh-db.mjs)
--- Supabase 대시보드 > SQL Editor 에 이 파일 전체를 붙여 넣고 Run. 50개 파일을 검증된 순서로 이어 붙였다.
+-- Supabase 대시보드 > SQL Editor 에 이 파일 전체를 붙여 넣고 Run. 52개 파일을 검증된 순서로 이어 붙였다.
 -- 빈 DB 전용. 표가 이미 있는 프로젝트는 먼저 migrations/_saas_reset_public.sql 로 비운다.
 -- 각 조각의 출처는 아래 "-- FILE:" 머리말. 손으로 고치지 말고 원본 파일을 고친 뒤 다시 생성할 것.
 -- ============================================================
@@ -2819,3 +2819,61 @@ alter table saas_billing enable row level security;
 alter table subscription_events drop constraint if exists subscription_events_kind_check;
 alter table subscription_events add constraint subscription_events_kind_check
   check (kind in ('trial_start','payment','extend','cancel','plan_change','note','billing'));
+
+
+-- ────────────────────────────────────────────────────────────
+-- FILE: migrations/saas_plans_v2.sql
+-- ────────────────────────────────────────────────────────────
+-- 구독형 SaaS — 요금제 4단계 + 문자 월간 사용량 (2026-10-23 사용자 결정)
+-- saas_features.sql 다음에 실행. 두 번 실행해도 안전.
+--
+--   starter 9,900 / standard 39,000 / pro 89,000 / promax 149,000 (원/월) — 값은 api/_plans.js 가 단일 출처.
+--   옛 basic(베이직) 은 standard(스탠다드) 로 옮긴다. 가입 중인 실제 고객은 없다(테스트 회사·데모만).
+--   문자(출고 안내)는 원가가 그대로 나가므로 요금제별 월 건수로 막는다 — saas_sms_usage 가 saas_ai_usage 와 같은 꼴로 센다.
+
+-- 1. 옛 이름 → 새 이름 (제약을 바꾸기 전에 값부터)
+update company_accounts set plan = 'standard' where plan = 'basic';
+update subscription_events set plan = 'standard' where plan = 'basic';
+update saas_billing set plan = 'standard' where plan = 'basic';
+
+-- 2. plan 허용값. 칸 정의의 check 는 Postgres 가 <표>_<칸>_check 로 이름 붙인다.
+alter table company_accounts drop constraint if exists company_accounts_plan_check;
+alter table company_accounts add constraint company_accounts_plan_check
+  check (plan in ('trial', 'starter', 'standard', 'pro', 'promax'));
+
+-- 3. 문자 월간 사용량 — 서버(service role)만 올린다. 브라우저는 자기 회사 행을 읽을 수만 있다(설정 화면의 "이번 달 N / 한도").
+create table if not exists saas_sms_usage (
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  month text not null,                     -- 'YYYY-MM'
+  count int not null default 0,
+  updated_at timestamptz not null default now(),
+  primary key (owner_id, month)
+);
+alter table saas_sms_usage enable row level security;
+drop policy if exists saas_sms_usage_select on saas_sms_usage;
+create policy saas_sms_usage_select on saas_sms_usage for select using (owner_id = auth.uid());
+
+-- 서버 전용: 이번 달 발송 건수를 p_n 만큼 올리고 올린 뒤의 값을 돌려준다.
+create or replace function service_bump_sms_usage(p_owner uuid, p_month text, p_n int default 1) returns int
+language plpgsql security definer set search_path = public as $$
+declare n int;
+begin
+  insert into saas_sms_usage (owner_id, month, count) values (p_owner, p_month, greatest(p_n, 0))
+    on conflict (owner_id, month) do update set count = saas_sms_usage.count + greatest(p_n, 0), updated_at = now()
+    returning count into n;
+  return n;
+end $$;
+revoke all on function service_bump_sms_usage(uuid, text, int) from public, anon, authenticated;
+
+
+-- ────────────────────────────────────────────────────────────
+-- FILE: migrations/saas_credit_tracking.sql
+-- ────────────────────────────────────────────────────────────
+-- 구독형 SaaS — 외상 거래처 · 송장번호 (2026-10-23 사용자 결정: 전체 점검 뒤 1순위 보완)
+-- saas_plans_v2.sql 다음에 실행. 두 번 실행해도 안전.
+--
+--   customers.allow_credit  외상 거래처 — 입금 전에도 출고할 수 있다(미수금은 정산의 미입금 목록에 남는다). 회사 설정이 아니라 거래처마다.
+--   orders.tracking_no      송장번호 — 출고완료 때 넣는다. 출고 안내 문자 {송장번호}, 주문 상세의 배송 조회 링크가 쓴다.
+
+alter table customers add column if not exists allow_credit boolean not null default false;
+alter table orders add column if not exists tracking_no text not null default '';

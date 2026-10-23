@@ -20,7 +20,7 @@ function CustomerForm({ initial, onClose, onSaved }) {
   const { customers, setCustomers } = useSaas();
   const toast = useToast();
   const { confirm, host } = useAsk();
-  const [f, setF] = useState(() => ({ name: initial?.name || "", phone: initial?.phone || "", nickname: initial?.nickname || "", address: initial?.address || "", addressDetail: initial?.addressDetail || "", address2: initial?.address2 || "", address2Detail: initial?.address2Detail || "", note: initial?.note || "" }));
+  const [f, setF] = useState(() => ({ name: initial?.name || "", phone: initial?.phone || "", nickname: initial?.nickname || "", address: initial?.address || "", addressDetail: initial?.addressDetail || "", address2: initial?.address2 || "", address2Detail: initial?.address2Detail || "", note: initial?.note || "", allowCredit: !!initial?.allowCredit }));
   const [busy, setBusy] = useState(false);
   const save = async () => {
     const name = f.name.trim();
@@ -40,7 +40,14 @@ function CustomerForm({ initial, onClose, onSaved }) {
       } else {
         const updated = await db.updateCustomer(initial.id, { ...initial, ...f, name });
         if (updated) setCustomers(p => p.map(c => c.id === initial.id ? updated : c));
-        toast("고객 정보 저장"); onSaved(updated || { ...initial, ...f, name });
+        // 이름이 바뀌면 적립금·입금 로그·무료배송권·주문의 거래처명도 같이 — 동명이인이 남아 있으면 그쪽 장부까지 바뀌니 건너뛴다
+        let renamed = "";
+        if (initial.name !== name) {
+          const others = customers.some(c => c.id !== initial.id && c.name === initial.name);
+          if (others) renamed = " · 같은 이름의 다른 거래처가 있어 적립금·주문의 이름은 바꾸지 않았습니다";
+          else { try { const r = await db.renameCustomerRefs(initial.name, name); if (r.changed) renamed = ` · 적립금·입금·주문 ${r.changed}건의 이름도 바꿈`; } catch (e2) { renamed = " · 적립금·주문 이름 바꾸기 실패: " + e2.message; } }
+        }
+        toast("고객 정보 저장" + renamed); onSaved(updated || { ...initial, ...f, name });
       }
     } catch (e) { toast(e.message || "저장 실패", "error"); }
     finally { setBusy(false); }
@@ -59,6 +66,10 @@ function CustomerForm({ initial, onClose, onSaved }) {
       <Field label="상세 주소" opt><input className="forminput" value={f.addressDetail} onChange={e => setF({ ...f, addressDetail: e.target.value })} /></Field>
       <Field label="배송지 2" opt><input className="forminput" value={f.address2} onChange={e => setF({ ...f, address2: e.target.value })} /></Field>
       <Field label="배송지 2 상세" opt><input className="forminput" value={f.address2Detail} onChange={e => setF({ ...f, address2Detail: e.target.value })} /></Field>
+      <label className="agree-row" style={{ marginTop: 14 }}>
+        <input type="checkbox" checked={!!f.allowCredit} onChange={e => setF({ ...f, allowCredit: e.target.checked })} />
+        <span><b>외상 거래처</b> — 입금 전에도 출고합니다. 미수금은 정산 › 미입금 목록에 남아 나중에 받습니다(월말 결제 거래처).</span>
+      </label>
       <div className="btnrow" style={{ marginTop: 20 }}><Button kind="white" onClick={onClose}>취소</Button><Button icon="check" onClick={save} loading={busy}>저장</Button></div>
     </Modal>
   );
@@ -95,7 +106,7 @@ function CustomerDetail({ customer: c, stat, onClose, go }) {
       {host}
       <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "18px 0 6px" }}>
         <div className="initial" style={{ width: 52, height: 52, fontSize: 20 }}>{(c.name || "?").slice(0, 1)}</div>
-        <div style={{ minWidth: 0 }}><strong style={{ fontSize: 21 }}>{c.name}</strong>{c.nickname ? <span style={{ color: "#8d9bab", marginLeft: 8 }}>{c.nickname}</span> : null}<div style={{ color: "#8d9bab", fontSize: 15 }}>{isAdmin ? (c.phone || "연락처 없음") : (maskPhone(c.phone) || "연락처 없음")}</div></div>
+        <div style={{ minWidth: 0 }}><strong style={{ fontSize: 21 }}>{c.name}</strong>{c.nickname ? <span style={{ color: "#8d9bab", marginLeft: 8 }}>{c.nickname}</span> : null}{c.allowCredit ? <span className="badge wait" style={{ marginLeft: 8, fontSize: 11, padding: "4px 7px" }}>외상</span> : null}<div style={{ color: "#8d9bab", fontSize: 15 }}>{isAdmin ? (c.phone || "연락처 없음") : (maskPhone(c.phone) || "연락처 없음")}</div></div>
       </div>
       <div className="kv">
         <div className="invrow"><span>기본 배송지</span><strong style={{ fontWeight: 600 }}>{c.address ? `${c.address}${c.addressDetail ? ` ${c.addressDetail}` : ""}` : "—"}</strong></div>

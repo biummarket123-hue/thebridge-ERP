@@ -9,6 +9,7 @@ import { useSaas } from "../data/SaasData.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { Button, Chip, TaskRow } from "../components/ui.jsx";
 import { BrandMark } from "../icons.jsx";
+import { CompanyBrand } from "../components/CompanyBrand.jsx";
 import { BRAND } from "../config.js";
 import { PLANS, managerSeatsLeft } from "../lib/subscription.js";
 import { Field, OpsFields, validateOps, opsFromConfig, SenderFields, senderFromConfig, senderPatch } from "./SettingsPage.jsx";
@@ -110,10 +111,7 @@ export default function Onboarding({ go }) {
     <div className="gate">
       <div className="sheet wide ob-sheet" role="dialog" aria-modal="true" aria-label="첫 설정">
         <div className="ob-top">
-          <div className="brand" style={{ margin: 0 }}>
-            <div className="logo"><BrandMark /></div>
-            <div><div className="brand-name">{BRAND.name}<span>{BRAND.suffix}</span></div><div className="brand-caption">{config.companyName}</div></div>
-          </div>
+          <CompanyBrand style={{ margin: 0 }} />
           {at < STEPS.length - 1 && <button type="button" className="later" onClick={() => finish()} disabled={busy}>나중에 할게요</button>}
         </div>
         <Steps at={at} />
@@ -192,7 +190,7 @@ export default function Onboarding({ go }) {
             <div className="notice-box" style={{ marginTop: 10 }}>
               {subscription.phase === "trial"
                 ? <>무료 체험이 <b>{subscription.daysLeft}일</b> 남았습니다. 체험 중에도 모든 기능(AI 분석 제외)을 쓸 수 있고, 회사 설정 › 구독에서 카드를 등록하고 결제하면 체험이 끝난 뒤부터 30일씩 이어집니다. 데이터는 체험이 끝나도 지워지지 않습니다.</>
-                : <>구독·결제는 회사 설정 › 구독에서 관리합니다. 베이직 {PLANS.basic.price.toLocaleString()}원 / 프로 {PLANS.pro.price.toLocaleString()}원(월, 부가세 별도).</>}
+                : <>구독·결제는 회사 설정 › 구독에서 관리합니다. 스타터 {PLANS.starter.price.toLocaleString()}원부터, 스탠다드 {PLANS.standard.price.toLocaleString()}원 / 프로 {PLANS.pro.price.toLocaleString()}원(월, 부가세 별도).</>}
             </div>
             <div className="ob-foot">
               <Button kind="white" icon="back" onClick={back} disabled={busy}>이전</Button>

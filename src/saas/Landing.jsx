@@ -8,9 +8,12 @@ import "./saas.css";
 import * as db from "../lib/db.js";
 import { supabase } from "../lib/supabase.js";
 import { Button } from "./components/ui.jsx";
+import { Modal } from "./components/Modal.jsx";
 import { BrandMark, Icon } from "./icons.jsx";
 import { BRAND } from "./config.js";
-import { postAccount } from "./auth/SaasAuth.jsx";
+import { postAccount } from "./lib/accountApi.js";
+import { SupportLinks, supportLine } from "./components/SupportLinks.jsx";
+import { SUPPORT } from "./config.js";
 
 export const DEMO_UNTIL_KEY = "erp_demo_until";
 
@@ -62,7 +65,7 @@ function PhoneFrame({ children, className = "" }) {
   return (
     <div className={"lp-phone " + className} aria-hidden="true">
       <div className="lp-notch" />
-      <div className="lp-phonetop"><div className="logo"><BrandMark /></div><b>{BRAND.name}<span>{BRAND.suffix}</span></b></div>
+      <div className="lp-phonetop"><div className="logo"><BrandMark /></div><b>{BRAND.name} <span>{BRAND.suffix}</span></b></div>
       <div className="lp-phonebody">{children}</div>
     </div>
   );
@@ -282,13 +285,44 @@ const TRIAL_STEPS = [
   ["clock", "1시간 뒤 자동 삭제", "체험 회사는 통째로 지워집니다. 어디에도 남지 않습니다."],
 ];
 
+// 첫 구독 서비스 — 쓰던 엑셀을 운영팀이 대신 넣어 준다(사용자 결정 2026-10-23, 절차는 docs/saas-data-import.md).
+const MIGRATE_STEPS = [
+  ["file", "쓰던 엑셀 보내기", "거래처·품번·지난 주문, 세 가지 중 있는 것만. 양식이 달라도 됩니다. 가입 뒤 회사 설정 › 데이터 이관에서 메일로 보냅니다."],
+  ["users", "운영팀이 대신 넣기", "중복은 걸러내고 전화번호·날짜·금액을 정리해서 넣습니다. 보통 영업일 1~2일이면 끝나고, 못 읽은 줄은 따로 알려 드립니다."],
+  ["check", "첫날부터 이어서", "거래처·품번·주문 이력이 들어 있는 상태로 시작합니다. 보내신 파일은 이관이 끝나면 지웁니다."],
+];
+
+function MigrateMock() {
+  return (
+    <div className="lp-compare lp-migrate-mock lp-mock" data-reveal>
+      <div className="lp-xls">
+        <div className="lp-xlshead"><span>주문장_2025.xlsx</span><span>시트1</span></div>
+        <div className="lp-xlsrow h"><span>날짜</span><span>고객명</span><span>품목</span><span>금액</span></div>
+        <div className="lp-xlsrow"><span>3/4</span><span>홍길동</span><span>면30수 아이보리 12마</span><span>187000</span></div>
+        <div className="lp-xlsrow"><span>3/4</span><span>이몽룡</span><span>트윌 블랙 2롤</span><span>124,000원</span></div>
+        <div className="lp-xlsrow"><span>3/5</span><span>홍길동</span><span>린넨 네이비 1롤</span><span className="bad">?</span></div>
+        <div className="lp-xlsrow"><span>3/6</span><span>성춘향</span><span>린넨 베이지</span><span>58000</span></div>
+      </div>
+      <div className="lp-vs"><Icon name="chevron" /></div>
+      <div className="lp-mini">
+        <div className="lp-minihead"><strong>지난 주문</strong><span className="lp-chips"><span className="badge done">거래처 128</span><span className="badge progress">품번 54</span><span className="badge gray">주문 1,920</span></span></div>
+        <div className="lp-row"><b>#0231 홍길동</b><span>3월 4일 · 면 30수 아이보리 12마</span><span className="badge done">187,000원</span></div>
+        <div className="lp-row"><b>#0232 이몽룡</b><span>3월 4일 · 트윌 블랙 2롤</span><span className="badge done">124,000원</span></div>
+        <div className="lp-row"><b>#0233 홍길동</b><span>3월 5일 · 린넨 네이비 1롤</span><span className="badge wait">금액 확인</span></div>
+        <div className="lp-row"><b>#0234 성춘향</b><span>3월 6일 · 린넨 베이지</span><span className="badge done">58,000원</span></div>
+      </div>
+    </div>
+  );
+}
+
 const FAQ = [
+  ["쓰던 엑셀 자료는 어떻게 하나요?", "처음 구독을 시작하면 운영팀이 거래처·품번·지난 주문 엑셀을 대신 넣어 드립니다(무료, 1회). 가입 뒤 회사 설정 › 데이터 이관에서 파일을 보내면 보통 영업일 1~2일 안에 끝납니다. 쿠팡·스마트스토어의 '오늘 주문' 엑셀은 매일 화면에서 직접 가져옵니다."],
   ["가입이나 결제가 필요한가요?", "체험은 아무것도 필요 없습니다. 실제로 쓰기로 하면 회사 계정을 만들고 14일 무료 체험 뒤 구독으로 이어집니다."],
   ["체험에서도 AI 분석이 되나요?", "AI 로 글·사진을 읽는 기능은 구독 회사 전용입니다. 1시간 체험과 14일 무료 체험에서는 직접 입력으로 주문을 등록하면서 입금·포장·출고·재고 흐름을 그대로 써 볼 수 있습니다."],
   ["쿠팡·스마트스토어·자사몰 주문도 되나요?", "주문서 화면을 캡처하거나 사진을 찍어 넣으면 대화 붙여넣기와 같은 방식으로 읽습니다. 판매처가 주문에 함께 기록됩니다. 매장에서 받은 손 주문서도 사진으로 됩니다."],
   ["휴대폰에서도 되나요?", "네. 매장에서는 PC, 창고와 외부에서는 휴대폰으로 같은 화면을 씁니다. 입고 사진은 휴대폰 카메라로 바로 찍습니다."],
   ["직원마다 계정을 만들어야 하나요?", "아니요. 회사 계정 하나로 로그인하고, 직원은 이름과 4자리 PIN 만 누르면 됩니다. 작업 기록에는 담당자 이름이 남습니다."],
-  ["우리 가게 방식이랑 다르면요?", "택배 마감 시각, 택배비 기본값, 재고 부족 기준, 품번 접두어는 회사 설정에서 바꿉니다. 그래도 안 맞는 부분은 알려 주세요."],
+  ["우리 가게 방식이랑 다르면요?", `쓰는 택배사(CJ·경동 말고도 더하고 뺄 수 있고 송장 양식도 고릅니다), 택배 마감 시각, 택배비 기본값, 재고 부족 기준, 품번 접두어는 회사 설정에서 바꿉니다. 그래도 안 맞는 부분은 알려 주세요${supportLine() ? ` — ${supportLine()}` : ""}.`],
   ["체험 중 입력한 데이터는 어떻게 되나요?", "1시간이 지나면 체험 회사가 통째로 삭제됩니다. 서버에도, 브라우저에도 남지 않습니다."],
 ];
 
@@ -304,13 +338,21 @@ export default function Landing() {
   }, []);
   useReveal();
 
-  const startDemo = async () => {
+  // 체험은 먼저 회사명을 묻는다(2026-10-23) — 체험 중 화면 왼쪽 위·송장에 그 이름이 들어가 내 회사처럼 써 보게.
+  const [askName, setAskName] = useState(false);
+  const [demoName, setDemoName] = useState("");
+  const openDemo = () => { setErr(""); setAskName(true); };
+
+  const startDemo = async (e) => {
+    e?.preventDefault?.();
+    const companyName = demoName.trim();
+    if (!companyName) return setErr("체험할 회사 이름을 입력해 주세요");
     setErr(""); setBusy(true);
     try {
       // 이전 세션·토큰이 남아 있으면 지운다 — 체험 회사와 섞이지 않게
       try { await db.revokeManagerToken(); } catch { /* 무시 */ }
       try { await supabase.auth.signOut({ scope: "local" }); } catch { /* 무시 */ }
-      const r = await postAccount("demo", {});
+      const r = await postAccount("demo", { companyName });
       const { error } = await supabase.auth.setSession({ access_token: r.session.access_token, refresh_token: r.session.refresh_token });
       if (error) throw error;
       // 담당자 선택·PIN 확인을 대신 해 둔다(체험자는 PIN 을 모른다). 기기 고정이라 30분 뒤 다시 묻지 않는다.
@@ -325,7 +367,7 @@ export default function Landing() {
 
   const CtaRow = ({ compact }) => (
     <div className="landing-cta">
-      <Button icon="sparkle" loading={busy} onClick={startDemo}>1시간 체험해 보기</Button>
+      <Button icon="sparkle" loading={busy} onClick={openDemo}>1시간 체험해 보기</Button>
       <a className="btn btn-white" href="/app" style={{ textDecoration: "none" }}><Icon name="user" /> 회사 계정 로그인</a>
       {!compact && <p className="landing-note">가입 없음 · 카드 없음 · 1시간 뒤 자동 삭제</p>}
     </div>
@@ -333,19 +375,33 @@ export default function Landing() {
 
   return (
     <div className="saas">
+      {askName && (
+        <Modal title="체험할 회사 이름" onClose={() => { if (!busy) setAskName(false); }}>
+          <form onSubmit={startDemo}>
+            <p className="helptext" style={{ marginTop: 8 }}>체험하는 동안 화면 왼쪽 위와 송장·명세서에 이 이름이 들어갑니다. 1시간 뒤 회사와 함께 지워집니다.</p>
+            <label className="formlabel" htmlFor="demo-name">회사명</label>
+            <input id="demo-name" className="forminput" value={demoName} onChange={e => setDemoName(e.target.value)} placeholder="예: 동대문 원단" maxLength={30} autoFocus autoComplete="organization" />
+            {err && <p className="helptext err" style={{ marginBottom: 0 }}>{err}</p>}
+            <div style={{ marginTop: 22 }}><Button type="submit" icon="sparkle" loading={busy}>체험 시작</Button></div>
+            <p className="helptext" style={{ margin: "14px 0 0", textAlign: "center" }}>가입 없음 · 카드 없음 · 1시간 뒤 자동 삭제</p>
+          </form>
+        </Modal>
+      )}
       <div className="landing lp">
         <div className="lp-blob a" aria-hidden="true" /><div className="lp-blob b" aria-hidden="true" />
 
         <header className="landing-top lp-up" style={{ "--d": "0ms" }}>
           <div className="brand" style={{ margin: 0 }}>
             <div className="logo"><BrandMark /></div>
-            <div><div className="brand-name">{BRAND.name}<span>{BRAND.suffix}</span></div><div className="brand-caption">{BRAND.caption}</div></div>
+            <div><div className="brand-name">{BRAND.name} <span>{BRAND.suffix}</span></div><div className="brand-caption">{BRAND.caption}</div></div>
           </div>
           <nav className="landing-nav">
             <a href="#how">업무 흐름</a>
             <a href="#stock">재고 · 사진</a>
+            <a href="#migrate">데이터 이관</a>
             <a href="#trial">체험 안내</a>
             <a href="#faq">자주 묻는 질문</a>
+            {SUPPORT.any && <a href="#contact">문의</a>}
             <a className="btn btn-white btn-sm" href="/app" style={{ textDecoration: "none" }}>로그인</a>
           </nav>
         </header>
@@ -410,6 +466,27 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* ── 첫 구독 서비스: 엑셀 이관 ───────────────────── */}
+        <section className="landing-section landing-trial landing-migrate" id="migrate">
+          <div className="panel trial-panel" data-reveal>
+            <div className="trial-head">
+              <p className="eyebrow"><span className="badge done">첫 구독 혜택 · 무료</span></p>
+              <h2>쓰던 엑셀, 그대로 옮겨 드립니다.</h2>
+              <p className="lead">처음 구독을 시작하는 회사는 지금까지 엑셀·장부로 적어 온 거래처·품번·주문 이력을 운영팀이 대신 ERP 에 넣어 드립니다. 빈 화면에서 다시 시작하지 않습니다.</p>
+            </div>
+            <MigrateMock />
+            <div className="trial-steps" style={{ marginTop: 26 }}>
+              {MIGRATE_STEPS.map(([icon, title, desc], i) => (
+                <div className="trial-step" key={title} data-reveal style={{ "--d": `${i * 120}ms` }}>
+                  <div className="feat-icon"><Icon name={icon} /></div>
+                  <div><h3>{title}</h3><p>{desc}</p></div>
+                </div>
+              ))}
+            </div>
+            <p className="landing-note" style={{ margin: 0 }}>유료 구독을 시작한 회사에 1회 무료 · 엑셀(xlsx)·CSV · 보내신 파일은 이관 뒤 삭제</p>
+          </div>
+        </section>
+
         {/* ── 체험 안내 ───────────────────────────────────── */}
         <section className="landing-section landing-trial" id="trial">
           <div className="panel trial-panel" data-reveal>
@@ -451,9 +528,21 @@ export default function Landing() {
           <CtaRow />
         </section>
 
+        {SUPPORT.any && (
+          <section className="landing-section landing-contact" id="contact" data-reveal>
+            <p className="eyebrow">문의</p>
+            <h2>궁금한 건 바로 물어보세요.</h2>
+            <p className="lead" style={{ maxWidth: 560, margin: "0 auto 18px" }}>가입·요금·데이터 이관·기능 요청 모두 아래로 연락 주시면 됩니다.</p>
+            <SupportLinks title="" />
+          </section>
+        )}
+
         <footer className="landing-foot">
           <span>{BRAND.name} {BRAND.suffix} · 구독형 원단 ERP</span>
-          <a href="/app">새 회사 가입은 로그인 화면에서</a>
+          <span style={{ display: "inline-flex", gap: 14, flexWrap: "wrap" }}>
+            <a href="/app">새 회사 가입 · 14일 무료</a>
+            {SUPPORT.any && <a href="#contact">문의</a>}
+          </span>
         </footer>
       </div>
     </div>

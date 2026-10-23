@@ -1,7 +1,7 @@
 // 운영자용 구독 관리 — SQL Editor 없이 터미널에서. service role 키(.env.local)로 company_accounts 를 고친다.
 //   node ops-subscription.mjs list                          회사 목록·구독 상태
 //   node ops-subscription.mjs extend <아이디> <일수> [요금제] [메모]   기간 연장(+요금제 변경). 체험 중이면 유료로 전환
-//   node ops-subscription.mjs plan <아이디> <trial|basic|pro> [담당자수]  요금제·담당자 자리만 변경
+//   node ops-subscription.mjs plan <아이디> <trial|starter|standard|pro|promax> [담당자수]  요금제·담당자 자리만 변경
 //   node ops-subscription.mjs cancel <아이디> [메모]        해지(즉시 읽기 전용)
 //   node ops-subscription.mjs resume <아이디>               해지 취소(status=active)
 // 모든 변경은 subscription_events 에 남는다. 브라우저에서는 못 바꾸는 칸(트리거)이라 이 스크립트가 유일한 길이다.
@@ -16,7 +16,8 @@ const env = Object.fromEntries(fs.readFileSync(path.join(ROOT, ".env.local"), "u
 const URL = env.VITE_SUPABASE_URL, KEY = env.SUPABASE_SERVICE_ROLE_KEY;
 if (!URL || !KEY) { console.error(".env.local 에 VITE_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY 가 필요합니다"); process.exit(1); }
 const sb = createClient(URL, KEY, { auth: { persistSession: false, autoRefreshToken: false } });
-const PLANS = { trial: { label: "무료 체험", seats: 3 }, basic: { label: "베이직", seats: 3 }, pro: { label: "프로", seats: 99 } };
+// api/_plans.js 와 같은 값(2026-10-23 4단계). 옛 basic 은 standard 로 읽는다.
+const PLANS = { trial: { label: "무료 체험", seats: 3 }, starter: { label: "스타터", seats: 2 }, standard: { label: "스탠다드", seats: 5 }, pro: { label: "프로", seats: 99 }, promax: { label: "프로 MAX", seats: 99 } };
 const [cmd, loginId, a3, a4, a5] = process.argv.slice(2);
 const DAY = 86400000;
 const fmt = (iso) => iso ? new Date(iso).toLocaleDateString("ko-KR") : "-";
@@ -54,14 +55,14 @@ if (cmd === "list") {
   const days = parseInt(a3, 10);
   if (!loginId || !Number.isFinite(days) || days <= 0) { console.error("사용법: extend <아이디> <일수> [요금제] [메모]"); process.exit(1); }
   const a = await account(loginId);
-  const plan = a4 && PLANS[a4] ? a4 : (a.plan === "trial" ? "basic" : a.plan);
+  const plan = a4 && PLANS[a4] ? a4 : (a.plan === "trial" || a.plan === "basic" ? "standard" : a.plan);
   const base = a.current_period_end && new Date(a.current_period_end) > new Date() ? new Date(a.current_period_end) : new Date();
   const end = new Date(base.getTime() + days * DAY).toISOString();
   await update(a.owner_id, { plan, status: "active", current_period_end: end, max_managers: PLANS[plan].seats });
   await event(a.owner_id, "extend", { plan, period_start: base.toISOString(), period_end: end, memo: a5 || `${days}일 연장` });
   console.log(`${a.name}(${a.login_id}): ${PLANS[plan].label}, ${fmt(end)} 까지`);
 } else if (cmd === "plan") {
-  if (!loginId || !PLANS[a3]) { console.error("사용법: plan <아이디> <trial|basic|pro> [담당자수]"); process.exit(1); }
+  if (!loginId || !PLANS[a3]) { console.error("사용법: plan <아이디> <trial|starter|standard|pro|promax> [담당자수]"); process.exit(1); }
   const a = await account(loginId);
   const seats = a4 ? parseInt(a4, 10) : PLANS[a3].seats;
   await update(a.owner_id, { plan: a3, max_managers: seats });

@@ -186,6 +186,7 @@ const toCamel = (row) => ({
   invoicePrintedAt: row.invoice_printed_at || null,
   // 택배사 — 사람이 직접 고른 값. 비어 있으면 배송비로 자동 판정한다(lib/courier.js).
   courier: row.courier || null,
+  trackingNo: row.tracking_no || "",   // 송장번호(saas_credit_tracking.sql) — 출고완료 때 넣는다
   // 실제로 나간 방법 — 출고되는 순간 적힌다.
   shippedVia: row.shipped_via || null,
 });
@@ -217,6 +218,7 @@ const toCustCamel = (row) => ({
   lastOrder: row.last_order,
   note: row.note,
   nickname: row.nickname || "",
+  allowCredit: !!row.allow_credit,   // 외상 거래처 — 입금 전 출고 허용(saas_credit_tracking.sql)
 });
 
 const toDepositCamel = (row) => ({
@@ -707,8 +709,8 @@ const stampOf = (route) => _stampOn
 const STAMP_COLS = ["last_actor", "last_route", "last_actor_at"];
 // 나중에 붙은 칸 — 마이그레이션을 안 돌린 DB 에는 없다. 없으면 그 칸만 빼고 저장한다.
 // 여기 없는 칸이 빠졌다고 나오면 그건 진짜 오류라 그대로 돌려준다.
-const OPTIONAL_COLS = [...STAMP_COLS, "invoice_printed_at", "courier", "shipped_via", "shipping_fee_held", "channel_order_id"];
-const MIGRATION_OF = (col) => col === "shipping_fee_held" ? "add_shipping_fee_held.sql" : col === "channel_order_id" ? "saas_features.sql" : "add_order_events.sql";
+const OPTIONAL_COLS = [...STAMP_COLS, "invoice_printed_at", "courier", "shipped_via", "shipping_fee_held", "channel_order_id", "tracking_no"];
+const MIGRATION_OF = (col) => col === "shipping_fee_held" ? "add_shipping_fee_held.sql" : col === "channel_order_id" ? "saas_features.sql" : col === "tracking_no" ? "saas_credit_tracking.sql" : "add_order_events.sql";
 
 // PostgREST 가 "그런 칸 없다"고 할 때 어느 칸인지 — 메시지에서 이름을 꺼낸다.
 //   PGRST204  Could not find the 'last_actor' column of 'orders' in the schema cache
@@ -784,7 +786,27 @@ function orderFieldsToRow(fields) {
   if ("courier" in f) { f.courier = f.courier || null; }
   if ("shippedVia" in f) { f.shipped_via = f.shippedVia || null; delete f.shippedVia; }
   if ("channelOrderId" in f) { f.channel_order_id = f.channelOrderId || null; delete f.channelOrderId; }
+  if ("trackingNo" in f) { f.tracking_no = String(f.trackingNo || "").replace(/[^0-9A-Za-z]/g, ""); delete f.trackingNo; }
   return f;
+}
+
+/**
+ * 거래처 이름을 바꿀 때 이름으로 묶인 장부(적립금·입금 로그·무료배송권·주문의 거래처명)도 따라 바꾼다.
+ * 적립금 잔액은 credits.customer 이름으로 합산되어서(getCustomerCredit) 이름만 바꾸면 잔액이 끊긴다(2026-10-23 점검).
+ * 같은 옛 이름의 다른 거래처(동명이인)가 있으면 부르지 말 것 — 그 사람 장부까지 바뀐다. 호출자(CustomersPage)가 거른다.
+ */
+export async function renameCustomerRefs(oldName, newName) {
+  const userId = await getUserId();
+  if (!userId) throw new Error("로그인이 필요합니다");
+  const a = String(oldName || "").trim(), b = String(newName || "").trim();
+  if (!a || !b || a === b) return { changed: 0 };
+  let changed = 0;
+  for (const table of ["credits", "payment_logs", "free_shipping_coupons", "orders"]) {
+    const { data, error } = await supabase.from(table).update({ customer: b }).eq("user_id", userId).eq("customer", a).select("id");
+    if (error) { console.warn(`[db] ${table} 거래처명 바꾸기 실패:`, error.message); continue; }
+    changed += (data || []).length;
+  }
+  return { changed };
 }
 
 // 여러 주문에 같은 값을 한 번에 쓴다 — 합배송 그룹의 출고예정일처럼 "다 같이 바뀌거나
@@ -1523,6 +1545,7 @@ export async function insertCustomer(c) {
     last_order: c.lastOrder || null,
     note: c.note || "",
     nickname: c.nickname || "",
+    allow_credit: !!c.allowCredit,
   }).select();
   if (error) throw error;
   return data?.[0] ? toCustCamel(data[0]) : null;
@@ -1543,6 +1566,7 @@ export async function updateCustomer(id, c) {
     last_order: c.lastOrder || null,
     note: c.note || "",
     nickname: c.nickname || "",
+    allow_credit: !!c.allowCredit,
   })
     .eq("id", id)
     .eq("user_id", userId)
@@ -4183,4 +4207,21 @@ export async function fetchChannelOrderIds(salesChannel, channelOrderIds) {
     for (const r of data || []) if (r.channel_order_id) out.add(String(r.channel_order_id));
   }
   return out;
+}
+
+// ── 이번 달 AI 호출·문자 건수(새 UI 설정·AI 게이트 안내용, 2026-10-23) ──────────────
+// 서버(service role)만 올리고, 브라우저는 자기 회사 행을 읽기만 한다(RLS). 표가 아직 없으면 0.
+export async function fetchMonthlyUsage(now = new Date()) {
+  const userId = await getUserId();
+  if (!userId) return { ai: 0, sms: 0 };
+  const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const read = async (table) => {
+    try {
+      const { data, error } = await supabase.from(table).select("count").eq("owner_id", userId).eq("month", month).maybeSingle();
+      if (error) return 0;
+      return Number(data?.count) || 0;
+    } catch { return 0; }
+  };
+  const [ai, sms] = await Promise.all([read("saas_ai_usage"), read("saas_sms_usage")]);
+  return { ai, sms };
 }

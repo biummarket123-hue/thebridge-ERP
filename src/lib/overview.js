@@ -5,7 +5,7 @@
 // 흩어져 있으면 바꿀 때마다 빠뜨리는 자리가 생긴다.
 
 import { isBusinessDay, parseYmd, ymd, addDays } from "./shipDate.js";
-import { CJ, COURIER_SHORT, missedPickups } from "./courier.js";
+import { COURIER_SHORT, missedPickups } from "./courier.js";
 
 // 출고 쪽 구역은 "며칠째"가 아니라 "수거를 놓쳤는가"로 본다(missedPickups).
 // 택배는 하루에 한 번 온다 — 오후 4시에 싼 박스는 다음 날 수거까지 안 나간 게 정상이다.
@@ -68,15 +68,16 @@ const later = (a, b) => {
  * @param shippedMates  합배송 묶음 중 이미 출고완료된 건 (db.fetchShippedGroupMates)
  * @param h             { isHold, isParked, getPayStatus, courierOf, isPickup } — constants.js·courier.js 의
  *                      판정을 그대로 받는다. 여기서 다시 짜면 주문현황과 기준이 어긋난다.
- *                      courierOf(order) 는 택배사 이름을 돌려준다(없으면 CJ 로 본다).
+ *                      courierOf(order) 는 미리 지정한 택배사 이름(없으면 null — 송장 뽑을 때 정해진다).
  * @param now           지금 시각. 날짜만이 아니라 시각까지 쓴다 — 수거 마감이 지났는지 봐야 한다.
  * @returns { sections: [{key, icon, short, title, hint, tone, rows:[{order, days, unit, note}]}], flagged, active }
  *          unit 은 숫자 뒤에 붙는 말이다: "번 놓침" / "일째"
  */
 export function buildOverview(orders, shippedMates, h, now = new Date(), rules = OVERVIEW_RULES) {
   const { isHold, isParked, getPayStatus } = h;
-  const courierOf = h.courierOf || (() => CJ);
+  const courierOf = h.courierOf || (() => null);
   const isPickup = h.isPickup || (() => false);
+  const canShipOf = h.canShip || ((o) => SHIPPABLE_PAY.includes(getPayStatus(o)));   // 외상 거래처면 입금 전에도 출고 가능(actions/ship.js)
   const today = now;
   const todayStr = ymd(dayOf(today));
 
@@ -103,11 +104,11 @@ export function buildOverview(orders, shippedMates, h, now = new Date(), rules =
     const held = isHold(o);
     const parked = isParked(o);
     const packed = o.status === "포장완료";
-    const canShip = SHIPPABLE_PAY.includes(pay);
+    const canShip = canShipOf(o);
     const unpaid = UNPAID_PAY.includes(pay);
-    const courier = courierOf(o) || CJ;
-    const cs = COURIER_SHORT[courier] || courier;
-    const missed = (since) => missedPickups(since, courier, now);
+    const courier = courierOf(o) || null;
+    const cs = courier ? `${COURIER_SHORT[courier] || courier} ` : "";
+    const missed = (since) => missedPickups(since, now);   // 수거 마감은 회사에 하나
     // 출고예정일이 아직 안 온 건은 그날 0시부터 센다 — 일찍 싸 뒀다고 늦은 게 아니다.
     const dueFrom = (since) => later(since, o.shipDate ? parseYmd(o.shipDate) : null);
 
@@ -118,7 +119,7 @@ export function buildOverview(orders, shippedMates, h, now = new Date(), rules =
     if (o.invoicePrintedAt && moving) {
       const n = missed(o.invoicePrintedAt);
       if (n >= 1) S.invoice.push({ order: o, days: n, unit: "번 놓침",
-        note: `${cs} 송장 출력 ${md(o.invoicePrintedAt)} — 그 뒤 수거가 ${n}번 지나감` });
+        note: `${cs}송장 출력 ${md(o.invoicePrintedAt)} — 그 뒤 수거가 ${n}번 지나감` });
     }
 
     if (o.mergeGroupId && !o.splitShipping && matesByGroup.has(o.mergeGroupId)) {
@@ -247,7 +248,7 @@ export function describeEvent(ev) {
   if (c.shipped_at && !c.status) out.push(on(c.shipped_at) ? "출고 시각 기록" : "출고 시각 지움");
   if (c.merge_group_id) out.push(on(c.merge_group_id) ? "합배송 묶음" : "합배송 해제");
   if (c.split_shipping) out.push(on(c.split_shipping) ? "분리 배송 지정" : "분리 배송 해제");
-  if (c.courier) out.push(on(c.courier) ? `택배사 ${c.courier.to}(으)로 직접 지정` : "택배사를 자동 판정으로 되돌림");
+  if (c.courier) out.push(on(c.courier) ? `택배사 ${c.courier.to}(으)로 직접 지정` : "택배사 지정을 비움(송장 뽑을 때 고름)");
   if (c.ship_date) out.push(`출고예정일 ${arrow(c.ship_date)}`);
   if (c.is_urgent) out.push(on(c.is_urgent) ? "긴급 지정" : "긴급 해제");
   if (c.items) out.push(`품목 수정: ${itemsLabel(c.items.from) || "없음"} → ${itemsLabel(c.items.to) || "없음"}`);
